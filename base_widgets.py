@@ -6,6 +6,8 @@ from kivy.uix.textinput import TextInput
 from kivy.lang import Builder
 from kivy.uix.togglebutton import ToggleButton
 
+from community_widgets import AlignedTextInput
+
 Builder.load_file('base-widgets.kv')
 
 
@@ -14,6 +16,10 @@ class GenericScreen(Screen):
 
 
 class GenericInput(TextInput):
+    pass
+
+
+class GenericAlignedTextInput(GenericInput, AlignedTextInput):
     pass
 
 

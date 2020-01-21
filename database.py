@@ -18,7 +18,7 @@ def create_database(database: str) -> None:
     cursor.execute('CREATE TABLE relations(rel_id INTEGER PRIMARY KEY, daughter INTEGER NOT NULL, '
                    'mother INTEGER NOT NULL,FOREIGN KEY(daughter) REFERENCES bodies(entry_id), '
                    'FOREIGN KEY(mother) REFERENCES bodies(entry_id))')
-    cursor.execute('CREATE TABLE tags(tag_id INTEGER PRIMARY KEY, entry_id INTEGER NOT NULL, tag TEXT NOT NULL, '
+    cursor.execute('CREATE TABLE tags(tag_id INTEGER PRIMARY KEY, entry_id INTEGER NOT NULL, attachment TEXT NOT NULL, '
                    'FOREIGN KEY(entry_id) REFERENCES bodies(entry_id))')
     connection.close()
 
@@ -76,18 +76,18 @@ class DatabaseManager:
         if len(tags) > len(entry_tags):
             temp = tags.difference(entry_tags)
             for tag in temp:
-                self.cursor.execute('INSERT INTO tags(entry_id,tag) VALUES(?,?)', (entry_id, tag))
+                self.cursor.execute('INSERT INTO tags(entry_id,attachment) VALUES(?,?)', (entry_id, tag))
         elif len(tags) < len(entry_tags):
             temp = entry_tags.difference(tags)
             for tag in temp:
-                self.cursor.execute('DELETE FROM tags WHERE entry_id=? AND tag=?', (entry_id, tag))
+                self.cursor.execute('DELETE FROM tags WHERE entry_id=? AND attachment=?', (entry_id, tag))
         else:
             temp = tags.symmetric_difference(entry_tags)
             for tag in temp:
                 if tag in tags:
-                    self.cursor.execute('INSERT INTO tags(entry_id,tag) VALUES(?,?)', (entry_id, tag))
+                    self.cursor.execute('INSERT INTO tags(entry_id,attachment) VALUES(?,?)', (entry_id, tag))
                 else:
-                    self.cursor.execute('DELETE FROM tags WHERE entry_id=? AND tag=?', (entry_id, tag))
+                    self.cursor.execute('DELETE FROM tags WHERE entry_id=? AND attachment=?', (entry_id, tag))
         self.connection.commit()
         return entry_id
 
@@ -126,7 +126,7 @@ class DatabaseManager:
                                                         date.strftime(self._default_format_)))
         if tags:
             for tag in tags:
-                self.cursor.execute('INSERT INTO tags(entry_id,tag)', (entry_id, tag))
+                self.cursor.execute('INSERT INTO tags(entry_id,attachment)', (entry_id, tag))
         if attachments:
             self.update_attachments(entry_id, attachments)
         if mother:
@@ -153,7 +153,7 @@ class DatabaseManager:
 
     def delete_tag_by_id(self, entry_id, tag=None):
         if tag:
-            self.cursor.execute('DELETE FROM tags WHERE entry_id=? AND tag=?', (entry_id, tag))
+            self.cursor.execute('DELETE FROM tags WHERE entry_id=? AND attachment=?', (entry_id, tag))
         else:
             self.cursor.execute('DELETE FROM tags WHERE entry_id=?', (entry_id,))
         self.connection.commit()
@@ -181,7 +181,7 @@ class DatabaseManager:
         if tags:
             if op_type == 'Contains At Least...':
                 tag = tags.pop(0)
-                sql = 'SELECT entry_id FROM tags WHERE tag=?'
+                sql = 'SELECT entry_id FROM tags WHERE attachment=?'
                 self.cursor.execute(sql, (tag,))
                 temp = set(self.cursor.fetchall())
                 for tag in tags:
@@ -195,7 +195,7 @@ class DatabaseManager:
                         if set(self.get_tags_by_entry_id(item)).intersection(set(tags)) == set(tags):
                             ids.append(item)
             if op_type == 'Contains One Of...':
-                sql = 'SELECT entry_id FROM tags WHERE tag IN ({})'.format(','.join(['?'] * len(tags)))
+                sql = 'SELECT entry_id FROM tags WHERE attachment IN ({})'.format(','.join(['?'] * len(tags)))
                 self.cursor.execute(sql, tags)
                 temp = set()
                 for item in self.cursor.fetchall():
@@ -326,7 +326,7 @@ class DatabaseManager:
 
     def get_tags_by_entry_id(self, entry_id):
         tags = list()
-        self.cursor.execute('SELECT tag FROM tags WHERE entry_id=?', (entry_id,))
+        self.cursor.execute('SELECT attachment FROM tags WHERE entry_id=?', (entry_id,))
         for item in self.cursor:
             tags.append(item[0])
         tags.sort()
@@ -334,7 +334,7 @@ class DatabaseManager:
 
     def get_all_tags(self):
         tags = set()
-        self.cursor.execute('SELECT tag FROM tags')
+        self.cursor.execute('SELECT attachment FROM tags')
         for tag in self.cursor:
             tags.add(tag[0])
         tags = list(tags)
