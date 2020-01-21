@@ -1,0 +1,32 @@
+#:set button_bg (.4, .4, .4, 1)
+#:set input_bg (.1, .1, .1, .5)
+
+<GenericScreen>:
+
+<GenericInput>:
+    background_color: input_bg
+    foreground_color: 1, 1, 1, 1
+    cursor_color: 1, 1, 1, 1
+
+<GenericRecycleView>:
+    RecycleBoxLayout:
+        spacing: 1
+        default_size: None, 35
+        default_size_hint: 1, None
+        size_hint_y: None
+        height: self.minimum_height
+        orientation: 'vertical'
+
+<GenericLabel>:
+    size_hint_y: None
+    height: 35
+
+<GenericToggleButton>:
+    background_color: button_bg
+    size_hint: None, None
+    size: 150, 35
+
+<GenericButton>:
+    background_color: button_bg
+    size_hint: None, None
+    size: 150, 35

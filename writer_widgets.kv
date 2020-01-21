@@ -1,0 +1,49 @@
+
+<Body>:
+
+<TagButton>:
+    category: ''
+    sorter: None
+    on_release:
+        root.sorter.add_to_filtered_tags(self.text) if root.category == 'unfiltered' else root.sorter.add_to_unfiltered_tags(self.text)
+
+<TagSorter>:
+    searchbox: searchbox
+    orientation: 'vertical'
+    BoxLayout:
+        AnchorLayout:
+            GenericLabel:
+                text: 'None' if len(root.unfiltered_data) == 0 else ''
+            GenericRecycleView:
+                id: unfiltered
+                data: root.unfiltered_data
+                viewclass: 'TagButton'
+        AnchorLayout:
+            GenericLabel:
+                text: 'None' if len(root.filtered_data) == 0 else ''
+            GenericRecycleView:
+                id: filtered
+                data: root.filtered_data
+                viewclass: 'TagButton'
+    BoxLayout:
+        size_hint_y: None
+        height: 35
+        GenericInput:
+            id: searchbox
+            focus: True
+            text: ''
+            multiline: False
+            hint_text: 'Search or add tags'
+            on_text:
+                root.search(self.text)
+        GenericButton:
+            text: 'Clear'
+            disabled: True if not root.searchbox.text else False
+            on_release:
+                root.clear_search_bar()
+                root.searchbox.text = ''
+        GenericButton:
+            text: 'Add'
+            disabled: True if not root.searchbox.text else False
+            on_release:
+                root.add_to_filtered_tags(root.searchbox.text)
