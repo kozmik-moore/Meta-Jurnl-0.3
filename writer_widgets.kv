@@ -2,7 +2,10 @@
 #: import GenericLabel base_widgets.GenericLabel
 #: import GenericAlignedTextInput base_widgets.GenericAlignedTextInput
 
-<Body>:
+<BodyModule>:
+    background_color: 0, 0, 0, 0
+    on_text:
+        root.write_to_temp_file()
 
 <TagButton>:
     category: ''
@@ -147,12 +150,13 @@
                     root.add_to_filtered_attachments(root.searchbox.text)
 
 <AttachmentsModuleButton>:
+    text: 'Attachments'
     on_release:
         root.call_attachments_popup()
 
 <DateModuleButton>:
-    text: root.datetime_str
-    width: 300
+    text: root.datetime_str if root.datetime_str else 'No Date'
+    size_hint_x: 1
 
 <DatetimePopup>:
     size_hint: None, None
@@ -178,7 +182,7 @@
                 on_text_validate:
                     if self.text: root.set_date(self.text)
             GenericLabel:
-                text: root.datetime_str
+                text: root.datetime_str if root.datetime_str else 'No Date'
             AnchorLayout:
                 anchor_x: 'center'
                 anchor_y: 'top'
@@ -186,6 +190,93 @@
                     text: 'OK'
                     on_release:
                         root.dismiss()
+
+<FlagsModule>:
+    orientation: 'vertical'
+    BoxLayout:
+        orientation: 'vertical'
+        size_hint_y: None
+        height: self.minimum_height
+        GenericLabel:
+            size_hint: None, None
+            size: 35, 35
+            text: 'U' if not root._save_flag else ''
+        GenericLabel:
+            size_hint: None, None
+            size: 35, 35
+            text: '' if not root._link_flag else 'L'
+        GenericLabel:
+            size_hint: None, None
+            size: 35, 35
+            text: '' if not root._edit_flag else 'E'
+    BoxLayout:
+
+<WritingModule>:
+    database: None
+    entry_manager: None
+    BoxLayout:
+        canvas.before:
+            Color:
+                rgba: (0, .5, .8, 1)
+            Line:
+                width: 1
+                rectangle: self.x, self.y, self.width, self.height
+        orientation: 'vertical'
+        padding: 5
+        DateModuleButton:
+            id: date
+            database: root.database
+        BoxLayout:
+            canvas.before:
+                Color:
+                    rgba: (.1, .1, .1, .5)
+                Rectangle:
+                    pos: self.pos
+                    size: self.size
+            BodyModule:
+                id: body
+                database: root.database
+            FlagsModule:
+                id: flags
+                size_hint_x: None
+                width: 35
+    BoxLayout:
+        size_hint_max_x: 450
+        orientation: 'vertical'
+        GridLayout:
+            size_hint_y: None
+            height: self.minimum_height
+            rows: 2
+            cols: 2
+            spacing: 2
+            padding: 5
+            canvas.before:
+                Color:
+                    rgba: (0, .5, .8, 1)
+                Line:
+                    width: 1
+                    rectangle: self.x, self.y, self.width, self.height
+            GenericButton:
+                size_hint_x: 1
+                id: save
+                text: 'Save'
+                on_release:
+                    root.entry_manager.save()
+            GenericButton:
+                size_hint_x: 1
+                id: link
+                text: 'Link'
+            AttachmentsModuleButton:
+                size_hint_x: 1
+                id: attachments
+                database: root.database
+            GenericButton:
+                size_hint_x: 1
+                id: clear
+                text: 'Clear'
+        TagsModule:
+            id: tags
+            database: root.database
 
 
 <ShortMessagePopup>:

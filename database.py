@@ -334,7 +334,7 @@ class DatabaseManager:
 
     def get_all_tags(self):
         tags = set()
-        self.cursor.execute('SELECT attachment FROM tags')
+        self.cursor.execute('SELECT tag FROM tags')
         for tag in self.cursor:
             tags.add(tag[0])
         tags = list(tags)
