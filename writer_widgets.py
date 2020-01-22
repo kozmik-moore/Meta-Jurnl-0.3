@@ -8,6 +8,7 @@ from kivy.lang import Builder
 from kivy.properties import ListProperty, ObjectProperty, StringProperty, NumericProperty, BooleanProperty
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.popup import Popup
+from kivy.uix.widget import Widget
 
 from database import DatabaseManager
 from base_widgets import GenericInput, GenericButton
@@ -23,7 +24,8 @@ class BodyModule(GenericInput):
         self.database = database if database else DatabaseManager()
         self.text = body if body else ''
 
-    # TODO implement "on_text" here rather than in .kv file
+    def on_text(self, instance, value):
+        self.write_to_temp_file()
 
     def write_to_temp_file(self):
         root = '.tempfiles'
@@ -36,15 +38,15 @@ class BodyModule(GenericInput):
 
 
 class TagsModule(BoxLayout):
-    _filtered_tags = ListProperty()
-    _unfiltered_tags = ListProperty()
+    filtered_tags = ListProperty()
+    unfiltered_tags = ListProperty()
     filtered_data = ListProperty()
     database = ObjectProperty(None, allownone=True)
 
     def __init__(self, database: DatabaseManager = None, filtered: list = None, **kwargs):
         super(TagsModule, self).__init__(**kwargs)
         self.database = database if database else DatabaseManager()
-        self._unfiltered_tags = self.database.get_all_tags()
+        self.unfiltered_tags = self.database.get_all_tags()
         if filtered:
             for tag in filtered:
                 self.add_to_filtered_tags(tag)
@@ -52,25 +54,25 @@ class TagsModule(BoxLayout):
             self.update_recycleview()
 
     def add_to_filtered_tags(self, tag):
-        if tag not in self._filtered_tags:
-            if tag in self._unfiltered_tags:
-                self._unfiltered_tags.remove(tag)
-            self._filtered_tags.append(tag)
-            self._filtered_tags.sort()
+        if tag not in self.filtered_tags:
+            if tag in self.unfiltered_tags:
+                self.unfiltered_tags.remove(tag)
+            self.filtered_tags.append(tag)
+            self.filtered_tags.sort()
             self.update_recycleview()
             self.write_to_temp_file()
 
     def add_to_unfiltered_tags(self, tag):
-        if tag not in self._unfiltered_tags:
-            if tag in self._filtered_tags:
-                self._filtered_tags.remove(tag)
-            self._unfiltered_tags.append(tag)
-            self._unfiltered_tags.sort()
+        if tag not in self.unfiltered_tags:
+            if tag in self.filtered_tags:
+                self.filtered_tags.remove(tag)
+            self.unfiltered_tags.append(tag)
+            self.unfiltered_tags.sort()
             self.update_recycleview()
             self.write_to_temp_file()
 
     def update_recycleview(self):
-        filtered = [x for x in self._filtered_tags]
+        filtered = [x for x in self.filtered_tags]
         self.filtered_data = [{'text': x, 'category': 'filtered', 'screen': 'writer', 'sorter': self}
                               for x in filtered]
 
@@ -80,11 +82,11 @@ class TagsModule(BoxLayout):
             mkdir(root)
         filepath = join(root, 'tags')
         with open(filepath, 'w') as file:
-            file.writelines('\n'.join(self._filtered_tags))
+            file.writelines('\n'.join(self.filtered_tags))
             file.close()
 
     def call_tags_popup(self):
-        Factory.TagsPopup(self, self._filtered_tags, self._unfiltered_tags).open()
+        Factory.TagsPopup(self, self.filtered_tags, self.unfiltered_tags).open()
 
 
 class TagsPopup(Popup):
@@ -297,8 +299,8 @@ class AttachmentsModuleButton(GenericButton, AttachmentsModule):
 
 
 class DateModuleButton(GenericButton):
-    string_format = '%A, %B %d, %Y %H:%M'
-    datetime_obj = None
+    string_format = StringProperty('%A, %B %d, %Y %H:%M')
+    datetime_obj = ObjectProperty(None, allownone=True)
     datetime_str = StringProperty('')
     database = ObjectProperty(None, allownone=True)
 
@@ -307,22 +309,12 @@ class DateModuleButton(GenericButton):
         self.database = database if database else DatabaseManager()
         if date:
             self.datetime_obj = date
-            self.datetime_str = self.datetime_obj.strftime(self.string_format)
         if string_format:
             self.string_format = string_format
 
-    def set_datetime_obj(self, date: datetime):
-        self.datetime_obj = date
+    def on_datetime_obj(self, instance, value):
+        self.datetime_obj = value
         self.datetime_str = self.datetime_obj.strftime(self.string_format)
-
-    def set_string_format(self, string_format: str):
-        self.string_format = string_format
-
-    def get_datetime_obj(self):
-        return self.datetime_obj
-
-    def get_string_format(self):
-        return self.string_format
 
     def call_datetime_popup(self):
         Factory.DatetimePopup(self, date=self.datetime_obj, string_format=self.string_format).open()
@@ -361,43 +353,32 @@ class DatetimePopup(Popup):
 
     def on_dismiss(self):
         if self.datetime_obj:
-            self.caller.set_datetime_obj(self.datetime_obj)
+            self.caller.datetime_obj = self.datetime_obj
         super(DatetimePopup, self).on_dismiss()
 
 
-class IDModule:
-    _parent_id = NumericProperty(-1)
-    _entry_id = NumericProperty(-1)
+class IDModule(Widget):
+    parent_id = NumericProperty(-1)
+    entry_id = NumericProperty(-1)
     database = ObjectProperty(None, allownone=True)
 
-    def __init__(self, database: DatabaseManager = None, parent_id: int = None, entry_id: int = None):
+    def __init__(self, database: DatabaseManager = None, parent_id: int = None, entry_id: int = None, **kwargs):
         self._database = database if database else DatabaseManager()
         if parent_id:
-            self._parent_id = parent_id
+            self.parent_id = parent_id
         if entry_id:
-            self._entry_id = entry_id
+            self.entry_id = entry_id
+        super(IDModule, self).__init__(**kwargs)
 
-    @property
-    def parent_id(self):
-        return self._parent_id
-
-    @parent_id.setter
-    def parent_id(self, pid):
-        self._parent_id = pid
+    def on_parent_id(self, instance, value):
         self.write_to_temp_file()
 
-    @property
-    def entry_id(self):
-        return self._entry_id
-
-    @entry_id.setter
-    def entry_id(self, eid):
-        self._entry_id = eid
+    def on_entry_id(self, instance, value):
         self.write_to_temp_file()
 
     def clear(self):
-        self._entry_id = -1
-        self._parent_id = -1
+        self.entry_id = -1
+        self.parent_id = -1
 
     def write_to_temp_file(self):
         root = '.tempfiles'
@@ -411,48 +392,32 @@ class IDModule:
 
 
 class FlagsModule(BoxLayout):
-    _link_flag = BooleanProperty(False)
-    _edit_flag = BooleanProperty(False)
-    _save_flag = BooleanProperty(False)
+    is_saved = BooleanProperty(False)
+    is_linked = BooleanProperty(False)
+    is_being_edited = BooleanProperty(False)
 
-    def __init__(self, link: bool = None, edit: bool = None, **kwargs):
+    def __init__(self, save: bool = None, link: bool = None, edit: bool = None, **kwargs):
+        if save:
+            self.is_saved = save
         if link:
-            self._link_flag = link
+            self.is_linked = link
         if edit:
-            self._edit_flag = edit
+            self.is_being_edited = edit
         super(FlagsModule, self).__init__(**kwargs)
 
-    @property
-    def link_flag(self):
-        return self._link_flag
-
-    @link_flag.setter
-    def link_flag(self, value: bool):
-        self._link_flag = value
+    def on_is_saved(self, instance, value):
         self.write_to_temp_file()
 
-    @property
-    def edit_flag(self):
-        return self._edit_flag
-
-    @edit_flag.setter
-    def edit_flag(self, value: bool):
-        self._edit_flag = value
+    def on_is_linked(self, instance, value):
         self.write_to_temp_file()
 
-    @property
-    def save_flag(self):
-        return self._save_flag
-
-    @save_flag.setter
-    def save_flag(self, value: bool):
-        self._save_flag = value
+    def on_is_being_edited(self, instance, value):
         self.write_to_temp_file()
 
     def clear_flags(self):
-        self.link_flag = False
-        self.edit_flag = False
-        self.save_flag = False
+        self.is_saved = False
+        self.is_linked = False
+        self.is_being_edited = False
 
     def write_to_temp_file(self):
         root = '.tempfiles'
@@ -460,7 +425,7 @@ class FlagsModule(BoxLayout):
             mkdir(root)
         filepath = join(root, 'flags')
         with open(filepath, 'w') as file:
-            file.writelines('\n'.join([str(self.link_flag), str(self.edit_flag), str(self.save_flag)]))
+            file.writelines('\n'.join([str(self.is_saved), str(self.is_linked), str(self.is_being_edited)]))
             file.close()
 
 
@@ -472,14 +437,12 @@ class WritingModule(BoxLayout):
     def __init__(self, database: DatabaseManager = None, **kwargs):
         super(WritingModule, self).__init__(**kwargs)
         self.database = database if database else DatabaseManager()
-        self.id_module = IDModule(self.database)
-        module = {x: self.ids[x] for x in ['body', 'date', 'tags', 'attachments', 'flags']}
-        module['ids'] = self.id_module
-        module['database'] = self.database
-        self.entry_manager = EntryManager(**module)
+        modules = {x: self.ids[x] for x in ['body', 'date', 'tags', 'attachments', 'flags', 'ids']}
+        modules['database'] = self.database
+        self.entry_manager = EntryManager(**modules)
 
 
-class EntryManager:
+class EntryManager(Widget):
     body = None
     date = None
     tags = None
@@ -499,12 +462,32 @@ class EntryManager:
         self.database = database
         self.module_dict = {x: self.__getattribute__(x) for x in
                             ['body', 'date', 'tags', 'attachments', 'ids', 'flags']}
+        super(EntryManager, self).__init__()
+        self.body.bind(text=self.check_entry_saved)
+        self.tags.bind(filtered_tags=self.check_entry_saved)
 
     def save(self):
-        pass
+        self.ids.entry_id = self.database.upsert_entry(body=self.body.text, tags=self.tags.filtered_tags,
+                                                       date=self.date.datetime_obj,
+                                                       attachments=self.attachments.filtered_attachments,
+                                                       entry_id=self.ids.entry_id, parent_id=self.ids.parent_id)
+        self.date.datetime_obj = self.database.get_date_by_entry_id(self.ids.entry_id)
+        self.flags.is_saved = True
+        print(self.ids.entry_id)
 
     def load(self):
         pass
+
+    def check_entry_saved(self, instance, value):
+        is_saved = True
+        if self.ids.entry_id != -1:
+            if self.body.text != self.database.get_body_by_entry_id(self.ids.entry_id):
+                is_saved = False
+            if is_saved and self.tags.filtered_tags != self.database.get_tags_by_entry_id(self.ids.entry_id):
+                is_saved = False
+        else:
+            is_saved = False
+        self.flags.is_saved = is_saved
 
 
 class ShortMessagePopup(Popup):

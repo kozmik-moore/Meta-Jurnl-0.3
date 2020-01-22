@@ -11,14 +11,14 @@ def create_database(database: str) -> None:
     cursor.execute('CREATE TABLE bodies(entry_id INTEGER PRIMARY KEY, body TEXT)')
     cursor.execute('CREATE TABLE dates(entry_id INTEGER NOT NULL, year INTEGER NOT NULL, month INTEGER NOT NULL, '
                    'day INTEGER NOT NULL, hour INTEGER NOT NULL, minute INTEGER NOT NULL, weekday INTEGER NOT NULL, '
-                   'string TEXT NOT NULL, last_edit TEXT NOT NULL, FOREIGN KEY(entry_id) REFERENCES bodies(entry_id))')
+                   'string TEXT NOT NULL, last_edit TEXT, FOREIGN KEY(entry_id) REFERENCES bodies(entry_id))')
     cursor.execute('CREATE TABLE attachments(att_id INTEGER PRIMARY KEY, entry_id INTEGER NOT NULL, '
                    'filename TEXT NOT NULL, file BLOB NOT NULL, added TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, '
                    'FOREIGN KEY(entry_id) REFERENCES bodies(entry_id))')
-    cursor.execute('CREATE TABLE relations(rel_id INTEGER PRIMARY KEY, daughter INTEGER NOT NULL, '
-                   'mother INTEGER NOT NULL,FOREIGN KEY(daughter) REFERENCES bodies(entry_id), '
-                   'FOREIGN KEY(mother) REFERENCES bodies(entry_id))')
-    cursor.execute('CREATE TABLE tags(tag_id INTEGER PRIMARY KEY, entry_id INTEGER NOT NULL, attachment TEXT NOT NULL, '
+    cursor.execute('CREATE TABLE relations(rel_id INTEGER PRIMARY KEY, child INTEGER NOT NULL, '
+                   'parent INTEGER NOT NULL,FOREIGN KEY(child) REFERENCES bodies(entry_id), '
+                   'FOREIGN KEY(parent) REFERENCES bodies(entry_id))')
+    cursor.execute('CREATE TABLE tags(tag_id INTEGER PRIMARY KEY, entry_id INTEGER NOT NULL, tag TEXT NOT NULL, '
                    'FOREIGN KEY(entry_id) REFERENCES bodies(entry_id))')
     connection.close()
 
@@ -76,18 +76,18 @@ class DatabaseManager:
         if len(tags) > len(entry_tags):
             temp = tags.difference(entry_tags)
             for tag in temp:
-                self.cursor.execute('INSERT INTO tags(entry_id,attachment) VALUES(?,?)', (entry_id, tag))
+                self.cursor.execute('INSERT INTO tags(entry_id,tag) VALUES(?,?)', (entry_id, tag))
         elif len(tags) < len(entry_tags):
             temp = entry_tags.difference(tags)
             for tag in temp:
-                self.cursor.execute('DELETE FROM tags WHERE entry_id=? AND attachment=?', (entry_id, tag))
+                self.cursor.execute('DELETE FROM tags WHERE entry_id=? AND tag=?', (entry_id, tag))
         else:
             temp = tags.symmetric_difference(entry_tags)
             for tag in temp:
                 if tag in tags:
-                    self.cursor.execute('INSERT INTO tags(entry_id,attachment) VALUES(?,?)', (entry_id, tag))
+                    self.cursor.execute('INSERT INTO tags(entry_id,tag) VALUES(?,?)', (entry_id, tag))
                 else:
-                    self.cursor.execute('DELETE FROM tags WHERE entry_id=? AND attachment=?', (entry_id, tag))
+                    self.cursor.execute('DELETE FROM tags WHERE entry_id=? AND tag=?', (entry_id, tag))
         self.connection.commit()
         return entry_id
 
@@ -108,29 +108,37 @@ class DatabaseManager:
             self.connection.commit()
         return entry_id
 
-    def update_relations(self, daughter: int, mother: int):
-        pairs = self.cursor.execute('SELECT daughter,mother FROM relations')
-        if (daughter, mother) not in pairs and daughter != mother:
-            self.cursor.execute('INSERT INTO relations(daughter,mother) VALUES (?,?)', (daughter, mother))
+    def update_relations(self, child: int, parent: int):
+        pairs = self.cursor.execute('SELECT child,parent FROM relations')
+        if (child, parent) not in pairs and child != parent:
+            self.cursor.execute('INSERT INTO relations(child,parent) VALUES (?,?)', (child, parent))
             self.connection.commit()
-        return daughter, mother
+        return child, parent
 
-    def insert_entry(self, body: str = '', tags: list = None, attachments: list = None, mother: int = None, **kwargs):
+    def upsert_entry(self, entry_id: int = -1, body: str = '', date: datetime = None, tags: list = None,
+                     attachments: list = None, parent_id: int = -1, **kwargs):
         """attachments is a list of path objects"""
-        self.cursor.execute('INSERT INTO bodies(body) VALUES(?)', (body,))
-        entry_id = self.cursor.lastrowid
-        date = datetime.now()
-        self.cursor.execute('INSERT INTO dates(entry_id,year,month,day,hour,minute,weekday,string) '
-                            'VALUES(?,?,?,?,?,?,?,?)', (entry_id, date.year, date.month, date.day, date.hour,
-                                                        date.minute, date.weekday(),
-                                                        date.strftime(self._default_format_)))
-        if tags:
-            for tag in tags:
-                self.cursor.execute('INSERT INTO tags(entry_id,attachment)', (entry_id, tag))
-        if attachments:
+        if entry_id == -1:
+            self.cursor.execute('INSERT INTO bodies(body) VALUES(?)', (body,))
+            entry_id = self.cursor.lastrowid
+            if not date:
+                date = datetime.now()
+            self.cursor.execute('INSERT INTO dates(entry_id,year,month,day,hour,minute,weekday,string) '
+                                'VALUES(?,?,?,?,?,?,?,?)', (entry_id, date.year, date.month, date.day, date.hour,
+                                                            date.minute, date.weekday(),
+                                                            date.strftime(self._default_format_)))
+            if tags:
+                for tag in tags:
+                    self.cursor.execute('INSERT INTO tags(entry_id,tag) VALUES(?,?)', (entry_id, tag))
+            if attachments:
+                self.update_attachments(entry_id, attachments)
+            if parent_id != -1:
+                self.update_relations(entry_id, parent_id)
+        else:
+            self.update_body(entry_id, body)
+            self.update_tags(entry_id, tags)
             self.update_attachments(entry_id, attachments)
-        if mother:
-            self.update_relations(entry_id, mother)
+        self.update_last_edit(entry_id, datetime.now())
         self.connection.commit()
         return entry_id
 
@@ -148,7 +156,7 @@ class DatabaseManager:
         self.cursor.execute('DELETE FROM dates WHERE entry_id=?', (entry_id,))
         self.cursor.execute('DELETE FROM tags WHERE entry_id=?', (entry_id,))
         self.cursor.execute('DELETE FROM attachments WHERE entry_id=?', (entry_id,))
-        self.cursor.execute('DELETE FROM relations WHERE daughter=? OR mother=?', (entry_id, entry_id))
+        self.cursor.execute('DELETE FROM relations WHERE child=? OR parent=?', (entry_id, entry_id))
         self.connection.commit()
 
     def delete_tag_by_id(self, entry_id, tag=None):
@@ -162,10 +170,10 @@ class DatabaseManager:
         self.cursor.execute('DELETE FROM attachments WHERE att_id=?', (att_id,))
 
     def delete_relation_by_id_and_position(self, entry_id: int, position: str):
-        if position is 'daughter':
-            self.cursor.execute('DELETE FROM relations WHERE daughter=?', (entry_id,))
-        elif position is 'mother':
-            self.cursor.execute('DELETE FROM relations WHERE mother=?', (entry_id,))
+        if position is 'child':
+            self.cursor.execute('DELETE FROM relations WHERE child=?', (entry_id,))
+        elif position is 'parent':
+            self.cursor.execute('DELETE FROM relations WHERE parent=?', (entry_id,))
         self.connection.commit()
 
     """---------------------------------Get entry_id Methods----------------------------------"""
@@ -265,12 +273,12 @@ class DatabaseManager:
             return self.get_date_by_entry_id(entry_id)
 
         filtered_ids = set(self.get_all_entry_ids())
-        if 'mother' in kwargs and kwargs['mother']:
-            has_mother_ids = set(self.get_entry_ids_of_all_daughters())
-            filtered_ids = filtered_ids.intersection(has_mother_ids)
-        if 'daughter' in kwargs and kwargs['daughter']:
-            has_daughter_ids = set(self.get_entry_ids_of_all_mothers())
-            filtered_ids = filtered_ids.intersection(has_daughter_ids)
+        if 'parent' in kwargs and kwargs['parent']:
+            has_parent_ids = set(self.get_entry_ids_of_all_children())
+            filtered_ids = filtered_ids.intersection(has_parent_ids)
+        if 'child' in kwargs and kwargs['child']:
+            has_child_ids = set(self.get_entry_ids_of_all_parents())
+            filtered_ids = filtered_ids.intersection(has_child_ids)
         if 'attachments' in kwargs and kwargs['attachments']:
             has_attachments_ids = set(self.get_entry_ids_from_attachments())
             filtered_ids = filtered_ids.intersection(has_attachments_ids)
@@ -326,7 +334,7 @@ class DatabaseManager:
 
     def get_tags_by_entry_id(self, entry_id):
         tags = list()
-        self.cursor.execute('SELECT attachment FROM tags WHERE entry_id=?', (entry_id,))
+        self.cursor.execute('SELECT tag FROM tags WHERE entry_id=?', (entry_id,))
         for item in self.cursor:
             tags.append(item[0])
         tags.sort()
@@ -368,25 +376,25 @@ class DatabaseManager:
         attachments.sort(key=sort_by_added)
         return attachments
 
-    def get_daughters_by_entry_id(self, mother_id, reverse=False):
+    def get_children_by_entry_id(self, parent_id, reverse=False):
         temp = dict()
-        self.cursor.execute('SELECT daughter FROM relations WHERE mother=?', (mother_id,))
+        self.cursor.execute('SELECT child FROM relations WHERE parent=?', (parent_id,))
         for i in self.cursor.fetchall():
             temp[i[0]] = self.get_date_by_entry_id(i[0])
         sorted_values = sorted(temp.items(), key=lambda kv: kv[1], reverse=reverse)
-        daughters = [x[0] for x in sorted_values]
-        return daughters
+        children = [x[0] for x in sorted_values]
+        return children
 
-    def get_mother_by_entry_id(self, daughter_id):
-        self.cursor.execute('SELECT mother FROM relations WHERE daughter=?', (daughter_id,))
-        mother = -1
+    def get_parent_by_entry_id(self, child_id):
+        self.cursor.execute('SELECT parent FROM relations WHERE child=?', (child_id,))
+        parent = -1
         temp = self.cursor.fetchone()
         if temp:
-            mother = temp[0]
-        return mother
+            parent = temp[0]
+        return parent
 
-    def get_entry_ids_of_all_daughters(self, reverse=False):
-        self.cursor.execute('SELECT daughter FROM relations ')
+    def get_entry_ids_of_all_children(self, reverse=False):
+        self.cursor.execute('SELECT child FROM relations ')
         temp = dict()
         for tup in self.cursor.fetchall():
             temp[tup[0]] = self.get_date_by_entry_id(tup[0])
@@ -394,8 +402,8 @@ class DatabaseManager:
         ids = [x[0] for x in sorted_values]
         return ids
 
-    def get_entry_ids_of_all_mothers(self, reverse=False):
-        self.cursor.execute('SELECT mother FROM relations ')
+    def get_entry_ids_of_all_parents(self, reverse=False):
+        self.cursor.execute('SELECT parent FROM relations ')
         temp = dict()
         for tup in self.cursor.fetchall():
             temp[tup[0]] = self.get_date_by_entry_id(tup[0])
@@ -410,8 +418,8 @@ class DatabaseManager:
         entry['datetime'] = self.get_date_by_entry_id(entry_id)
         entry['tags'] = self.get_tags_by_entry_id(entry_id)
         entry['attachments'] = self.get_all_attachment_data_from_entry_id(entry_id)
-        entry['mother'] = self.get_mother_by_entry_id(entry_id)
-        entry['daughters'] = self.get_daughters_by_entry_id(entry_id)
+        entry['parent'] = self.get_parent_by_entry_id(entry_id)
+        entry['children'] = self.get_children_by_entry_id(entry_id)
         return entry
 
     def get_entries_from_continuous_range(self, lower, upper, reverse=False):

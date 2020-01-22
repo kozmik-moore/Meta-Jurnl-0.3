@@ -4,8 +4,8 @@
 
 <BodyModule>:
     background_color: 0, 0, 0, 0
-    on_text:
-        root.write_to_temp_file()
+#    on_text:
+#        root.write_to_temp_file()
 
 <TagButton>:
     category: ''
@@ -200,20 +200,24 @@
         GenericLabel:
             size_hint: None, None
             size: 35, 35
-            text: 'U' if not root._save_flag else ''
+            text: '' if root.is_saved else 'U'
         GenericLabel:
             size_hint: None, None
             size: 35, 35
-            text: '' if not root._link_flag else 'L'
+            text: 'L' if root.is_linked else ''
         GenericLabel:
             size_hint: None, None
             size: 35, 35
-            text: '' if not root._edit_flag else 'E'
+            text: 'E' if root.is_being_edited else ''
     BoxLayout:
 
 <WritingModule>:
     database: None
     entry_manager: None
+    IDModule:
+        id: ids
+        size_hint: None, None
+        size: (0, 0)
     BoxLayout:
         canvas.before:
             Color:
@@ -266,6 +270,8 @@
                 size_hint_x: 1
                 id: link
                 text: 'Link'
+                on_release:
+                    root.entry_manager.load()
             AttachmentsModuleButton:
                 size_hint_x: 1
                 id: attachments
