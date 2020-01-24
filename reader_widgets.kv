@@ -14,6 +14,9 @@
     on_release:
         root.sorter.add_to_filtered_tags(self.text) if root.category == 'unfiltered' else root.sorter.add_to_unfiltered_tags(self.text)
 
+<TagLabel>:
+    background_color: 0, 0, 0, 0
+
 <TagsModule>:
     padding: 4, 6, 4, 0
     spacing: 2
@@ -29,17 +32,9 @@
         text: 'Tags'
         on_release:
             root.call_tags_popup()
-    RecycleView:
-        viewclass: 'TagButton'
+    GenericRecycleView:
+        viewclass: 'TagLabel'
         data: root.filtered_data
-        RecycleGridLayout:
-            cols: 2
-            spacing: 1, 1
-            size_hint: (1, 1)
-            default_size: None, 35
-            default_size_hint: 1, None
-            col_default_width: 193
-            row_default_height: 35
 
 <TagsPopup>:
     pos_hint: {'right': 1}

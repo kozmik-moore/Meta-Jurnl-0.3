@@ -6,7 +6,7 @@ from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.button import Button
 from kivy.uix.textinput import TextInput
 
-from writer_widgets import WritingModule
+from reader_widgets import WritingModule
 from database import DatabaseManager
 import base_widgets
 

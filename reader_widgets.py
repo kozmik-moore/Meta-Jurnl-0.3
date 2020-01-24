@@ -11,9 +11,9 @@ from kivy.uix.popup import Popup
 from kivy.uix.widget import Widget
 
 from database import DatabaseManager
-from base_widgets import GenericInput, GenericButton
+from base_widgets import GenericInput, GenericButton, GenericLabel
 
-Builder.load_file('writer_widgets.kv')
+Builder.load_file('reader_widgets.kv')
 
 
 class BodyModule(GenericInput):
@@ -23,18 +23,6 @@ class BodyModule(GenericInput):
         super(BodyModule, self).__init__(**kwargs)
         self.database = database if database else DatabaseManager()
         self.text = body if body else ''
-
-    def on_text(self, instance, value):
-        self.write_to_temp_file()
-
-    def write_to_temp_file(self):
-        root = join('.tempfiles', 'reader')
-        if not exists(root):
-            makedirs(root)
-        filepath = join(root, 'body')
-        with open(filepath, 'w') as file:
-            file.write(self.text)
-            file.close()
 
 
 class TagsModule(BoxLayout):
@@ -60,7 +48,6 @@ class TagsModule(BoxLayout):
             self.filtered_tags.append(tag)
             self.filtered_tags.sort()
             self.update_recycleview()
-            self.write_to_temp_file()
 
     def add_to_unfiltered_tags(self, tag):
         if tag not in self.unfiltered_tags:
@@ -69,27 +56,16 @@ class TagsModule(BoxLayout):
             self.unfiltered_tags.append(tag)
             self.unfiltered_tags.sort()
             self.update_recycleview()
-            self.write_to_temp_file()
 
     def update_recycleview(self):
         filtered = [x for x in self.filtered_tags]
         self.filtered_data = [{'text': x, 'category': 'filtered', 'screen': 'writer', 'sorter': self}
                               for x in filtered]
 
-    def write_to_temp_file(self):
-        root = join('.tempfiles', 'reader')
-        if not exists(root):
-            makedirs(root)
-        filepath = join(root, 'tags')
-        with open(filepath, 'w') as file:
-            file.writelines('\n'.join(self.filtered_tags))
-            file.close()
-
     def clear_filtered_tags(self):
         self.unfiltered_tags = self.unfiltered_tags + self.filtered_tags
         self.filtered_tags = []
         self.update_recycleview()
-        self.write_to_temp_file()
 
     def call_tags_popup(self):
         Factory.TagsPopup(self, self.filtered_tags, self.unfiltered_tags).open()
@@ -118,7 +94,6 @@ class TagsPopup(Popup):
             self.filtered_tags.append(tag)
             self.filtered_tags.sort()
             self.update_recycleviews()
-            self.write_to_temp_file()
 
     def add_to_unfiltered_tags(self, tag):
         if tag not in self.unfiltered_tags:
@@ -127,14 +102,13 @@ class TagsPopup(Popup):
             self.unfiltered_tags.append(tag)
             self.unfiltered_tags.sort()
             self.update_recycleviews()
-            self.write_to_temp_file()
 
     def update_recycleviews(self):
         filtered = [x for x in self.filtered_tags if self.search_text.lower() in x.lower()]
         unfiltered = [x for x in self.unfiltered_tags if self.search_text.lower() in x.lower()]
-        self.filtered_data = [{'text': x, 'category': 'filtered', 'screen': 'writer', 'sorter': self}
+        self.filtered_data = [{'text': x, 'category': 'filtered', 'screen': 'reader', 'sorter': self}
                               for x in filtered]
-        self.unfiltered_data = [{'text': x, 'category': 'unfiltered', 'screen': 'writer', 'sorter': self}
+        self.unfiltered_data = [{'text': x, 'category': 'unfiltered', 'screen': 'reader', 'sorter': self}
                                 for x in unfiltered]
 
     def search(self, text: str):
@@ -143,15 +117,6 @@ class TagsPopup(Popup):
 
     def clear_search_bar(self):
         self.update_recycleviews()
-
-    def write_to_temp_file(self):
-        root = join('.tempfiles', 'reader')
-        if not exists(root):
-            makedirs(root)
-        filepath = join(root, 'tags')
-        with open(filepath, 'w') as file:
-            file.writelines('\n'.join(self.filtered_tags))
-            file.close()
 
     def on_dismiss(self):
         for tag in self.filtered_tags:
@@ -166,6 +131,10 @@ class TagButton(GenericButton):
 
     def __init__(self, **kwargs):
         super(TagButton, self).__init__(**kwargs)
+
+
+class TagLabel(GenericLabel):
+    pass
 
 
 class AttachmentsModule:
