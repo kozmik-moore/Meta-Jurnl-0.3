@@ -217,6 +217,7 @@
 <WritingModule>:
     database: None
     entry_manager: None
+    ids_module: ids
     IDModule:
         id: ids
         size_hint: None, None
@@ -273,8 +274,9 @@
                 size_hint_x: 1
                 id: link
                 text: 'Link'
+                disabled: True if root.ids_module.entry_id == -1 else False
                 on_release:
-                    root.entry_manager.load()
+                    root.entry_manager.create_linked_entry()
             AttachmentsModuleButton:
                 size_hint_x: 1
                 id: attachments
