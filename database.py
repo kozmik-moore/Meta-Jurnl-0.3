@@ -163,7 +163,7 @@ class DatabaseManager:
 
     def delete_tag_by_id(self, entry_id, tag=None):
         if tag:
-            self.cursor.execute('DELETE FROM tags WHERE entry_id=? AND attachment=?', (entry_id, tag))
+            self.cursor.execute('DELETE FROM tags WHERE entry_id=? AND path=?', (entry_id, tag))
         else:
             self.cursor.execute('DELETE FROM tags WHERE entry_id=?', (entry_id,))
         self.connection.commit()
@@ -191,7 +191,7 @@ class DatabaseManager:
         if tags:
             if op_type == 'Contains At Least...':
                 tag = tags.pop(0)
-                sql = 'SELECT entry_id FROM tags WHERE attachment=?'
+                sql = 'SELECT entry_id FROM tags WHERE path=?'
                 self.cursor.execute(sql, (tag,))
                 temp = set(self.cursor.fetchall())
                 for tag in tags:
@@ -205,7 +205,7 @@ class DatabaseManager:
                         if set(self.get_tags_by_entry_id(item)).intersection(set(tags)) == set(tags):
                             ids.append(item)
             if op_type == 'Contains One Of...':
-                sql = 'SELECT entry_id FROM tags WHERE attachment IN ({})'.format(','.join(['?'] * len(tags)))
+                sql = 'SELECT entry_id FROM tags WHERE path IN ({})'.format(','.join(['?'] * len(tags)))
                 self.cursor.execute(sql, tags)
                 temp = set()
                 for item in self.cursor.fetchall():

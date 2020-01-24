@@ -171,38 +171,38 @@ class AttachmentsModule:
     unfiltered_attachments = ListProperty()  # list of paths
     database = ObjectProperty(None, allownone=True)
 
-    def __init__(self, filtered: list = None, unfiltered: list = None, database: DatabaseManager = None, **kwargs):
+    def __init__(self, database: DatabaseManager = None, **kwargs):
         super(AttachmentsModule, self).__init__(**kwargs)
         if not exists('Imports'):
             mkdir('Imports')
-        if filtered:
-            for path in filtered:
-                self.add_to_filtered_attachments(path)
-        if unfiltered:
-            for path in unfiltered:
-                self.add_to_unfiltered_attachments(path)
-
         self.database = database if database else DatabaseManager()
 
-    def add_to_filtered_attachments(self, attachment):
-        if attachment not in self.filtered_attachments:
-            if attachment in self.unfiltered_attachments:
-                self.unfiltered_attachments.remove(attachment)
-            self.filtered_attachments.append(attachment)
-            self.write_to_temp_file()
+    def on_filtered_attachments(self, instance, value):  # used for mass loading paths
+        self.write_to_temp_file()
 
-    def add_to_unfiltered_attachments(self, attachment):
-        if attachment not in self.unfiltered_attachments:
-            if attachment in self.filtered_attachments:
-                self.filtered_attachments.remove(attachment)
-            self.unfiltered_attachments.append(attachment)
-            self.write_to_temp_file()
+    def on_unfiltered_attachments(self, instance, value):  # used for mass loading paths
+        self.write_to_temp_file()
+
+    # def add_to_filtered_attachments(self, path):            # used for singly loading paths
+    #     if path not in self.filtered_attachments:
+    #         if path in self.unfiltered_attachments:
+    #             self.unfiltered_attachments.remove(path)
+    #         self.filtered_attachments.append(path)
+    #         self.write_to_temp_file()
+    #
+    # def add_to_unfiltered_attachments(self, path):          # used for singly loading paths
+    #     if path not in self.unfiltered_attachments:
+    #         if path in self.filtered_attachments:
+    #             self.filtered_attachments.remove(path)
+    #         self.unfiltered_attachments.append(path)
+    #         self.write_to_temp_file()
 
     def clear_filtered_attachments(self):
-        for attachment in self.filtered_attachments:
-            if 'database att_id: ' not in attachment:
-                self.add_to_unfiltered_attachments(attachment)
-        self.filtered_attachments.clear()
+        self.filtered_attachments = []
+        self.unfiltered_attachments = []
+        if not exists('Imports'):
+            mkdir('Imports')
+        self.unfiltered_attachments = [x.path for x in scandir('Imports')]
 
     def write_to_database(self, entry_id):
         f_paths = [x for x in self.filtered_attachments if 'database att_id: ' not in x]
@@ -217,20 +217,17 @@ class AttachmentsModule:
         for path in d_paths:
             self.unfiltered_attachments.remove(path)
         self.clear_filtered_attachments()
-        for att_id in self.database.get_att_ids_from_entry_id(entry_id):
-            self.add_to_filtered_attachments('database att_id: {}'.format(att_id))
+        self.filtered_attachments = ['database att_id: {}'.format(att_id) for att_id in
+                                     self.database.get_att_ids_from_entry_id(entry_id)]
 
     def write_to_temp_file(self):
         root = '.tempfiles'
         if not exists(root):
             mkdir(root)
-        filepath = join(root, 'filtered_attachments')
+        filepath = join(root, 'attachments')
+        temp = self.filtered_attachments + ['---'] + self.unfiltered_attachments
         with open(filepath, 'w') as file:
-            file.writelines('\n'.join(self.filtered_attachments))
-            file.close()
-        filepath = join(root, 'unfiltered_attachments')
-        with open(filepath, 'w') as file:
-            file.writelines('\n'.join(self.unfiltered_attachments))
+            file.writelines('\n'.join(temp))
             file.close()
 
     def call_attachments_popup(self):
@@ -314,20 +311,14 @@ class AttachmentsPopup(Popup):
         root = '.tempfiles'
         if not exists(root):
             mkdir(root)
-        filepath = join(root, 'filtered_attachments')
+        filepath = join(root, 'attachments')
+        temp = self.filtered_attachments + ['---'] + self.unfiltered_attachments
         with open(filepath, 'w') as file:
-            file.writelines('\n'.join(self.filtered_attachments))
-            file.close()
-        filepath = join(root, 'unfiltered_attachments')
-        with open(filepath, 'w') as file:
-            file.writelines('\n'.join(self.unfiltered_attachments))
-            file.close()
+            file.writelines('\n'.join(temp))
 
     def on_dismiss(self):
-        for attachment in self.filtered_attachments:
-            self.sorter.add_to_filtered_attachments(attachment)
-        for attachment in self.unfiltered_attachments:
-            self.sorter.add_to_unfiltered_attachments(attachment)
+        self.sorter.filtered_attachments = self.filtered_attachments
+        self.sorter.unfiltered_attachments = self.unfiltered_attachments
         super(AttachmentsPopup, self).on_dismiss()
 
 
@@ -554,18 +545,18 @@ class EntryManager:
                 for tag in [x.strip('\n') for x in file.readlines()]:
                     self.tags.add_to_filtered_tags(tag)
                 file.close()
-        location = join(root, 'filtered_attachments')
+        location = join(root, 'attachments')
+        temp = list()
         if exists(location):
             with open(location, 'r') as file:
-                for attachment in [x.strip('\n') for x in file.readlines()]:
-                    self.attachments.add_to_filtered_attachments(attachment)
+                temp = [x.strip('\n') for x in file.readlines()]
                 file.close()
-        location = join(root, 'unfiltered_attachments')
-        if exists(location):
-            with open(location, 'r') as file:
-                for attachment in [x.strip('\n') for x in file.readlines()]:
-                    self.attachments.add_to_unfiltered_attachments(attachment)
-                file.close()
+        i = temp.index('---')
+        f = set(temp[:i])
+        u = set(temp[i + 1:])
+        s = set([x.path for x in scandir('Imports')])
+        self.attachments.unfiltered_attachments = list(u.union(s.difference(f.union(u))))
+        self.attachments.filtered_attachments = list(f)
         location = join(root, 'flags')
         if exists(location):
             with open(location, 'r') as file:
