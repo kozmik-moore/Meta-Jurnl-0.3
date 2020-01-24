@@ -1,0 +1,314 @@
+#: import Factory kivy.factory.Factory
+#: import GenericLabel base_widgets.GenericLabel
+#: import GenericAlignedTextInput base_widgets.GenericAlignedTextInput
+#: set light_blue (0, .5, .8, 1)
+#: set dark_gray (.1, .1, .1, .5)
+
+<BodyModule>:
+    background_color: 0, 0, 0, 0
+
+<TagButton>:
+    category: ''
+    sorter: None
+    screen: ''
+    on_release:
+        root.sorter.add_to_filtered_tags(self.text) if root.category == 'unfiltered' else root.sorter.add_to_unfiltered_tags(self.text)
+
+<TagsModule>:
+    padding: 4, 6, 4, 0
+    spacing: 2
+    orientation: 'vertical'
+    canvas.before:
+        Color:
+            rgba: light_blue
+        Line:
+            width: 1
+            rectangle: self.x, self.y, self.width, self.height
+    GenericButton:
+        size_hint_x: 1
+        text: 'Tags'
+        on_release:
+            root.call_tags_popup()
+    RecycleView:
+        viewclass: 'TagButton'
+        data: root.filtered_data
+        RecycleGridLayout:
+            cols: 2
+            spacing: 1, 1
+            size_hint: (1, 1)
+            default_size: None, 35
+            default_size_hint: 1, None
+            col_default_width: 193
+            row_default_height: 35
+
+<TagsPopup>:
+    pos_hint: {'right': 1}
+    size_hint_x: None
+    width: 500
+    title: 'Sort tags...'
+    searchbox: searchbox
+    BoxLayout:
+        orientation: 'vertical'
+        BoxLayout:
+            AnchorLayout:
+                GenericLabel:
+                    text: 'None' if len(root.unfiltered_data) == 0 else ''
+                GenericRecycleView:
+                    id: unfiltered
+                    data: root.unfiltered_data
+                    viewclass: 'TagButton'
+            AnchorLayout:
+                GenericLabel:
+                    text: 'None' if len(root.filtered_data) == 0 else ''
+                GenericRecycleView:
+                    id: filtered
+                    data: root.filtered_data
+                    viewclass: 'TagButton'
+        BoxLayout:
+            size_hint_y: None
+            height: 35
+            GenericInput:
+                id: searchbox
+                focus: True
+                text: ''
+                multiline: False
+                hint_text: 'Search or add tags'
+                on_text:
+                    root.search(self.text)
+            GenericButton:
+                size_hint_x: None
+                width: 90
+                text: 'Clear'
+                disabled: True if not root.searchbox.text else False
+                on_release:
+                    root.clear_search_bar()
+                    root.searchbox.text = ''
+            GenericButton:
+                size_hint_x: None
+                width: 90
+                text: 'Add'
+                disabled: True if not root.searchbox.text else False
+                on_release:
+                    root.add_to_filtered_tags(root.searchbox.text)
+
+<AttachmentButton>:
+    category: ''
+    sorter: None
+    screen: ''
+    name: ''
+    path: ''
+    on_release:
+        root.sorter.add_to_filtered_attachments(self.path) if root.category == 'unfiltered' else \
+        root.sorter.add_to_unfiltered_attachments(self.path)
+    background_color: light_blue if 'database att_id: ' in self.path else (.4, .4, .4, 1)
+
+<AttachmentsPopup>:
+    pos_hint: {'right': 1}
+    size_hint_x: None
+    width: 500
+    title: 'Select attachments...'
+    searchbox: searchbox
+    BoxLayout:
+        orientation: 'vertical'
+        BoxLayout:
+            AnchorLayout:
+                GenericLabel:
+                    text: 'None' if len(root.unfiltered_data) == 0 else ''
+                GenericRecycleView:
+                    id: unfiltered
+                    data: root.unfiltered_data
+                    viewclass: 'AttachmentButton'
+            AnchorLayout:
+                GenericLabel:
+                    text: 'None' if len(root.filtered_data) == 0 else ''
+                GenericRecycleView:
+                    id: filtered
+                    data: root.filtered_data
+                    viewclass: 'AttachmentButton'
+        BoxLayout:
+            size_hint_y: None
+            height: 35
+            GenericInput:
+                id: searchbox
+                focus: True
+                text: ''
+                multiline: False
+                hint_text: 'Search or add attachment'
+                on_text:
+                    root.search(self.text)
+            GenericButton:
+                size_hint_x: None
+                width: 90
+                text: 'Clear'
+                disabled: True if not root.searchbox.text else False
+                on_release:
+                    root.clear_search_bar()
+                    root.searchbox.text = ''
+            GenericButton:
+                size_hint_x: None
+                width: 90
+                text: 'Add'
+                disabled: True if not root.searchbox.text else False
+                on_release:
+                    root.add_to_filtered_attachments(root.searchbox.text)
+
+<AttachmentsModuleButton>:
+    text: 'Attachments'
+    on_release:
+        root.call_attachments_popup()
+
+<DateModuleButton>:
+    text: root.datetime_str
+    size_hint_x: 1
+
+<DatetimePopup>:
+    size_hint: None, None
+    size: 400, 300
+    title: 'Edit Date'
+    AnchorLayout:
+        anchor_x: 'center'
+        anchor_y: 'center'
+        BoxLayout:
+            size_hint: None, None
+            height: self.minimum_height
+            width: 300
+            orientation: 'vertical'
+            spacing: 10
+            GenericLabel:
+                text: 'Type a date below and press enter'
+            GenericAlignedTextInput:
+                size_hint_y: None
+                height: 35
+                focus: True
+#                hint_text: 'Type the new date and press the enter key'
+                multiline: False
+                on_text_validate:
+                    if self.text: root.set_date(self.text)
+            GenericLabel:
+                text: root.datetime_str if root.datetime_str else 'No Date'
+            AnchorLayout:
+                anchor_x: 'center'
+                anchor_y: 'top'
+                GenericButton:
+                    text: 'OK'
+                    on_release:
+                        root.dismiss()
+
+<FlagsModule>:
+    orientation: 'vertical'
+    BoxLayout:
+        orientation: 'vertical'
+        size_hint_y: None
+        height: self.minimum_height
+        GenericLabel:
+            size_hint: None, None
+            size: 35, 35
+            text: 'U' if root.is_saved == False else ''
+        GenericLabel:
+            size_hint: None, None
+            size: 35, 35
+            text: 'L' if root.is_linked else ''
+        GenericLabel:
+            size_hint: None, None
+            size: 35, 35
+            text: 'E' if root.is_being_edited else ''
+    BoxLayout:
+
+<WritingModule>:
+    database: None
+    entry_manager: None
+    IDModule:
+        id: ids
+        size_hint: None, None
+        size: (0, 0)
+    BoxLayout:
+        canvas.before:
+            Color:
+                rgba: light_blue
+            Line:
+                width: 1
+                rectangle: self.x, self.y, self.width, self.height
+        orientation: 'vertical'
+        padding: 5
+        DateModuleButton:
+            id: date
+            database: root.database
+        BoxLayout:
+            canvas.before:
+                Color:
+                    rgba: dark_gray
+                Rectangle:
+                    pos: self.pos
+                    size: self.size
+            BodyModule:
+                id: body
+                database: root.database
+            FlagsModule:
+                id: flags
+                size_hint_x: None
+                width: 35
+    BoxLayout:
+        size_hint_max_x: 450
+        orientation: 'vertical'
+        GridLayout:
+            size_hint_y: None
+            height: self.minimum_height
+            rows: 2
+            cols: 2
+            spacing: 2
+            padding: 5
+            canvas.before:
+                Color:
+                    rgba: light_blue
+                Line:
+                    width: 1
+                    rectangle: self.x, self.y, self.width, self.height
+            GenericButton:
+                size_hint_x: 1
+                id: save
+                text: 'Save'
+                on_release:
+                    root.entry_manager.save()
+            GenericButton:
+                size_hint_x: 1
+                id: link
+                text: 'Link'
+                on_release:
+                    root.entry_manager.load()
+            AttachmentsModuleButton:
+                size_hint_x: 1
+                id: attachments
+                database: root.database
+            GenericButton:
+                size_hint_x: 1
+                id: clear
+                text: 'Clear'
+                on_release:
+                    root.entry_manager.clear_ui()
+        TagsModule:
+            id: tags
+            database: root.database
+
+
+<ShortMessagePopup>:
+    size_hint: None, None
+    size: 400, 200
+    padding: 15
+    AnchorLayout:
+        anchor_x: 'center'
+        anchor_y: 'center'
+        BoxLayout:
+            size_hint_y: None
+            height: self.minimum_height
+            orientation: 'vertical'
+            spacing: 30
+            GenericLabel:
+                text: root.message
+                text_size: root.width - 30, None
+                size: self.texture_size
+            AnchorLayout:
+                anchor_x: 'center'
+                GenericButton:
+                    text: 'OK'
+                    on_release:
+                        root.dismiss()
