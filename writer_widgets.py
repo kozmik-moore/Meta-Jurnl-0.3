@@ -1,6 +1,6 @@
 from datetime import datetime
 from dateutil.parser import parse, ParserError
-from os import mkdir, scandir, remove
+from os import mkdir, scandir, remove, makedirs
 from os.path import exists, join, basename
 
 from kivy.factory import Factory
@@ -28,9 +28,9 @@ class BodyModule(GenericInput):
         self.write_to_temp_file()
 
     def write_to_temp_file(self):
-        root = '.tempfiles'
+        root = join('.tempfiles', 'writer')
         if not exists(root):
-            mkdir(root)
+            makedirs(root)
         filepath = join(root, 'body')
         with open(filepath, 'w') as file:
             file.write(self.text)
@@ -77,17 +77,19 @@ class TagsModule(BoxLayout):
                               for x in filtered]
 
     def write_to_temp_file(self):
-        root = '.tempfiles'
+        root = join('.tempfiles', 'writer')
         if not exists(root):
-            mkdir(root)
+            makedirs(root)
         filepath = join(root, 'tags')
         with open(filepath, 'w') as file:
             file.writelines('\n'.join(self.filtered_tags))
             file.close()
 
     def clear_filtered_tags(self):
-        for tag in self.filtered_tags:
-            self.add_to_unfiltered_tags(tag)
+        self.unfiltered_tags = self.unfiltered_tags + self.filtered_tags
+        self.filtered_tags = []
+        self.update_recycleview()
+        self.write_to_temp_file()
 
     def call_tags_popup(self):
         Factory.TagsPopup(self, self.filtered_tags, self.unfiltered_tags).open()
@@ -143,9 +145,9 @@ class TagsPopup(Popup):
         self.update_recycleviews()
 
     def write_to_temp_file(self):
-        root = '.tempfiles'
+        root = join('.tempfiles', 'writer')
         if not exists(root):
-            mkdir(root)
+            makedirs(root)
         filepath = join(root, 'tags')
         with open(filepath, 'w') as file:
             file.writelines('\n'.join(self.filtered_tags))
@@ -221,9 +223,9 @@ class AttachmentsModule:
                                      self.database.get_att_ids_from_entry_id(entry_id)]
 
     def write_to_temp_file(self):
-        root = '.tempfiles'
+        root = join('.tempfiles', 'writer')
         if not exists(root):
-            mkdir(root)
+            makedirs(root)
         filepath = join(root, 'attachments')
         temp = self.filtered_attachments + ['---'] + self.unfiltered_attachments
         with open(filepath, 'w') as file:
@@ -246,12 +248,15 @@ class AttachmentsPopup(Popup):
         super(AttachmentsPopup, self).__init__()
         self.database = database
         self.sorter = sorter if sorter else AttachmentsModule()
-        for item in list(scandir('Imports')):
-            self.add_to_unfiltered_attachments(item.path)
-        for attachment in filtered:
-            self.add_to_filtered_attachments(attachment)
-        for attachment in unfiltered:
-            self.add_to_unfiltered_attachments(attachment)
+        # for item in list(scandir('Imports')):
+        #     self.add_to_unfiltered_attachments(item.path)
+        self.filtered_attachments = list(filtered)
+        self.filtered_attachments.sort(key=self.get_sort_key)
+        self.unfiltered_attachments = list(set([x.path for x in scandir('Imports') if x.path not in filtered]).union(unfiltered))
+        self.unfiltered_attachments.sort(key=self.get_sort_key)
+        self.check_paths_exist()
+        self.update_recycleviews()
+        self.write_to_temp_file()
 
     def add_to_filtered_attachments(self, attachment):
         if attachment not in self.filtered_attachments:
@@ -307,10 +312,20 @@ class AttachmentsPopup(Popup):
             key = basename(path)
         return key
 
+    def check_paths_exist(self):
+        temp = self.filtered_attachments
+        for path in temp:
+            if not exists(path) and 'database att_id: ' not in path:
+                self.filtered_attachments.remove(path)
+        temp = self.unfiltered_attachments
+        for path in temp:
+            if not exists(path) and 'database att_id: ' not in path:
+                self.unfiltered_attachments.remove(path)
+
     def write_to_temp_file(self):
-        root = '.tempfiles'
+        root = join('.tempfiles', 'writer')
         if not exists(root):
-            mkdir(root)
+            makedirs(root)
         filepath = join(root, 'attachments')
         temp = self.filtered_attachments + ['---'] + self.unfiltered_attachments
         with open(filepath, 'w') as file:
@@ -363,9 +378,9 @@ class DateModuleButton(GenericButton):
         Factory.DatetimePopup(self, date=self.datetime_obj, string_format=self.string_format).open()
 
     def write_to_temp_file(self):
-        root = '.tempfiles'
+        root = join('.tempfiles', 'writer')
         if not exists(root):
-            mkdir(root)
+            makedirs(root)
         filepath = join(root, 'date')
         with open(filepath, 'w') as file:
             file.write(self.datetime_str)
@@ -436,9 +451,9 @@ class IDModule(Widget):
         self.parent_id = -1
 
     def write_to_temp_file(self):
-        root = '.tempfiles'
+        root = join('.tempfiles', 'writer')
         if not exists(root):
-            mkdir(root)
+            makedirs(root)
         ids = (str(self.entry_id), str(self.parent_id))
         filepath = join(root, 'ids')
         with open(filepath, 'w') as file:
@@ -475,9 +490,9 @@ class FlagsModule(BoxLayout):
         self.is_being_edited = False
 
     def write_to_temp_file(self):
-        root = '.tempfiles'
+        root = join('.tempfiles', 'writer')
         if not exists(root):
-            mkdir(root)
+            makedirs(root)
         filepath = join(root, 'flags')
         with open(filepath, 'w') as file:
             file.writelines('\n'.join([str(self.is_saved if self.is_saved else 'No Entry'), str(self.is_linked),
@@ -520,7 +535,9 @@ class EntryManager:
         self.tags.bind(filtered_tags=self.check_entry_saved)
         self.date.bind(datetime_obj=self.check_entry_saved)
         self.ids.bind(parent_id=self.check_entry_linked)
-        root = '.tempfiles'
+        self.attachments.bind(filtered_attachments=self.check_entry_saved)
+        self.attachments.bind(unfiltered_attachments=self.check_entry_saved)
+        root = join('.tempfiles', 'writer')
         location = join(root, 'ids')
         if exists(location):
             with open(location, 'r') as file:
@@ -547,13 +564,17 @@ class EntryManager:
                 file.close()
         location = join(root, 'attachments')
         temp = list()
+        i = 0
+        f = set()
+        u = set()
         if exists(location):
             with open(location, 'r') as file:
                 temp = [x.strip('\n') for x in file.readlines()]
+                if temp:
+                    i = temp.index('---')
+                f = set(temp[:i])
+                u = set(temp[i + 1:])
                 file.close()
-        i = temp.index('---')
-        f = set(temp[:i])
-        u = set(temp[i + 1:])
         s = set([x.path for x in scandir('Imports')])
         self.attachments.unfiltered_attachments = list(u.union(s.difference(f.union(u))))
         self.attachments.filtered_attachments = list(f)
@@ -595,8 +616,11 @@ class EntryManager:
                 is_saved = False
             if is_saved and self.date.datetime_obj != self.database.get_date_by_entry_id(self.ids.entry_id):
                 is_saved = False
+            if is_saved and ([x for x in self.attachments.filtered_attachments if 'database att_id: ' not in x] or
+                             [x for x in self.attachments.unfiltered_attachments if 'database att_id: ' in x]):
+                is_saved = False
         elif not self.body.text and not self.tags.filtered_tags and not self.date.datetime_obj and self.ids.parent_id \
-                == -1:
+                == -1 and not self.attachments.filtered_attachments:
             is_saved = None
         else:
             is_saved = False
@@ -610,6 +634,7 @@ class EntryManager:
         self.body.text = ''
         self.ids.reset_ids()
         self.tags.clear_filtered_tags()
+        self.attachments.clear_filtered_attachments()
 
 
 class ShortMessagePopup(Popup):

@@ -170,6 +170,7 @@ class DatabaseManager:
 
     def delete_attachments_from_att_id(self, att_id):
         self.cursor.execute('DELETE FROM attachments WHERE att_id=?', (att_id,))
+        self.connection.commit()
 
     def delete_relation_by_id_and_position(self, entry_id: int, position: str):
         if position is 'child':
