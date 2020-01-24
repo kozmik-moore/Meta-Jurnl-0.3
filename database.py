@@ -91,22 +91,23 @@ class DatabaseManager:
         self.connection.commit()
         return entry_id
 
-    def update_attachments(self, entry_id: int, attachments: list):
+    def update_attachments(self, entry_id: int, attachments: list = None):
         """
         Takes a list of paths
         @param entry_id: int
         @param attachments: list
         @return: entry_id
         """
-        for path in attachments:
-            name = basename(path)
-            with open(path, 'rb') as f:
-                bytestream = f.read()
-            now = datetime.now()
-            self.cursor.execute('INSERT INTO attachments(entry_id,filename,file,added) VALUES (?,?,?,?)',
-                                (entry_id, name, bytestream, now.strftime('%Y-%m-%d %H:%M')))
-            self.connection.commit()
-        return entry_id
+        if attachments:
+            for path in attachments:
+                name = basename(path)
+                with open(path, 'rb') as f:
+                    bytestream = f.read()
+                now = datetime.now()
+                self.cursor.execute('INSERT INTO attachments(entry_id,filename,file,added) VALUES (?,?,?,?)',
+                                    (entry_id, name, bytestream, now.strftime('%Y-%m-%d %H:%M')))
+                self.connection.commit()
+            return entry_id
 
     def update_relations(self, child: int, parent: int):
         pairs = self.cursor.execute('SELECT child,parent FROM relations')
@@ -135,6 +136,7 @@ class DatabaseManager:
             if parent_id != -1:
                 self.update_relations(entry_id, parent_id)
         else:
+            self.update_date(entry_id, date)
             self.update_body(entry_id, body)
             self.update_tags(entry_id, tags)
             self.update_attachments(entry_id, attachments)
@@ -363,9 +365,19 @@ class DatabaseManager:
         return tags
 
     def get_attachment_from_att_id(self, att_id):
-        self.cursor.execute('SELECT filename,file FROM attachments WHERE att_id=?', (att_id,))
-        attachment = self.cursor.fetchone()
+        self.cursor.execute('SELECT file FROM attachments WHERE att_id=?', (att_id,))
+        attachment = self.cursor.fetchone()[0]
         return attachment
+
+    def get_attachment_name_from_att_id(self, att_id):
+        self.cursor.execute('SELECT filename FROM attachments WHERE att_id=?', (att_id,))
+        name = self.cursor.fetchone()[0]
+        return name
+
+    def get_att_ids_from_entry_id(self, entry_id):
+        self.cursor.execute('SELECT att_id FROM attachments WHERE entry_id=?', (entry_id,))
+        ids = [x[0] for x in self.cursor.fetchall()]
+        return ids
 
     def get_all_attachment_data_from_entry_id(self, entry_id):
         def sort_by_added(a):
@@ -415,10 +427,10 @@ class DatabaseManager:
         entry = dict()
         entry['entry_id'] = entry_id
         entry['body'] = self.get_body_by_entry_id(entry_id)
-        entry['datetime'] = self.get_date_by_entry_id(entry_id)
+        entry['date'] = self.get_date_by_entry_id(entry_id)
         entry['tags'] = self.get_tags_by_entry_id(entry_id)
         entry['attachments'] = self.get_all_attachment_data_from_entry_id(entry_id)
-        entry['parent'] = self.get_parent_by_entry_id(entry_id)
+        entry['parent_id'] = self.get_parent_by_entry_id(entry_id)
         entry['children'] = self.get_children_by_entry_id(entry_id)
         return entry
 

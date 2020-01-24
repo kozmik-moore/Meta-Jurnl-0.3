@@ -1,11 +1,11 @@
 #: import Factory kivy.factory.Factory
 #: import GenericLabel base_widgets.GenericLabel
 #: import GenericAlignedTextInput base_widgets.GenericAlignedTextInput
+#: set light_blue (0, .5, .8, 1)
+#: set dark_gray (.1, .1, .1, .5)
 
 <BodyModule>:
     background_color: 0, 0, 0, 0
-#    on_text:
-#        root.write_to_temp_file()
 
 <TagButton>:
     category: ''
@@ -20,7 +20,7 @@
     orientation: 'vertical'
     canvas.before:
         Color:
-            rgba: (0, .5, .8, 1)
+            rgba: light_blue
         Line:
             width: 1
             rectangle: self.x, self.y, self.width, self.height
@@ -90,6 +90,7 @@
                 disabled: True if not root.searchbox.text else False
                 on_release:
                     root.add_to_filtered_tags(root.searchbox.text)
+
 <AttachmentButton>:
     category: ''
     sorter: None
@@ -97,7 +98,9 @@
     name: ''
     path: ''
     on_release:
-        root.sorter.add_to_filtered_attachments(self.path) if root.category == 'unfiltered' else root.sorter.add_to_unfiltered_attachments(self.path)
+        root.sorter.add_to_filtered_attachments(self.path) if root.category == 'unfiltered' else \
+        root.sorter.add_to_unfiltered_attachments(self.path)
+    background_color: light_blue if 'database att_id: ' in self.path else (.4, .4, .4, 1)
 
 <AttachmentsPopup>:
     pos_hint: {'right': 1}
@@ -155,7 +158,7 @@
         root.call_attachments_popup()
 
 <DateModuleButton>:
-    text: root.datetime_str if root.datetime_str else 'No Date'
+    text: root.datetime_str
     size_hint_x: 1
 
 <DatetimePopup>:
@@ -200,7 +203,7 @@
         GenericLabel:
             size_hint: None, None
             size: 35, 35
-            text: '' if root.is_saved else 'U'
+            text: 'U' if root.is_saved == False else ''
         GenericLabel:
             size_hint: None, None
             size: 35, 35
@@ -221,7 +224,7 @@
     BoxLayout:
         canvas.before:
             Color:
-                rgba: (0, .5, .8, 1)
+                rgba: light_blue
             Line:
                 width: 1
                 rectangle: self.x, self.y, self.width, self.height
@@ -233,7 +236,7 @@
         BoxLayout:
             canvas.before:
                 Color:
-                    rgba: (.1, .1, .1, .5)
+                    rgba: dark_gray
                 Rectangle:
                     pos: self.pos
                     size: self.size
@@ -256,7 +259,7 @@
             padding: 5
             canvas.before:
                 Color:
-                    rgba: (0, .5, .8, 1)
+                    rgba: light_blue
                 Line:
                     width: 1
                     rectangle: self.x, self.y, self.width, self.height
@@ -280,6 +283,8 @@
                 size_hint_x: 1
                 id: clear
                 text: 'Clear'
+                on_release:
+                    root.entry_manager.clear_ui()
         TagsModule:
             id: tags
             database: root.database
