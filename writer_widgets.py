@@ -501,7 +501,6 @@ class FlagsModule(BoxLayout):
 
 
 class WritingModule(BoxLayout):
-    id_module = None
     entry_manager = ObjectProperty(None, allownone=True)
     database = ObjectProperty(None, allownone=True)
 
@@ -594,6 +593,7 @@ class EntryManager:
         self.attachments.write_to_database(self.ids.entry_id)
         self.date.datetime_obj = self.database.get_date_by_entry_id(self.ids.entry_id)
         self.flags.is_saved = True
+        self.flags.is_being_edited = False
 
     def load(self, entry_id: int = -1, parent_id: int = -1, body: str = '', date: datetime = None,
              attachments: list = None, tags: list = None):
@@ -606,6 +606,15 @@ class EntryManager:
             self.date.datetime_obj = entry['date']
             for attachment in entry['attachments']:
                 self.attachments.add_to_filtered_attachments('database att_id: {}'.format(str(attachment['att_id'])))
+
+    def create_linked_entry(self, parent_id: int = None, tags: list = None):
+        if not parent_id:
+            parent_id = self.ids.entry_id
+            tags = self.tags.filtered_tags
+        self.clear_ui()
+        self.ids.parent_id = parent_id
+        for tag in tags:
+            self.tags.add_to_filtered_tags(tag)
 
     def check_entry_saved(self, instance, value):
         is_saved = True
@@ -635,6 +644,7 @@ class EntryManager:
         self.ids.reset_ids()
         self.tags.clear_filtered_tags()
         self.attachments.clear_filtered_attachments()
+        self.flags.is_being_edited = False
 
 
 class ShortMessagePopup(Popup):
