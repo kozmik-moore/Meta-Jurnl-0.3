@@ -5,7 +5,7 @@ from os.path import exists, join, basename
 
 from kivy.factory import Factory
 from kivy.lang import Builder
-from kivy.properties import ListProperty, ObjectProperty, StringProperty, NumericProperty, BooleanProperty
+from kivy.properties import ListProperty, ObjectProperty, StringProperty, NumericProperty, BooleanProperty, DictProperty
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.popup import Popup
 from kivy.uix.widget import Widget
@@ -137,262 +137,72 @@ class TagLabel(GenericLabel):
     pass
 
 
-class AttachmentsModule:
-    filtered_attachments = ListProperty()  # list of paths
-    unfiltered_attachments = ListProperty()  # list of paths
+class DateLabel(GenericLabel):
+    pass
+
+
+class DateButton(GenericButton):
+    pass
+
+
+class DateModule(BoxLayout):
+    string_format = StringProperty('%Y-%m-%d %H:%M')
     database = ObjectProperty(None, allownone=True)
+    entry_ids = ListProperty()
+    date_data = ListProperty()
+    selected_id = NumericProperty(-1)
+    selected_ranges = DictProperty()
+    continuous_range = BooleanProperty()
 
-    def __init__(self, database: DatabaseManager = None, **kwargs):
-        super(AttachmentsModule, self).__init__(**kwargs)
-        if not exists('Imports'):
-            mkdir('Imports')
+    def __init__(self, entry_ids: list = None, database: DatabaseManager = None, continuous: bool = False, **kwargs):
         self.database = database if database else DatabaseManager()
+        self.entry_ids = entry_ids if entry_ids else self.database.get_all_entry_ids()
+        self.continuous_range = continuous
+        self.date_data = [
+            {'text': self.database.get_date_by_entry_id(entry_id, self.string_format), 'entry_id': entry_id,
+             'caller': self} for entry_id in self.entry_ids]
+        self.selected_ranges = {'years': {'min': 0, 'max': self.database.get_years()[-1]},
+                                'months': {'min': 0, 'max': 11}, 'days': {'min': 0, 'max': 30},
+                                'hours': {'min': 0, 'max': 23}, 'minutes': {'min': 0, 'max': 59},
+                                'weekdays': {'min': 0, 'max': 6}}
+        super(DateModule, self).__init__(**kwargs)
 
-    def on_filtered_attachments(self, instance, value):  # used for mass loading paths
-        self.write_to_temp_file()
+    def call_dates_popup(self):
+        years = self.database.get_years()
+        if self.selected_ranges['years']['max'] > len(years) - 1:
+            self.selected_ranges['years']['max'] = len(years) - 1
+        if self.database.get_number_of_entries() > 1:
+            Factory.DatetimePopup(self.selected_ranges, years, self.continuous_range, self).open()
 
-    def on_unfiltered_attachments(self, instance, value):  # used for mass loading paths
-        self.write_to_temp_file()
+    def update(self, entry_ids: list = None):
+        self.entry_ids = self.database.get_all_entry_ids() if entry_ids is None else entry_ids
+        self.date_data = [
+            {'text': self.database.get_date_by_entry_id(entry_id, self.string_format), 'entry_id': entry_id,
+             'caller': self} for
+            entry_id in self.entry_ids]
 
-    # def add_to_filtered_attachments(self, path):            # used for singly loading paths
-    #     if path not in self.filtered_attachments:
-    #         if path in self.unfiltered_attachments:
-    #             self.unfiltered_attachments.remove(path)
-    #         self.filtered_attachments.append(path)
-    #         self.write_to_temp_file()
-    #
-    # def add_to_unfiltered_attachments(self, path):          # used for singly loading paths
-    #     if path not in self.unfiltered_attachments:
-    #         if path in self.filtered_attachments:
-    #             self.filtered_attachments.remove(path)
-    #         self.unfiltered_attachments.append(path)
-    #         self.write_to_temp_file()
-
-    def clear_filtered_attachments(self):
-        self.filtered_attachments = []
-        self.unfiltered_attachments = []
-        if not exists('Imports'):
-            mkdir('Imports')
-        self.unfiltered_attachments = [x.path for x in scandir('Imports')]
-
-    def write_to_database(self, entry_id):
-        f_paths = [x for x in self.filtered_attachments if 'database att_id: ' not in x]
-        d_paths = [x for x in self.unfiltered_attachments if
-                   'database att_id: ' in x]
-        d_ids = [x.strip('database att_id: ') for x in d_paths]
-        for path in d_ids:
-            self.database.delete_attachments_from_att_id(path)
-        self.database.update_attachments(entry_id, f_paths)
-        for path in f_paths:
-            remove(path)
-        for path in d_paths:
-            self.unfiltered_attachments.remove(path)
-        self.clear_filtered_attachments()
-        self.filtered_attachments = ['database att_id: {}'.format(att_id) for att_id in
-                                     self.database.get_att_ids_from_entry_id(entry_id)]
-
-    def write_to_temp_file(self):
-        root = join('.tempfiles', 'reader')
-        if not exists(root):
-            makedirs(root)
-        filepath = join(root, 'attachments')
-        temp = self.filtered_attachments + ['---'] + self.unfiltered_attachments
-        with open(filepath, 'w') as file:
-            file.writelines('\n'.join(temp))
-            file.close()
-
-    def call_attachments_popup(self):
-        Factory.AttachmentsPopup(self, self.filtered_attachments, self.unfiltered_attachments, self.database).open()
-
-
-class AttachmentsPopup(Popup):
-    filtered_attachments = list()  # list of paths
-    unfiltered_attachments = list()  # list of paths
-    filtered_data = ListProperty()
-    unfiltered_data = ListProperty()
-    search_text = StringProperty('')
-    sorter = None
-
-    def __init__(self, sorter: AttachmentsModule, filtered: list, unfiltered: list, database: DatabaseManager):
-        super(AttachmentsPopup, self).__init__()
-        self.database = database
-        self.sorter = sorter if sorter else AttachmentsModule()
-        # for item in list(scandir('Imports')):
-        #     self.add_to_unfiltered_attachments(item.path)
-        self.filtered_attachments = list(filtered)
-        self.filtered_attachments.sort(key=self.get_sort_key)
-        self.unfiltered_attachments = list(set([x.path for x in scandir('Imports') if x.path not in filtered]).union(unfiltered))
-        self.unfiltered_attachments.sort(key=self.get_sort_key)
-        self.check_paths_exist()
-        self.update_recycleviews()
-        self.write_to_temp_file()
-
-    def add_to_filtered_attachments(self, attachment):
-        if attachment not in self.filtered_attachments:
-            if exists(attachment) or 'database att_id: ' in attachment:
-                if attachment in self.unfiltered_attachments:
-                    self.unfiltered_attachments.remove(attachment)
-                self.filtered_attachments.append(attachment)
-                self.filtered_attachments.sort(key=self.get_sort_key)
-                self.update_recycleviews()
-                self.write_to_temp_file()
-
-    def add_to_unfiltered_attachments(self, attachment):
-        if attachment not in self.unfiltered_attachments:
-            if exists(attachment) or 'database att_id: ' in attachment:
-                if attachment in self.filtered_attachments:
-                    self.filtered_attachments.remove(attachment)
-                self.unfiltered_attachments.append(attachment)
-                self.unfiltered_attachments.sort(key=self.get_sort_key)
-                self.update_recycleviews()
-                self.write_to_temp_file()
-
-    def update_recycleviews(self):
-        f_temp = list()
-        u_temp = list()
-        filtered = [x for x in self.filtered_attachments if self.search_text.lower() in basename(x).lower()]
-        unfiltered = [x for x in self.unfiltered_attachments if self.search_text.lower() in basename(x).lower()]
-        for x in filtered:
-            n = str(basename(x)) if 'database att_id: ' not in x else self.database.get_attachment_name_from_att_id(
-                x.strip('database att_id: '))
-            t = n if len(n) < 30 else n[:20] + ' ... .' + n.split(',')[-1]
-            d = {'path': x, 'category': 'filtered', 'screen': 'writer', 'sorter': self, 'name': n, 'text': t}
-            f_temp.append(d)
-        for x in unfiltered:
-            n = str(basename(x)) if 'database att_id: ' not in x else self.database.get_attachment_name_from_att_id(
-                x.strip('database att_id: '))
-            t = n if len(n) < 30 else n[:20] + ' ... .' + n.split(',')[-1]
-            d = {'path': x, 'category': 'unfiltered', 'screen': 'writer', 'sorter': self, 'name': n, 'text': t}
-            u_temp.append(d)
-        self.filtered_data = f_temp
-        self.unfiltered_data = u_temp
-
-    def search(self, text: str):
-        self.search_text = text
-        self.update_recycleviews()
-
-    def clear_search_bar(self):
-        self.update_recycleviews()
-
-    def get_sort_key(self, path):
-        if 'database att_id: ' in path:
-            key = self.database.get_attachment_name_from_att_id(path.strip('database att_id: '))
-        else:
-            key = basename(path)
-        return key
-
-    def check_paths_exist(self):
-        temp = self.filtered_attachments
-        for path in temp:
-            if not exists(path) and 'database att_id: ' not in path:
-                self.filtered_attachments.remove(path)
-        temp = self.unfiltered_attachments
-        for path in temp:
-            if not exists(path) and 'database att_id: ' not in path:
-                self.unfiltered_attachments.remove(path)
-
-    def write_to_temp_file(self):
-        root = join('.tempfiles', 'reader')
-        if not exists(root):
-            makedirs(root)
-        filepath = join(root, 'attachments')
-        temp = self.filtered_attachments + ['---'] + self.unfiltered_attachments
-        with open(filepath, 'w') as file:
-            file.writelines('\n'.join(temp))
-
-    def on_dismiss(self):
-        self.sorter.filtered_attachments = self.filtered_attachments
-        self.sorter.unfiltered_attachments = self.unfiltered_attachments
-        super(AttachmentsPopup, self).on_dismiss()
-
-
-class AttachmentButton(GenericButton):
-    sorter = ObjectProperty(TagsModule, allownone=True)
-
-    def __init__(self, **kwargs):
-        super(AttachmentButton, self).__init__(**kwargs)
-
-
-class AttachmentsModuleButton(GenericButton, AttachmentsModule):
-    database = ObjectProperty(None, allownone=True)
-
-    def __init__(self, filtered: list = None, database: DatabaseManager = None, **kwargs):
-        super(AttachmentsModuleButton, self).__init__(**kwargs)
-        self.database = database if database else DatabaseManager()
-        if filtered:
-            for path in filtered:
-                if exists(path):
-                    self.add_to_filtered_attachments(path)
-
-
-class DateModuleButton(GenericButton):
-    string_format = StringProperty('%A, %B %d, %Y %H:%M')
-    datetime_obj = ObjectProperty(None, allownone=True)
-    datetime_str = StringProperty('No Date')
-    database = ObjectProperty(None, allownone=True)
-
-    def __init__(self, date: datetime = None, string_format: str = None, database: DatabaseManager = None, **kwargs):
-        super(DateModuleButton, self).__init__(**kwargs)
-        self.database = database if database else DatabaseManager()
-        if date:
-            self.datetime_obj = date
-        if string_format:
-            self.string_format = string_format
-
-    def on_datetime_obj(self, instance, value):
-        self.datetime_str = self.datetime_obj.strftime(self.string_format) if self.datetime_obj else 'No Date'
-        self.write_to_temp_file()
-
-    def call_datetime_popup(self):
-        Factory.DatetimePopup(self, date=self.datetime_obj, string_format=self.string_format).open()
-
-    def write_to_temp_file(self):
-        root = join('.tempfiles', 'reader')
-        if not exists(root):
-            makedirs(root)
-        filepath = join(root, 'date')
-        with open(filepath, 'w') as file:
-            file.write(self.datetime_str)
-            file.close()
-
-    def clear_date(self):
-        pass
-
-    def on_release(self):
-        self.call_datetime_popup()
-        super(DateModuleButton, self).on_release()
+    def on_entry_ids(self, instance, value):
+        self.date_data = [
+            {'text': self.database.get_date_by_entry_id(entry_id, self.string_format), 'entry_id': entry_id,
+             'caller': self} for entry_id in self.entry_ids]
 
 
 class DatetimePopup(Popup):
-    string_format = ''
-    datetime_obj = None
-    datetime_str = StringProperty('')
+    years = ListProperty()
+    ranges = DictProperty()
+    continuous_range = BooleanProperty()
     caller = None
 
-    def __init__(self, caller: DateModuleButton, string_format: str, date: datetime = None, **kwargs):
-        self.string_format = string_format
-        if date:
-            self.datetime_obj = date
-            self.datetime_str = self.datetime_obj.strftime(self.string_format)
+    def __init__(self, ranges: dict, years: list, continuous: bool, caller: DateModule, **kwargs):
+        self.years = years
+        self.ranges = ranges
+        self.continuous_range = continuous
         self.caller = caller
         super(DatetimePopup, self).__init__(**kwargs)
 
-    def set_date(self, date: str):
-        try:
-            self.datetime_obj = parse(date)
-            self.datetime_str = self.datetime_obj.strftime(self.string_format)
-        except ParserError:
-            Factory.ShortMessagePopup(
-                message='Unrecognized date format. Try entering the date in the form MM-DD-YY or YYYY-MM-DD '
-                        'HH:MM.', title='Invalid Format').open()
-        except OverflowError:
-            Factory.ShortMessagePopup(
-                message='Unrecognized date format. Try entering the date in the form MM-DD-YY or YYYY-MM-DD '
-                        'HH:MM.', title='Invalid Format').open()
-
     def on_dismiss(self):
-        if self.datetime_obj:
-            self.caller.datetime_obj = self.datetime_obj
+        self.caller.selected_ranges = self.ranges
+        self.caller.continuous_range = self.continuous_range
         super(DatetimePopup, self).on_dismiss()
 
 
@@ -469,141 +279,256 @@ class FlagsModule(BoxLayout):
             file.close()
 
 
-class WritingModule(BoxLayout):
-    id_module = None
-    entry_manager = ObjectProperty(None, allownone=True)
+class ReadingModule(BoxLayout):
     database = ObjectProperty(None, allownone=True)
+    has_parent = BooleanProperty()
+    has_children = BooleanProperty()
+    has_attachments = BooleanProperty()
+    filter_has_parent = BooleanProperty()
+    filter_has_children = BooleanProperty()
+    filter_has_attachments = BooleanProperty()
+    filter_has_body = StringProperty()
+    tag_sort = StringProperty()
+    filter_date_sort = DictProperty()
+    entry_id = NumericProperty(-1)
+    parent_id = NumericProperty(-1)
+    body = StringProperty()
+    filtered_tags = ListProperty()
+    filtered_tags_data = ListProperty()
+    children_ids = ListProperty()
+    att_ids = ListProperty()
+    date = StringProperty()
+    filtered_entry_ids = ListProperty()
+    filtered_dates_data = ListProperty()
+    continuous_range = BooleanProperty()
+    date_label_format = StringProperty('%A, %B %d, %Y %H:%M')
+    date_button_format = StringProperty('%Y-%m-%d %H:%M')
 
     def __init__(self, database: DatabaseManager = None, **kwargs):
-        super(WritingModule, self).__init__(**kwargs)
+        super(ReadingModule, self).__init__(**kwargs)
         self.database = database if database else DatabaseManager()
-        modules = {x: self.ids[x] for x in ['body', 'date', 'tags', 'attachments', 'flags', 'ids']}
-        modules['database'] = self.database
-        self.entry_manager = EntryManager(**modules)
-
-
-class EntryManager:
-    body = None
-    date = None
-    tags = None
-    attachments = None
-    ids = None
-    flags = None
-    database = None
-
-    def __init__(self, body: BodyModule, date: DateModuleButton, tags: TagsModule, attachments: AttachmentsModuleButton,
-                 ids: IDModule, flags: FlagsModule, database: DatabaseManager):
-        self.body = body
-        self.date = date
-        self.tags = tags
-        self.attachments = attachments
-        self.ids = ids
-        self.flags = flags
-        self.database = database
-        self.body.bind(text=self.check_entry_saved)
-        self.tags.bind(filtered_tags=self.check_entry_saved)
-        self.date.bind(datetime_obj=self.check_entry_saved)
-        self.ids.bind(parent_id=self.check_entry_linked)
-        self.attachments.bind(filtered_attachments=self.check_entry_saved)
-        self.attachments.bind(unfiltered_attachments=self.check_entry_saved)
+        self.filtered_entry_ids = self.database.get_all_entry_ids()
         root = join('.tempfiles', 'reader')
-        location = join(root, 'ids')
-        if exists(location):
-            with open(location, 'r') as file:
-                ids = [x.strip('\n') for x in file.readlines()]
-                self.ids.entry_id = ids[0]
-                self.ids.parent_id = ids[1]
-                file.close()
-        location = join(root, 'date')
-        if exists(location):
-            with open(location, 'r') as file:
-                date = file.read()
-                self.date.datetime_obj = parse(date) if date != 'No Date' else None
-                file.close()
-        location = join(root, 'body')
-        if exists(location):
-            with open(location, 'r') as file:
-                self.body.text = file.read()
-                file.close()
-        location = join(root, 'tags')
-        if exists(location):
-            with open(location, 'r') as file:
-                for tag in [x.strip('\n') for x in file.readlines()]:
-                    self.tags.add_to_filtered_tags(tag)
-                file.close()
-        location = join(root, 'attachments')
-        temp = list()
-        i = 0
-        f = set()
-        u = set()
-        if exists(location):
-            with open(location, 'r') as file:
-                temp = [x.strip('\n') for x in file.readlines()]
-                if temp:
-                    i = temp.index('---')
-                f = set(temp[:i])
-                u = set(temp[i + 1:])
-                file.close()
-        s = set([x.path for x in scandir('Imports')])
-        self.attachments.unfiltered_attachments = list(u.union(s.difference(f.union(u))))
-        self.attachments.filtered_attachments = list(f)
-        location = join(root, 'flags')
-        if exists(location):
-            with open(location, 'r') as file:
-                flags = [x.strip('\n') for x in file.readlines()]
-                self.flags.is_saved = {'True': True, 'False': False, 'No Entry': None}[flags[0]]
-                self.flags.is_linked = True if flags[1] == 'True' else False
-                self.flags.is_being_edited = True if flags[2] == 'True' else False
-                file.close()
+        if exists(root):
+            location = join(root, 'entry_id')
+            if exists(location):
+                with open(location, 'r') as file:
+                    try:
+                        temp = int(file.read())
+                    except ValueError:
+                        temp = -1
+                    self.entry_id = temp
+                    file.close()
+            location = join(root, 'filters')
+            if exists(location):
+                with open(location, 'r') as file:
+                    temp = file.readline().strip('\n')
+                    self.continuous_range = True if temp is True else False
+                    temp = file.readline().strip('\n')
+                    self.filter_has_parent = True if temp is True else False
+                    temp = file.readline().strip('\n')
+                    self.filter_has_children = True if temp is True else False
+                    temp = file.readline().strip('\n')
+                    self.filter_has_attachments = True if temp is True else False
+                    temp = file.readline().strip('\n')
+                    self.tag_sort = temp if temp in ['Contains At Least...', 'Contains Only...',
+                                                     'Contains...'] else 'Contains...'
+                    file.close()
+            location = join(root, 'tags')
+            if exists(location):
+                with open(location, 'r') as file:
+                    master = self.database.get_all_tags()
+                    temp = file.readlines()
+                    self.filtered_tags = [x.strip('\n') for x in temp if x.strip('\n') in master]
+                    file.close()
 
-    def save(self):
-        self.ids.entry_id = self.database.upsert_entry(body=self.body.text, tags=self.tags.filtered_tags,
-                                                       date=self.date.datetime_obj, entry_id=self.ids.entry_id,
-                                                       parent_id=self.ids.parent_id)
-        self.attachments.write_to_database(self.ids.entry_id)
-        self.date.datetime_obj = self.database.get_date_by_entry_id(self.ids.entry_id)
-        self.flags.is_saved = True
-
-    def load(self, entry_id: int = -1, parent_id: int = -1, body: str = '', date: datetime = None,
-             attachments: list = None, tags: list = None):
-        if entry_id != -1:
-            entry = self.database.get_entry_from_entry_id(entry_id)
-            self.body.text = entry['body']
-            for tag in entry['tags']:
-                self.tags.add_to_filtered_tags(tag)
-            self.ids.parent_id = entry['parent_id']
-            self.date.datetime_obj = entry['date']
-            for attachment in entry['attachments']:
-                self.attachments.add_to_filtered_attachments('database att_id: {}'.format(str(attachment['att_id'])))
-
-    def check_entry_saved(self, instance, value):
-        is_saved = True
-        if self.ids.entry_id != -1:
-            if self.body.text != self.database.get_body_by_entry_id(self.ids.entry_id):
-                is_saved = False
-            if is_saved and self.tags.filtered_tags != self.database.get_tags_by_entry_id(self.ids.entry_id):
-                is_saved = False
-            if is_saved and self.date.datetime_obj != self.database.get_date_by_entry_id(self.ids.entry_id):
-                is_saved = False
-            if is_saved and ([x for x in self.attachments.filtered_attachments if 'database att_id: ' not in x] or
-                             [x for x in self.attachments.unfiltered_attachments if 'database att_id: ' in x]):
-                is_saved = False
-        elif not self.body.text and not self.tags.filtered_tags and not self.date.datetime_obj and self.ids.parent_id \
-                == -1 and not self.attachments.filtered_attachments:
-            is_saved = None
         else:
-            is_saved = False
-        self.flags.is_saved = is_saved
+            self.entry_id = -1
+            makedirs(root)
+            self.tag_sort = 'Contains...'
+            self.continuous_range = False
 
-    def check_entry_linked(self, instance, value):
-        self.flags.is_linked = True if self.ids.parent_id != -1 else False
+    def on_entry_id(self, instance, value):
+        self.body = self.database.get_body_by_entry_id(value) if value != -1 else ''
+        self.filtered_tags = self.database.get_tags_by_entry_id(value) if value != -1 else []
+        self.att_ids = self.database.get_att_ids_from_entry_id(value) if value != -1 else []
+        self.has_attachments = True if self.att_ids else False
+        self.parent_id = self.database.get_parent_by_entry_id(value) if value != -1 else -1
+        self.has_parent = True if self.parent_id != -1 else False
+        self.date = self.database.get_date_by_entry_id(value).strftime(self.date_label_format) if value != -1 else ''
+        self.children_ids = self.database.get_children_by_entry_id(value) if value != -1 else []
+        self.has_children = True if self.children_ids else False
+        root = join('.tempfiles', 'reader')
+        if not exists(root):
+            makedirs(root)
+        location = join(root, 'entry_id')
+        with open(location, 'w') as file:
+            file.write(str(value))
+            file.close()
+
+    def on_filtered_tags(self, instance, value):
+        self.filtered_tags_data = [{'text': x, 'screen': 'writer'} for x in value]
+
+    def on_filtered_entry_ids(self, instance, value):
+        self.filtered_dates_data = [
+            {'text': self.database.get_date_by_entry_id(entry_id, self.date_button_format), 'entry_id': entry_id,
+             'caller': self} for entry_id in value]
+
+    def on_continuous_range(self):
+        self.write_filters_to_temp_file()
+
+    def on_filter_has_parent(self):
+        self.write_filters_to_temp_file()
+
+    def on_filter_has_children(self):
+        self.write_filters_to_temp_file()
+
+    def on_filter_has_attachment(self):
+        self.write_filters_to_temp_file()
+
+    def on_filter_tag_sort(self):
+        self.write_filters_to_temp_file()
+
+    def call_children_popup(self):
+        Factory.ChildrenPopup(self.children_ids, self.date, self, self.database).open()
+
+    def call_attachments_popup(self):
+        Factory.AttachmentsPopup(self.att_ids, self.date, self, self.database).open()
+
+    def call_filter_popup(self):
+        Factory.FiltersPopup(self, self.filtered_entry_ids, self.continuous_range, self.filter_has_parent,
+                             self.filter_has_children, self.filter_has_attachments, self.tag_sort, self.database).open()
 
     def clear_ui(self):
-        self.date.datetime_obj = None
-        self.body.text = ''
-        self.ids.reset_ids()
-        self.tags.clear_filtered_tags()
-        self.attachments.clear_filtered_attachments()
+        self.entry_id = -1
+
+    def write_filters_to_temp_file(self):
+        filters = [str(self.continuous_range), str(self.filter_has_parent), str(self.filter_has_children),
+                   str(self.filter_has_attachments), self.tag_sort]
+        root = join('.tempfiles', 'reader')
+        if not exists(root):
+            makedirs(root)
+        location = join(root, 'filters')
+        with open(location, 'w') as file:
+            file.write('\n'.join(filters))
+            file.close()
+
+
+class FiltersPopup(Popup):
+    database = ObjectProperty()
+    caller = ObjectProperty()
+    continuous_range = BooleanProperty()
+    has_parent = BooleanProperty()
+    has_children = BooleanProperty()
+    has_attachments = BooleanProperty()
+    tag_sort = StringProperty()
+    entry_ids = ListProperty()
+    filtered_tags = ListProperty()
+    unfiltered_tags = ListProperty()
+
+    def __init__(self, caller: ReadingModule, entry_ids: list, continuous_range_setting: bool, has_parent_setting: bool,
+                 has_children_setting: bool, has_attachments_setting: bool, tag_sort_setting: str,
+                 database: DatabaseManager = None, **kwargs):
+        super(FiltersPopup, self).__init__(**kwargs)
+        self.database = database if database else DatabaseManager()
+        self.entry_ids = entry_ids
+        self.caller = caller
+        self.continuous_range = continuous_range_setting
+        self.has_parent = has_parent_setting
+        self.has_children = has_children_setting
+        self.has_attachments = has_attachments_setting
+        self.tag_sort = tag_sort_setting
+
+    def on_has_parent(self, instance, value):
+        pass
+
+    def on_has_children(self, instance, value):
+        pass
+
+    def on_has_attachments(self, instance, value):
+        pass
+
+
+class ChildrenPopup(Popup):
+    database = ObjectProperty()
+    caller = ObjectProperty()
+    children_master = ObjectProperty()
+    children_data = ListProperty()
+    date = StringProperty()
+    selected_id = NumericProperty(None, allownone=True)
+    datebutton_format = StringProperty('%a, %b %d, %Y %H:%M')
+    search_text = StringProperty()
+
+    def __init__(self, children_ids: list, date: str, caller: ReadingModule = None, database: DatabaseManager = None,
+                 **kwargs):
+        super(ChildrenPopup, self).__init__(**kwargs)
+        self.date = date
+        self.caller = caller
+        self.database = database if database else DatabaseManager()
+        self.children_master = [
+            {'text': self.database.get_date_by_entry_id(entry_id, self.datebutton_format), 'caller': self,
+             'entry_id': entry_id} for entry_id in children_ids]
+        self.children_data = self.children_master
+
+    def on_search_text(self, instance, value):
+        if value:
+            self.children_data = [x for x in self.children_master if value.lower() in x['text'].lower()]
+        else:
+            self.children_data = [x for x in self.children_master]
+
+    def on_dismiss(self):
+        if self.caller and self.selected_id:
+            self.caller.entry_id = self.selected_id
+        elif self.selected_id:
+            print(self.selected_id)
+        super(ChildrenPopup, self).on_dismiss()
+
+
+class ChildButton(GenericButton):
+    pass
+
+
+class AttachmentsPopup(Popup):
+    database = ObjectProperty()
+    caller = ObjectProperty()
+    attachments_master = list()
+    attachments_data = ListProperty()
+    date = StringProperty()
+    search_text = StringProperty()
+    announcement = StringProperty()
+
+    def __init__(self, att_ids: list, date: str, caller: ReadingModule = None, database: DatabaseManager = None,
+                 **kwargs):
+        super(AttachmentsPopup, self).__init__(**kwargs)
+        self.date = date
+        self.caller = caller
+        self.database = database if database else DatabaseManager()
+        for x in att_ids:
+            n = self.database.get_attachment_name_from_att_id(x)
+            t = n if len(n) < 35 else n[:20] + ' ... .' + n.split('.')[-1]
+            d = {'att_id': x, 'caller': self, 'name': n, 'text': t}
+            self.attachments_data.append(d)
+            self.attachments_master.append(d)
+
+    def on_search_text(self, instance, value):
+        if value:
+            self.attachments_data = [x for x in self.attachments_master if value.lower() in x['name'].lower()]
+        else:
+            self.attachments_data = [x for x in self.attachments_master]
+
+    def export_file(self, att_id, name):
+        stream = self.database.get_attachment_from_att_id(att_id)
+        if not exists('Exports'):
+            makedirs('Exports')
+        location = join('Exports', name)
+        with open(location, 'wb') as file:
+            file.write(stream)
+            file.close()
+        self.announcement = name + ' exported to \'Exports\' folder.'
+
+
+class AttachmentButton(GenericButton):
+    pass
 
 
 class ShortMessagePopup(Popup):
@@ -612,3 +537,33 @@ class ShortMessagePopup(Popup):
     def __init__(self, message: str, **kwargs):
         self.message = message
         super(ShortMessagePopup, self).__init__(**kwargs)
+
+
+class SlideBox(BoxLayout):
+    decoupled_values = BooleanProperty()
+    disable_on_decouple = BooleanProperty
+    label_list = ListProperty()
+    label = StringProperty('')
+    min_range = NumericProperty()
+    max_range = NumericProperty()
+    min_value = NumericProperty()
+    max_value = NumericProperty()
+
+    def __init__(self, **kwargs):
+        self.decoupled_values = kwargs['decoupled_values'] if 'decoupled_values' in kwargs.keys() else False
+        self.disable_on_decouple = kwargs['disable_on_decouple'] if 'disable_on_decouple' in kwargs.keys() else False
+        self.label_list = kwargs['label_list'] if 'label_list' in kwargs.keys() else []
+        self.label = kwargs['label'] if 'label' in kwargs.keys() else ''
+        self.min_range = 0
+        self.max_range = len(self.label_list) - 1 if self.label_list else 0
+        self.min_value = kwargs['min_value'] if 'min_value' in kwargs.keys() else 0
+        self.max_value = kwargs['max_value'] if 'max_value' in kwargs.keys() else self.max_range
+        super(SlideBox, self).__init__(**kwargs)
+
+    def on_label_list(self, instance, value):
+        self.max_range = len(self.label_list) - 1
+        self.max_value = self.max_range
+
+    def on_decoupled_values(self, instance, value):
+        if value is False and self.max_value < self.min_value:
+            self.max_value = self.min_value

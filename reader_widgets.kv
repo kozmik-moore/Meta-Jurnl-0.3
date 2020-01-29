@@ -3,9 +3,10 @@
 #: import GenericAlignedTextInput base_widgets.GenericAlignedTextInput
 #: set light_blue (0, .5, .8, 1)
 #: set dark_gray (.1, .1, .1, .5)
+#: set transparent (0, 0, 0, 0)
 
 <BodyModule>:
-    background_color: 0, 0, 0, 0
+    background_color: transparent
 
 <TagButton>:
     category: ''
@@ -15,7 +16,13 @@
         root.sorter.add_to_filtered_tags(self.text) if root.category == 'unfiltered' else root.sorter.add_to_unfiltered_tags(self.text)
 
 <TagLabel>:
-    background_color: 0, 0, 0, 0
+    background_color: transparent
+    canvas.before:
+        Color:
+            rgba: (1, 1, 1, 1)
+        Line:
+            width: 1
+            rectangle: self.x, self.y, self.width, self.height
 
 <TagsModule>:
     padding: 4, 6, 4, 0
@@ -86,108 +93,109 @@
                 on_release:
                     root.add_to_filtered_tags(root.searchbox.text)
 
-<AttachmentButton>:
-    category: ''
-    sorter: None
-    screen: ''
-    name: ''
-    path: ''
+<DateLabel>:
+    background_color: transparent
+
+<DateButton>:
+    entry_id: -1
+    caller: None
+#    s_id: root.caller.selected_id if root.caller else -2
+#    background_color: light_blue if root.entry_id == root.s_id else (.4, .4, .4, 1)
     on_release:
-        root.sorter.add_to_filtered_attachments(self.path) if root.category == 'unfiltered' else \
-        root.sorter.add_to_unfiltered_attachments(self.path)
-    background_color: light_blue if 'database att_id: ' in self.path else (.4, .4, .4, 1)
+        root.caller.entry_id = self.entry_id
 
-<AttachmentsPopup>:
-    pos_hint: {'right': 1}
-    size_hint_x: None
-    width: 500
-    title: 'Select attachments...'
-    searchbox: searchbox
-    BoxLayout:
-        orientation: 'vertical'
-        BoxLayout:
-            AnchorLayout:
-                GenericLabel:
-                    text: 'None' if len(root.unfiltered_data) == 0 else ''
-                GenericRecycleView:
-                    id: unfiltered
-                    data: root.unfiltered_data
-                    viewclass: 'AttachmentButton'
-            AnchorLayout:
-                GenericLabel:
-                    text: 'None' if len(root.filtered_data) == 0 else ''
-                GenericRecycleView:
-                    id: filtered
-                    data: root.filtered_data
-                    viewclass: 'AttachmentButton'
-        BoxLayout:
-            size_hint_y: None
-            height: 35
-            GenericInput:
-                id: searchbox
-                focus: True
-                text: ''
-                multiline: False
-                hint_text: 'Search or add attachment'
-                on_text:
-                    root.search(self.text)
-            GenericButton:
-                size_hint_x: None
-                width: 90
-                text: 'Clear'
-                disabled: True if not root.searchbox.text else False
-                on_release:
-                    root.clear_search_bar()
-                    root.searchbox.text = ''
-            GenericButton:
-                size_hint_x: None
-                width: 90
-                text: 'Add'
-                disabled: True if not root.searchbox.text else False
-                on_release:
-                    root.add_to_filtered_attachments(root.searchbox.text)
-
-<AttachmentsModuleButton>:
-    text: 'Attachments'
-    on_release:
-        root.call_attachments_popup()
-
-<DateModuleButton>:
-    text: root.datetime_str
-    size_hint_x: 1
+<DateModule>:
+    orientation: 'vertical'
+    GenericButton:
+        size_hint_x: 1
+        text: 'Dates'
+        on_release:
+            root.call_dates_popup()
+    GenericRecycleView:
+        data: root.date_data
+        viewclass: 'DateButton'
 
 <DatetimePopup>:
-    size_hint: None, None
-    size: 400, 300
-    title: 'Edit Date'
-    AnchorLayout:
-        anchor_x: 'center'
-        anchor_y: 'center'
-        BoxLayout:
-            size_hint: None, None
-            height: self.minimum_height
-            width: 300
-            orientation: 'vertical'
-            spacing: 10
+    size_hint_x: None
+    width: 450
+    title: 'Filter Dates (Single Range)' if root.continuous_range else 'Filter Dates (Interval Ranges)'
+    BoxLayout:
+        orientation: 'vertical'
+        GridLayout:
+            cols: 2
+            size_hint_y: None
+            height: 35
             GenericLabel:
-                text: 'Type a date below and press enter'
-            GenericAlignedTextInput:
-                size_hint_y: None
-                height: 35
-                focus: True
-#                hint_text: 'Type the new date and press the enter key'
-                multiline: False
-                on_text_validate:
-                    if self.text: root.set_date(self.text)
-            GenericLabel:
-                text: root.datetime_str if root.datetime_str else 'No Date'
-            AnchorLayout:
-                anchor_x: 'center'
-                anchor_y: 'top'
-                GenericButton:
-                    text: 'OK'
-                    on_release:
-                        root.dismiss()
+                text: 'Continuous Time Interval'
+                text_size: self.size
+                halign: 'right'
+                valign: 'center'
+            CheckBox:
+                size_hint: None, None
+                size: 35, 35
+                active: root.continuous_range
+                on_active:
+                    root.continuous_range = self.active
+        SlideBox:
+            label: 'Years'
+            label_list: root.years
+            min_value: root.ranges['years']['min']
+            max_value: root.ranges['years']['max']
+            on_min_value:
+                root.ranges['years']['min'] = self.min_value
+            on_max_value:
+                root.ranges['years']['max'] = self.max_value
+        SlideBox:
+            decoupled_values: root.continuous_range
+            label: 'Months'
+            label_list: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+            min_value: root.ranges['months']['min']
+            max_value: root.ranges['months']['max']
+            on_min_value:
+                root.ranges['months']['min'] = self.min_value
+            on_max_value:
+                root.ranges['months']['max'] = self.max_value
+        SlideBox:
+            decoupled_values: root.continuous_range
+            label: 'Days'
+            label_list: [str(x) for x in range(1, 32)]
+            min_value: root.ranges['days']['min']
+            max_value: root.ranges['days']['max']
+            on_min_value:
+                root.ranges['days']['min'] = self.min_value
+            on_max_value:
+                root.ranges['days']['max'] = self.max_value
+        SlideBox:
+            decoupled_values: root.continuous_range
+            label: 'Hours'
+            label_list: ['{:02d}'.format(x) for x in range(24)]
+            min_value: root.ranges['hours']['min']
+            max_value: root.ranges['hours']['max']
+            on_min_value:
+                root.ranges['hours']['min'] = self.min_value
+            on_max_value:
+                root.ranges['hours']['max'] = self.max_value
+        SlideBox:
+            decoupled_values: root.continuous_range
+            label: 'Minutes'
+            label_list: ['{:02d}'.format(x) for x in range(60)]
+            min_value: root.ranges['minutes']['min']
+            max_value: root.ranges['minutes']['max']
+            on_min_value:
+                root.ranges['minutes']['min'] = self.min_value
+            on_max_value:
+                root.ranges['minutes']['max'] = self.max_value
+        SlideBox:
+            decoupled_values: root.continuous_range
+            disable_on_decouple: False
+            label: 'Weekdays'
+            label_list: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+            min_value: root.ranges['weekdays']['min']
+            max_value: root.ranges['weekdays']['max']
+            on_min_value:
+                root.ranges['weekdays']['min'] = self.min_value
+            on_max_value:
+                root.ranges['weekdays']['max'] = self.max_value
 
 <FlagsModule>:
     orientation: 'vertical'
@@ -209,14 +217,73 @@
             text: 'E' if root.is_being_edited else ''
     BoxLayout:
 
-<WritingModule>:
-    database: None
-    entry_manager: None
-    IDModule:
-        id: ids
-        size_hint: None, None
-        size: (0, 0)
+<ReadingModule>:
     BoxLayout:
+        size_hint_x: None
+        width: 225
+        orientation: 'vertical'
+        padding: 5
+        spacing: 2
+        canvas.before:
+            Color:
+                rgba: light_blue
+            Line:
+                width: 1
+                rectangle: self.x, self.y, self.width, self.height
+        GenericButton:
+            size_hint_x: 1
+            text: 'Select Filters'
+            on_release:
+                Factory.FiltersPopup().open()
+        GenericRecycleView:
+            viewclass: 'DateButton'
+            data: root.filtered_dates_data
+        GenericButton:
+            text: 'Statistics'
+    BoxLayout:
+        orientation: 'vertical'
+        padding: 5
+        spacing: 2
+        canvas.before:
+            Color:
+                rgba: light_blue
+            Line:
+                width: 1
+                rectangle: self.x, self.y, self.width, self.height
+        GenericLabel:
+            text: root.date
+        ScrollView:
+            do_scroll_x: False
+            do_scroll_y: True
+            size_hint_y: 1
+            GenericInput:
+                size_hint_y: None
+                height: self.minimum_height
+                size_hint_x: 1
+                text: root.body
+                on_text:
+                    self.parent.scroll_y = 1
+                readonly: True
+        BoxLayout:
+            size_hint_y: None
+            height: self.minimum_height
+            GenericButton:
+                text: 'Edit'
+                disabled: True if root.entry_id == -1 else False
+            GenericButton:
+                text: 'Link'
+                disabled: True if root.entry_id == -1 else False
+            GenericButton:
+                size_hint_x: 1
+                text: 'Clear' if self.width > 50 else 'Cl'
+                disabled: True if root.entry_id == -1 else False
+                on_release:
+                    root.clear_ui()
+    BoxLayout:
+        size_hint_x: None
+        width: 225
+        padding: 5
+        spacing: 2
         canvas.before:
             Color:
                 rgba: light_blue
@@ -224,66 +291,206 @@
                 width: 1
                 rectangle: self.x, self.y, self.width, self.height
         orientation: 'vertical'
-        padding: 5
-        DateModuleButton:
-            id: date
-            database: root.database
+        AnchorLayout:
+            size_hint_y: None
+            height: 111
+            anchor_y: 'top'
+            BoxLayout:
+                orientation: 'vertical'
+                size_hint_y: None
+                height: self.minimum_height
+                spacing: 2
+                GenericButton:
+                    size_hint_x: 1
+                    text: 'Parent'
+                    disabled: True if root.has_parent is False else False
+                    on_release:
+                        root.entry_id = root.parent_id
+                GenericButton:
+                    size_hint_x: 1
+                    text: 'Children'
+                    disabled: True if root.has_children is False else False
+                    on_release:
+                        root.call_children_popup()
+                GenericButton:
+                    size_hint_x: 1
+                    text: 'Attachments'
+                    disabled: True if root.has_attachments is False else False
+                    on_release:
+                        root.call_attachments_popup()
         BoxLayout:
-            canvas.before:
-                Color:
-                    rgba: dark_gray
-                Rectangle:
-                    pos: self.pos
-                    size: self.size
-            BodyModule:
-                id: body
-                database: root.database
-            FlagsModule:
-                id: flags
-                size_hint_x: None
-                width: 35
+            size_hint_y: None
+            height: 35
+        GenericLabel:
+            text: 'Tags'
+            underline: True
+        AnchorLayout:
+            anchor_y: 'bottom'
+            GenericRecycleView:
+                data: root.filtered_tags_data
+                viewclass: 'TagLabel'
+
+<FiltersPopup>:
+    pos_hint: {'x': 0}
+    size_hint_x: None
+    width: 400
+    title: 'Filter Dates'
     BoxLayout:
-        size_hint_max_x: 450
         orientation: 'vertical'
         GridLayout:
             size_hint_y: None
             height: self.minimum_height
-            rows: 2
             cols: 2
-            spacing: 2
-            padding: 5
-            canvas.before:
-                Color:
-                    rgba: light_blue
-                Line:
-                    width: 1
-                    rectangle: self.x, self.y, self.width, self.height
-            GenericButton:
+            rows: 2
+            BoxLayout:
+                size_hint_y: None
+                height: self.minimum_height
+                Label:
+                    text: 'Has Parent'
+                    text_size: self.size
+                    halign: 'center'
+                    valign: 'center'
+                CheckBox:
+                    size_hint: None, None
+                    size: 35, 35
+                    active: root.has_parent
+                    on_active:
+                        root.has_parent = self.active
+            BoxLayout:
+                size_hint_y: None
+                height: self.minimum_height
+                Label:
+                    text: 'Has Children'
+                    text_size: self.size
+                    halign: 'center'
+                    valign: 'center'
+                CheckBox:
+                    size_hint: None, None
+                    size: 35, 35
+                    active: root.has_children
+                    on_active:
+                        root.has_children = self.active
+            BoxLayout:
+                size_hint_y: None
+                height: self.minimum_height
+                Label:
+                    text: 'Has Attachments'
+                    text_size: self.size
+                    halign: 'center'
+                    valign: 'center'
+                CheckBox:
+                    size_hint: None, None
+                    size: 35, 35
+                    active: root.has_attachments
+                    on_active:
+                        root.has_attachments = self.active
+            BoxLayout:
+                size_hint_y: None
+                height: self.minimum_height
+                Label:
+                    text: 'Body Contains...'
+                    text_size: self.size
+                    halign: 'center'
+                    valign: 'center'
+                CheckBox:
+                    size_hint: None, None
+                    size: 35, 35
+        BoxLayout:
+            size_hint_y: None
+            height: 35
+            GenericToggleButton:
                 size_hint_x: 1
-                id: save
-                text: 'Save'
-                on_release:
-                    root.entry_manager.save()
-            GenericButton:
+                group: 'filters'
+                text: 'Tags'
+            GenericToggleButton:
                 size_hint_x: 1
-                id: link
-                text: 'Link'
-                on_release:
-                    root.entry_manager.load()
-            AttachmentsModuleButton:
-                size_hint_x: 1
-                id: attachments
-                database: root.database
-            GenericButton:
-                size_hint_x: 1
-                id: clear
-                text: 'Clear'
-                on_release:
-                    root.entry_manager.clear_ui()
-        TagsModule:
-            id: tags
-            database: root.database
+                group: 'filters'
+                text: 'Dates'
+        ScreenManager:
 
+<ChildrenPopup>:
+    size_hint_x: None
+    width: 300
+    pos_hint: {'right': 1}
+    title: 'Children for:\n{}'.format(root.date)
+    searchbox: searchbox
+    BoxLayout:
+        spacing: 2
+        orientation: 'vertical'
+        GenericRecycleView:
+            data: root.children_data
+            viewclass: 'ChildButton'
+        AnchorLayout:
+            size_hint_y: None
+            height: 35
+            anchor_x: 'center'
+            GenericButton:
+                size_hint_x: None
+                width: 150
+                text: 'Tree Graph'
+        BoxLayout:
+            size_hint_y: None
+            height: 35
+            GenericInput:
+                id: searchbox
+                focus: True
+                text: ''
+                multiline: False
+                hint_text: 'Search dates'
+                on_text:
+                    root.search_text = self.text
+            GenericButton:
+                size_hint_x: None
+                width: 90
+                text: 'Clear'
+                disabled: True if not root.searchbox.text else False
+                on_release:
+                    root.searchbox.text = ''
+
+<ChildButton>:
+    entry_id: -1
+    caller: None
+    on_release:
+        root.caller.selected_id = self.entry_id
+        root.caller.dismiss()
+
+<AttachmentsPopup>:
+    size_hint_x: None
+    width: 300
+    pos_hint: {'right': 1}
+    title: 'Children for:\n{}'.format(root.date)
+    searchbox: searchbox
+    BoxLayout:
+        orientation: 'vertical'
+        GenericRecycleView:
+            data: root.attachments_data
+            viewclass: 'AttachmentButton'
+        BoxLayout:
+            size_hint_y: None
+            height: 35
+            GenericInput:
+                id: searchbox
+                focus: True
+                text: ''
+                multiline: False
+                hint_text: 'Search for attachments'
+                on_text:
+                    root.search_text = self.text
+            GenericButton:
+                size_hint_x: None
+                width: 90
+                text: 'Clear'
+                disabled: True if not root.searchbox.text else False
+                on_release:
+                    root.searchbox.text = ''
+
+<AttachmentButton>:
+    att_id: -1
+    added: None     # add support for searching by date added
+    caller: None
+    name: ''
+    on_release:
+        root.caller.export_file(self.att_id, self.name)
 
 <ShortMessagePopup>:
     size_hint: None, None
@@ -307,3 +514,55 @@
                     text: 'OK'
                     on_release:
                         root.dismiss()
+
+<SlideBox>:
+    lo: lo_slide
+    hi: hi_slide
+    slide_size_hint: 2
+    orientation: 'horizontal'
+    canvas.before:
+        Color:
+            rgba: .6, .6, .6, 1
+        Line:
+            width: 1
+            rectangle: self.x, self.y, self.width, self.height
+    AnchorLayout:
+        anchor_x: 'center'
+        anchor_y: 'center'
+        size_hint_x: .25
+        Label:
+            text: root.label
+            size_hint: 0.7, None
+            height: 35
+    GridLayout:
+        padding: 20, 0, 0, 0
+        rows: 2
+        cols: 2
+        Slider:
+            disabled: True if root.disable_on_decouple is True and root.decoupled_values is True else False
+            id: lo_slide
+            size_hint_x: root.slide_size_hint
+            min: root.min_range
+            max: root.max_range
+            step: 1
+            value: root.min_value
+            on_value:
+                if self.value > root.hi.value and not root.decoupled_values: root.hi.value = self.value
+                root.min_value = self.value
+        Label:
+            text: str(root.label_list[int(root.lo.value)]) if root.label_list else ''
+            halign: 'right'
+        Slider:
+            disabled: True if root.disable_on_decouple is True and root.decoupled_values is True else False
+            id: hi_slide
+            size_hint_x: root.slide_size_hint
+            min: root.min_range
+            max: root.max_range
+            step: 1
+            value: root.max_value
+            on_value:
+                if root.lo.value > self.value and not root.decoupled_values: root.lo.value = self.value
+                root.max_value = self.value
+        Label:
+            text: str(root.label_list[int(root.hi.value)]) if root.label_list else ''
+            halign: 'right'

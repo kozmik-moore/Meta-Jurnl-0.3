@@ -2,6 +2,8 @@ import sqlite3
 from os.path import exists, basename
 from datetime import datetime
 
+from dateutil.parser import parse
+
 
 def create_database(database: str) -> None:
     file = open(database, 'w+')
@@ -365,20 +367,26 @@ class DatabaseManager:
         tags.sort()
         return tags
 
-    def get_attachment_from_att_id(self, att_id):
+    def get_attachment_from_att_id(self, att_id: int):
         self.cursor.execute('SELECT file FROM attachments WHERE att_id=?', (att_id,))
         attachment = self.cursor.fetchone()[0]
         return attachment
 
-    def get_attachment_name_from_att_id(self, att_id):
+    def get_attachment_name_from_att_id(self, att_id: int):
         self.cursor.execute('SELECT filename FROM attachments WHERE att_id=?', (att_id,))
         name = self.cursor.fetchone()[0]
         return name
 
-    def get_att_ids_from_entry_id(self, entry_id):
+    def get_att_ids_from_entry_id(self, entry_id: int):
         self.cursor.execute('SELECT att_id FROM attachments WHERE entry_id=?', (entry_id,))
         ids = [x[0] for x in self.cursor.fetchall()]
         return ids
+
+    def get_att_date_added_from_att_id(self, att_id: int):
+        self.cursor.execute('SELECT added FROM attachments WHERE att_id=?', (att_id,))
+        name = self.cursor.fetchone()[0]
+        name = parse(name)
+        return name
 
     def get_all_attachment_data_from_entry_id(self, entry_id):
         def sort_by_added(a):

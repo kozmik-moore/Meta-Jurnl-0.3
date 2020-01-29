@@ -226,7 +226,7 @@ class AttachmentsModule:
         root = join('.tempfiles', 'writer')
         if not exists(root):
             makedirs(root)
-        filepath = join(root, 'attachments')
+        filepath = join(root, 'attachments_master')
         temp = self.filtered_attachments + ['---'] + self.unfiltered_attachments
         with open(filepath, 'w') as file:
             file.writelines('\n'.join(temp))
@@ -286,13 +286,13 @@ class AttachmentsPopup(Popup):
         for x in filtered:
             n = str(basename(x)) if 'database att_id: ' not in x else self.database.get_attachment_name_from_att_id(
                 x.strip('database att_id: '))
-            t = n if len(n) < 30 else n[:20] + ' ... .' + n.split(',')[-1]
+            t = n if len(n) < 30 else n[:20] + ' ... .' + n.split('.')[-1]
             d = {'path': x, 'category': 'filtered', 'screen': 'writer', 'sorter': self, 'name': n, 'text': t}
             f_temp.append(d)
         for x in unfiltered:
             n = str(basename(x)) if 'database att_id: ' not in x else self.database.get_attachment_name_from_att_id(
                 x.strip('database att_id: '))
-            t = n if len(n) < 30 else n[:20] + ' ... .' + n.split(',')[-1]
+            t = n if len(n) < 30 else n[:20] + ' ... .' + n.split('.')[-1]
             d = {'path': x, 'category': 'unfiltered', 'screen': 'writer', 'sorter': self, 'name': n, 'text': t}
             u_temp.append(d)
         self.filtered_data = f_temp
@@ -326,7 +326,7 @@ class AttachmentsPopup(Popup):
         root = join('.tempfiles', 'writer')
         if not exists(root):
             makedirs(root)
-        filepath = join(root, 'attachments')
+        filepath = join(root, 'attachments_master')
         temp = self.filtered_attachments + ['---'] + self.unfiltered_attachments
         with open(filepath, 'w') as file:
             file.writelines('\n'.join(temp))
@@ -561,7 +561,7 @@ class EntryManager:
                 for tag in [x.strip('\n') for x in file.readlines()]:
                     self.tags.add_to_filtered_tags(tag)
                 file.close()
-        location = join(root, 'attachments')
+        location = join(root, 'attachments_master')
         temp = list()
         i = 0
         f = set()
@@ -604,7 +604,7 @@ class EntryManager:
                 self.tags.add_to_filtered_tags(tag)
             self.ids.parent_id = entry['parent_id']
             self.date.datetime_obj = entry['date']
-            for attachment in entry['attachments']:
+            for attachment in entry['attachments_master']:
                 self.attachments.add_to_filtered_attachments('database att_id: {}'.format(str(attachment['att_id'])))
 
     def create_linked_entry(self, parent_id: int = None, tags: list = None):
