@@ -188,6 +188,42 @@ class DatabaseManager:
         entry_id = self.cursor.fetchone()[0]
         return entry_id
 
+    def get_entry_ids_from_year_range(self, year: list):
+        self.cursor.execute('SELECT entry_id FROM dates WHERE year BETWEEN ? AND ?', (year[0], year[1]))
+        ids = [x[0] for x in self.cursor]
+        ids.sort(key=self.get_date_by_entry_id)
+        return ids
+
+    def get_entry_ids_from_month_range(self, month: list):
+        self.cursor.execute('SELECT entry_id FROM dates WHERE month BETWEEN ? AND ?', (month[0], month[1]))
+        ids = [x[0] for x in self.cursor]
+        ids.sort(key=self.get_date_by_entry_id)
+        return ids
+
+    def get_entry_ids_from_day_range(self, day: list):
+        self.cursor.execute('SELECT entry_id FROM dates WHERE day BETWEEN ? AND ?', (day[0], day[1]))
+        ids = [x[0] for x in self.cursor]
+        ids.sort(key=self.get_date_by_entry_id)
+        return ids
+
+    def get_entry_ids_from_hour_range(self, hour: list):
+        self.cursor.execute('SELECT entry_id FROM dates WHERE hour BETWEEN ? AND ?', (hour[0], hour[1]))
+        ids = [x[0] for x in self.cursor]
+        ids.sort(key=self.get_date_by_entry_id)
+        return ids
+
+    def get_entry_ids_from_minute_range(self, minute: list):
+        self.cursor.execute('SELECT entry_id FROM dates WHERE minute BETWEEN ? AND ?', (minute[0], minute[1]))
+        ids = [x[0] for x in self.cursor]
+        ids.sort(key=self.get_date_by_entry_id)
+        return ids
+
+    def get_entry_ids_from_weekday_range(self, weekday: list):
+        self.cursor.execute('SELECT entry_id FROM dates WHERE weekday BETWEEN ? AND ?', (weekday[0], weekday[1]))
+        ids = [x[0] for x in self.cursor]
+        ids.sort(key=self.get_date_by_entry_id)
+        return ids
+
     # TODO improve computation time
     def get_entry_ids_from_tags(self, tags: list, op_type: str = 'Contains One Of...', **kwargs):
         ids = []
@@ -247,11 +283,10 @@ class DatabaseManager:
 
     def get_entry_ids_from_continuous_range(self, lower: datetime, upper: datetime):
         """lower and upper are datetime objects representing dates, where lower is earlier than upper"""
-        ids = []
         self.cursor.execute('SELECT entry_id FROM dates WHERE string BETWEEN ? AND ?',
                             (lower.strftime('%Y-%m-%d %H:%M'), upper.strftime('%Y-%m-%d %H:%M')))
-        for item in self.cursor:
-            ids.append(item[0])
+        ids = [x[0] for x in self.cursor]
+        ids.sort(key=self.get_date_by_entry_id)
         return ids
 
     def get_entry_ids_from_interval_ranges(self, year: tuple = None, month: tuple = None, day: tuple = None,

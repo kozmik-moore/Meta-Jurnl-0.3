@@ -1,6 +1,7 @@
 #: import Factory kivy.factory.Factory
 #: import GenericLabel base_widgets.GenericLabel
 #: import GenericAlignedTextInput base_widgets.GenericAlignedTextInput
+#: import notransition kivy.uix.screenmanager.NoTransition
 #: set light_blue (0, .5, .8, 1)
 #: set dark_gray (.1, .1, .1, .5)
 #: set transparent (0, 0, 0, 0)
@@ -115,87 +116,83 @@
         data: root.date_data
         viewclass: 'DateButton'
 
-<DatetimePopup>:
-    size_hint_x: None
-    width: 450
-    title: 'Filter Dates (Single Range)' if root.continuous_range else 'Filter Dates (Interval Ranges)'
-    BoxLayout:
-        orientation: 'vertical'
-        GridLayout:
-            cols: 2
-            size_hint_y: None
-            height: 35
-            GenericLabel:
-                text: 'Continuous Time Interval'
-                text_size: self.size
-                halign: 'right'
-                valign: 'center'
-            CheckBox:
-                size_hint: None, None
-                size: 35, 35
-                active: root.continuous_range
-                on_active:
-                    root.continuous_range = self.active
-        SlideBox:
-            label: 'Years'
-            label_list: root.years
-            min_value: root.ranges['years']['min']
-            max_value: root.ranges['years']['max']
-            on_min_value:
-                root.ranges['years']['min'] = self.min_value
-            on_max_value:
-                root.ranges['years']['max'] = self.max_value
-        SlideBox:
-            decoupled_values: root.continuous_range
-            label: 'Months'
-            label_list: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-            min_value: root.ranges['months']['min']
-            max_value: root.ranges['months']['max']
-            on_min_value:
-                root.ranges['months']['min'] = self.min_value
-            on_max_value:
-                root.ranges['months']['max'] = self.max_value
-        SlideBox:
-            decoupled_values: root.continuous_range
-            label: 'Days'
-            label_list: [str(x) for x in range(1, 32)]
-            min_value: root.ranges['days']['min']
-            max_value: root.ranges['days']['max']
-            on_min_value:
-                root.ranges['days']['min'] = self.min_value
-            on_max_value:
-                root.ranges['days']['max'] = self.max_value
-        SlideBox:
-            decoupled_values: root.continuous_range
-            label: 'Hours'
-            label_list: ['{:02d}'.format(x) for x in range(24)]
-            min_value: root.ranges['hours']['min']
-            max_value: root.ranges['hours']['max']
-            on_min_value:
-                root.ranges['hours']['min'] = self.min_value
-            on_max_value:
-                root.ranges['hours']['max'] = self.max_value
-        SlideBox:
-            decoupled_values: root.continuous_range
-            label: 'Minutes'
-            label_list: ['{:02d}'.format(x) for x in range(60)]
-            min_value: root.ranges['minutes']['min']
-            max_value: root.ranges['minutes']['max']
-            on_min_value:
-                root.ranges['minutes']['min'] = self.min_value
-            on_max_value:
-                root.ranges['minutes']['max'] = self.max_value
-        SlideBox:
-            decoupled_values: root.continuous_range
-            disable_on_decouple: False
-            label: 'Weekdays'
-            label_list: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-            min_value: root.ranges['weekdays']['min']
-            max_value: root.ranges['weekdays']['max']
-            on_min_value:
-                root.ranges['weekdays']['min'] = self.min_value
-            on_max_value:
-                root.ranges['weekdays']['max'] = self.max_value
+<DatetimeSortModule>:
+    orientation: 'vertical'
+    GridLayout:
+        cols: 2
+        size_hint_y: None
+        height: 35
+        GenericLabel:
+            text: 'Continuous Time Interval'
+            text_size: self.size
+            halign: 'right'
+            valign: 'center'
+        CheckBox:
+            size_hint: None, None
+            size: 35, 35
+            active: root.continuous_range
+            on_active:
+                root.continuous_range = self.active
+    SlideBox:
+        label: 'Years'
+        label_list: root.years
+        min_value: root.year[0] if root.year else 0
+        max_value: root.year[1] if root.year else 0
+        on_min_value:
+            root.year[0] = int(self.min_value)
+        on_max_value:
+            root.year[1] = int(self.max_value)
+    SlideBox:
+        decoupled_values: root.continuous_range
+        label: 'Months'
+        label_list: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+        min_value: root.month[0] if root.month else 0
+        max_value: root.month[1] if root.month else 0
+        on_min_value:
+            root.month[0] = int(self.min_value)
+        on_max_value:
+            root.month[1] = int(self.max_value)
+    SlideBox:
+        decoupled_values: root.continuous_range
+        label: 'Days'
+        label_list: [str(x) for x in range(1, 32)]
+        min_value: root.day[0] if root.day else 0
+        max_value: root.day[1] if root.day else 0
+        on_min_value:
+            root.day[0] = int(self.min_value)
+        on_max_value:
+            root.day[1] = int(self.max_value)
+    SlideBox:
+        decoupled_values: root.continuous_range
+        label: 'Hours'
+        label_list: ['{:02d}'.format(x) for x in range(24)]
+        min_value: root.hour[0] if root.hour else 0
+        max_value: root.hour[1] if root.hour else 0
+        on_min_value:
+            root.hour[0] = int(self.min_value)
+        on_max_value:
+            root.hour[1] = int(self.max_value)
+    SlideBox:
+        decoupled_values: root.continuous_range
+        label: 'Minutes'
+        label_list: ['{:02d}'.format(x) for x in range(60)]
+        min_value: root.minute[0] if root.minute else 0
+        max_value: root.minute[1] if root.minute else 0
+        on_min_value:
+            root.minute[0] = int(self.min_value)
+        on_max_value:
+            root.minute[1] = int(self.max_value)
+    SlideBox:
+        decoupled_values: root.continuous_range
+        disable_on_decouple:
+        label: 'Weekdays'
+        label_list: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+        min_value: root.weekday[0] if root.weekday else 0
+        max_value: root.weekday[1] if root.weekday else 0
+        on_min_value:
+            root.weekday[0] = int(self.min_value)
+        on_max_value:
+            root.weekday[1] = int(self.max_value)
 
 <FlagsModule>:
     orientation: 'vertical'
@@ -234,7 +231,7 @@
             size_hint_x: 1
             text: 'Select Filters'
             on_release:
-                Factory.FiltersPopup().open()
+                root.call_filter_popup()
         GenericRecycleView:
             viewclass: 'DateButton'
             data: root.filtered_dates_data
@@ -327,7 +324,7 @@
         AnchorLayout:
             anchor_y: 'bottom'
             GenericRecycleView:
-                data: root.filtered_tags_data
+                data: root.entry_tags_data
                 viewclass: 'TagLabel'
 
 <FiltersPopup>:
@@ -395,18 +392,46 @@
                 CheckBox:
                     size_hint: None, None
                     size: 35, 35
+                    active: root.has_body
+                    on_active:
+                        root.has_body = self.active
         BoxLayout:
             size_hint_y: None
             height: 35
-            GenericToggleButton:
+            GenericButton:
                 size_hint_x: 1
-                group: 'filters'
                 text: 'Tags'
-            GenericToggleButton:
+                on_release:
+                    root.current_screen = 'Tags'
+            GenericButton:
                 size_hint_x: 1
-                group: 'filters'
                 text: 'Dates'
+                on_release:
+                    root.current_screen = 'Dates'
         ScreenManager:
+            id: screen_manager
+            transition: notransition()
+            current: None if not root.current_screen else root.current_screen
+            Screen:
+                name: 'Tags'
+            Screen:
+                name: 'Dates'
+                DatetimeSortModule:
+                    id: date_sort_module
+                    years: root.years
+                    continuous_range: root.continuous_range
+                    on_continuous_range:
+                        root.continuous_range = self.continuous_range
+                    ranges: root.ranges
+        AnchorLayout:
+            size_hint_y: None
+            height: 35
+            anchor_x: 'center'
+            GenericButton:
+                text: 'Clear Filters'
+                on_release:
+                    root.clear_filters()
+
 
 <ChildrenPopup>:
     size_hint_x: None
@@ -550,7 +575,7 @@
                 if self.value > root.hi.value and not root.decoupled_values: root.hi.value = self.value
                 root.min_value = self.value
         Label:
-            text: str(root.label_list[int(root.lo.value)]) if root.label_list else ''
+            text: '' if not root.label_list else str(root.label_list[int(root.lo.value)])
             halign: 'right'
         Slider:
             disabled: True if root.disable_on_decouple is True and root.decoupled_values is True else False
@@ -564,5 +589,5 @@
                 if root.lo.value > self.value and not root.decoupled_values: root.lo.value = self.value
                 root.max_value = self.value
         Label:
-            text: str(root.label_list[int(root.hi.value)]) if root.label_list else ''
+            text: '' if not root.label_list else str(root.label_list[int(root.hi.value)])
             halign: 'right'
