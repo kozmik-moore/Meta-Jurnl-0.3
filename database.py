@@ -289,8 +289,8 @@ class DatabaseManager:
         ids.sort(key=self.get_date_by_entry_id)
         return ids
 
-    def get_entry_ids_from_interval_ranges(self, year: tuple = None, month: tuple = None, day: tuple = None,
-                                           hour: tuple = None, minute: tuple = None, weekday: tuple = None, **kwargs):
+    def get_entry_ids_from_interval_ranges(self, year: list = None, month: list = None, day: list = None,
+                                           hour: list = None, minute: list = None, weekday: list = None, **kwargs):
         ids = []
         year_range = self.get_year_range() if not year else year
         month_range = [1, 12] if not month else month
@@ -304,8 +304,7 @@ class DatabaseManager:
                             (year_range[0], year_range[1], month_range[0], month_range[1], day_range[0], day_range[1],
                              hour_range[0], hour_range[1], minute_range[0], minute_range[1], weekday_range[0],
                              weekday_range[1]))
-        for entry_id in self.cursor:
-            ids.append(entry_id[0])
+        ids = [x[0] for x in self.cursor]
         return ids
 
     def get_entry_ids_from_filtered_attributes(self, **kwargs):
@@ -313,17 +312,17 @@ class DatabaseManager:
             return self.get_date_by_entry_id(entry_id)
 
         filtered_ids = set(self.get_all_entry_ids())
-        if 'parent' in kwargs and kwargs['parent']:
+        if 'has_parent' in kwargs and kwargs['has_parent']:
             has_parent_ids = set(self.get_entry_ids_of_all_children())
             filtered_ids = filtered_ids.intersection(has_parent_ids)
-        if 'child' in kwargs and kwargs['child']:
+        if 'has_children' in kwargs and kwargs['has_children']:
             has_child_ids = set(self.get_entry_ids_of_all_parents())
             filtered_ids = filtered_ids.intersection(has_child_ids)
-        if 'attachments' in kwargs and kwargs['attachments']:
+        if 'has_attachments' in kwargs and kwargs['has_attachments']:
             has_attachments_ids = set(self.get_entry_ids_from_attachments())
             filtered_ids = filtered_ids.intersection(has_attachments_ids)
-        if 'body' in kwargs and kwargs['body'] is not None:
-            has_attachments_ids = set(self.get_entry_ids_from_body(kwargs['body']))
+        if 'has_body' in kwargs and kwargs['has_body'] is not None:
+            has_attachments_ids = set(self.get_entry_ids_from_body(kwargs['has_body']))
             filtered_ids = filtered_ids.intersection(has_attachments_ids)
         filtered_ids = list(filtered_ids.intersection(set(self.get_entry_ids_from_tags(**kwargs))).intersection(
             set(self.get_entry_ids_from_date(**kwargs))))

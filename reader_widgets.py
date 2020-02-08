@@ -25,67 +25,26 @@ class BodyModule(GenericInput):
         self.text = body if body else ''
 
 
-class TagsModule(BoxLayout):
-    filtered_tags = ListProperty()
-    unfiltered_tags = ListProperty()
-    filtered_data = ListProperty()
-    database = ObjectProperty(None, allownone=True)
-
-    def __init__(self, database: DatabaseManager = None, filtered: list = None, **kwargs):
-        super(TagsModule, self).__init__(**kwargs)
-        self.database = database if database else DatabaseManager()
-        self.unfiltered_tags = self.database.get_all_tags()
-        if filtered:
-            for tag in filtered:
-                self.add_to_filtered_tags(tag)
-        else:
-            self.update_recycleview()
-
-    def add_to_filtered_tags(self, tag):
-        if tag not in self.filtered_tags:
-            if tag in self.unfiltered_tags:
-                self.unfiltered_tags.remove(tag)
-            self.filtered_tags.append(tag)
-            self.filtered_tags.sort()
-            self.update_recycleview()
-
-    def add_to_unfiltered_tags(self, tag):
-        if tag not in self.unfiltered_tags:
-            if tag in self.filtered_tags:
-                self.filtered_tags.remove(tag)
-            self.unfiltered_tags.append(tag)
-            self.unfiltered_tags.sort()
-            self.update_recycleview()
-
-    def update_recycleview(self):
-        filtered = [x for x in self.filtered_tags]
-        self.filtered_data = [{'text': x, 'category': 'filtered', 'screen': 'writer', 'sorter': self}
-                              for x in filtered]
-
-    def clear_filtered_tags(self):
-        self.unfiltered_tags = self.unfiltered_tags + self.filtered_tags
-        self.filtered_tags = []
-        self.update_recycleview()
-
-    def call_tags_popup(self):
-        Factory.TagsPopup(self, self.filtered_tags, self.unfiltered_tags).open()
+class SpinnerButton(GenericButton):
+    pass
 
 
-class TagsPopup(Popup):
+class TagFilterModule(BoxLayout):
+    database = ObjectProperty()
     filtered_tags = list()
     unfiltered_tags = list()
     filtered_data = ListProperty()
     unfiltered_data = ListProperty()
     search_text = StringProperty('')
-    sorter = None
 
-    def __init__(self, sorter: TagsModule, filtered, unfiltered):
-        super(TagsPopup, self).__init__()
-        self.sorter = sorter if sorter else TagsModule()
-        for tag in filtered:
-            self.add_to_filtered_tags(tag)
-        for tag in unfiltered:
+    def __init__(self, filtered: list = None, database: DatabaseManager = None, **kwargs):
+        self.database = database if database else DatabaseManager()
+        super(TagFilterModule, self).__init__(**kwargs)
+        for tag in self.database.get_all_tags():
             self.add_to_unfiltered_tags(tag)
+        if filtered:
+            for tag in filtered:
+                self.add_to_filtered_tags(tag)
 
     def add_to_filtered_tags(self, tag):
         if tag not in self.filtered_tags:
@@ -118,16 +77,9 @@ class TagsPopup(Popup):
     def clear_search_bar(self):
         self.update_recycleviews()
 
-    def on_dismiss(self):
-        for tag in self.filtered_tags:
-            self.sorter.add_to_filtered_tags(tag)
-        for tag in self.unfiltered_tags:
-            self.sorter.add_to_unfiltered_tags(tag)
-        super(TagsPopup, self).on_dismiss()
-
 
 class TagButton(GenericButton):
-    sorter = ObjectProperty(TagsModule, allownone=True)
+    sorter = ObjectProperty(TagFilterModule, allownone=True)
 
     def __init__(self, **kwargs):
         super(TagButton, self).__init__(**kwargs)
@@ -145,7 +97,7 @@ class DateButton(GenericButton):
     pass
 
 
-class DatetimeSortModule(BoxLayout):
+class DateFilterModule(BoxLayout):
     years = ListProperty()
     ranges = DictProperty()
     continuous_range = BooleanProperty()
@@ -157,7 +109,7 @@ class DatetimeSortModule(BoxLayout):
     weekday = ListProperty([0, 0])
 
     def __init__(self, years: list = None, continuous: bool = False, ranges: dict = None, **kwargs):
-        super(DatetimeSortModule, self).__init__(**kwargs)
+        super(DateFilterModule, self).__init__(**kwargs)
         self.years = years if years else [datetime.now().year]
         self.continuous_range = continuous
         self.year = [ranges['year'][0], ranges['year'][1]] if ranges else [0, len(self.years) - 1]
@@ -177,7 +129,7 @@ class DatetimeSortModule(BoxLayout):
 
 
 class ReadingModule(BoxLayout):
-    database = ObjectProperty(None, allownone=True)
+    database = ObjectProperty()
     has_parent = BooleanProperty(False)
     has_children = BooleanProperty(False)
     has_attachments = BooleanProperty(False)
@@ -201,10 +153,11 @@ class ReadingModule(BoxLayout):
     filtered_dates_data = ListProperty()
     date_label_format = StringProperty('%A, %B %d, %Y %H:%M')
     date_button_format = StringProperty('%Y-%m-%d %H:%M')
+    filter_screen = StringProperty()
 
-    def __init__(self, database: DatabaseManager = None, **kwargs):
+    def __init__(self, database: DatabaseManager, **kwargs):
         super(ReadingModule, self).__init__(**kwargs)
-        self.database = database if database else DatabaseManager()
+        self.database = database
         root = join('.tempfiles', 'reader')
         if exists(root):
             location = join(root, 'entry_id')
@@ -254,7 +207,6 @@ class ReadingModule(BoxLayout):
         else:
             self.entry_id = -1
             makedirs(root)
-        self.date_sort_module = self.ids['date_sort_module'] if 'date_sort_module' in self.ids else DatetimeSortModule()
 
     def on_entry_id(self, instance, value):
         self.body = self.database.get_body_by_entry_id(value) if value != -1 else ''
@@ -313,7 +265,8 @@ class ReadingModule(BoxLayout):
     def call_filter_popup(self):
         kwargs = {'has_parent': self.filter_has_parent, 'has_children': self.filter_has_children,
                   'has_attachments': self.filter_has_attachments, 'ranges': self.date_sort, 'caller': self,
-                  'continuous_range': self.continuous_range, 'selected_ids': self.filtered_entry_ids}
+                  'continuous_range': self.continuous_range, 'selected_ids': self.filtered_entry_ids,
+                  'database': self.database}
         Factory.FiltersPopup(**kwargs).open()
 
     def clear_ui(self):
@@ -332,7 +285,7 @@ class ReadingModule(BoxLayout):
             file.close()
 
 
-def parse_date_ranges(month_index: list, day_index: list, year_index: list, hour_index: list, minute_index: list,
+def parse_date_ranges(month: list, day: list, year: list, hour: list, minute: list,
                       years: list):
     lower = None
     upper = None
@@ -340,8 +293,8 @@ def parse_date_ranges(month_index: list, day_index: list, year_index: list, hour
     n = 0
     while outside_day_range:
         try:
-            lower = parse('{}-{}-{} {}:{}'.format(month_index[0] + 1, day_index[0] + 1 - n, years[year_index[0]],
-                                                  hour_index[0], minute_index[0]))
+            lower = parse('{}-{}-{} {}:{}'.format(month[0] + 1, day[0] + 1 - n, years[year[0]],
+                                                  hour[0], minute[0]))
             outside_day_range = False
         except ParserError:
             n += 1
@@ -349,8 +302,8 @@ def parse_date_ranges(month_index: list, day_index: list, year_index: list, hour
     n = 0
     while outside_day_range:
         try:
-            upper = parse('{}-{}-{} {}:{}'.format(month_index[1] + 1, day_index[1] + 1 - n, years[year_index[1]],
-                                                  hour_index[1], minute_index[1]))
+            upper = parse('{}-{}-{} {}:{}'.format(month[1] + 1, day[1] + 1 - n, years[year[1]],
+                                                  hour[1], minute[1]))
             outside_day_range = False
         except ParserError:
             n += 1
@@ -371,20 +324,21 @@ class FiltersPopup(Popup):
         'weekday': [0, 6]})
     years = ListProperty()
     continuous_range = BooleanProperty()
+    tags_filter_type = StringProperty('Contains')
     filtered_tags = ListProperty([])
-    database = ObjectProperty(DatabaseManager)
-    body_search_text = StringProperty()
+    database = ObjectProperty()
+    body_search_text = StringProperty(None, allownone=True)
     current_screen = StringProperty()
     caller = ObjectProperty()
     selected_ids = ListProperty()
 
     def __init__(self, **kwargs):
+        self.database = kwargs['database']
         super(FiltersPopup, self).__init__(**kwargs)
         self.has_parent = kwargs['has_parent'] if 'has_parent' in kwargs.keys() else False
         self.has_children = kwargs['has_children'] if 'has_children' in kwargs.keys() else False
         self.has_attachments = kwargs['has_attachments'] if 'has_attachments' in kwargs.keys() else False
         self.has_body = kwargs['has_body'] if 'has_body' in kwargs.keys() else False
-        self.database = kwargs['database'] if 'database' in kwargs.keys() else DatabaseManager()
         self.years = self.database.get_years()
         self.ranges = kwargs['ranges'] if 'ranges' in kwargs.keys() else {
             'year': [0, len(self.years) - 1],
@@ -396,121 +350,95 @@ class FiltersPopup(Popup):
         self.caller = kwargs['caller'] if 'caller' in kwargs.keys() else ReadingModule()
         self.continuous_range = kwargs['continuous_range'] if 'continuous_range' in kwargs.keys() else False
         self.selected_ids = kwargs['selected_ids'] if 'selected_ids' in kwargs.keys() else []
-        self.date_sort_module = self.ids['date_sort_module'] if 'date_sort_module' in self.ids else DatetimeSortModule
-        self.date_sort_module.update_ranges(self.ranges)
-        self.date_sort_module.bind(year=self.update_year)
-        self.date_sort_module.bind(month=self.update_month)
-        self.date_sort_module.bind(day=self.update_day)
-        self.date_sort_module.bind(hour=self.update_hour)
-        self.date_sort_module.bind(minute=self.update_minute)
+        self.date_filter_module = self.ids[
+            'date_filter_module'] if 'date_filter_module' in self.ids else DateFilterModule()
+        self.tags_filter_module = self.ids[
+            'tags_filter_module'] if 'tags_filter_module' in self.ids else TagFilterModule()
+        self.tags_filter_type = kwargs['tag_sort'] if 'tag_sort' in kwargs else 'Contains One Of...'
+        self.current_screen = self.caller.filter_screen
+        self.date_filter_module.update_ranges(self.ranges)
+        self.date_filter_module.bind(year=self.update_year)
+        self.date_filter_module.bind(month=self.update_month)
+        self.date_filter_module.bind(day=self.update_day)
+        self.date_filter_module.bind(hour=self.update_hour)
+        self.date_filter_module.bind(minute=self.update_minute)
+        self.date_filter_module.bind(weekday=self.update_weekday)
 
     def on_ranges(self, instance, value):
         if self.caller:
             self.caller.date_sort = value
+        self.update_filtered_ids()
 
     def on_continuous_range(self, instance, value):
         if self.caller:
             self.caller.continuous_range = self.continuous_range
+        # self.update_filtered_ids()
 
     def update_year(self, instance, value):
-        if self.continuous_range:
-            temp = self.ranges.copy()
-            new_lower, new_upper = parse_date_ranges(temp['month'], temp['day'], value, temp['hour'], temp['minute'],
-                                                     self.years)
-            old_lower, old_upper = parse_date_ranges(temp['month'], temp['day'], temp['year'], temp['hour'],
-                                                     temp['minute'], self.years)
-            ids = self.database.get_entry_ids_from_continuous_range(new_lower, new_upper)
-            if new_lower < old_lower or new_upper > old_upper:
-                self.selected_ids = list(set(self.selected_ids).union(ids))
-            if new_lower > old_lower or new_upper < old_upper:
-                self.selected_ids = list(set(self.selected_ids).intersection(ids))
-        else:
-            ids = self.database.get_entry_ids_from_year_range([self.years[value[0]], self.years[value[1]]])
-            if value[0] < self.ranges['year'][0] or value[1] > self.ranges['year'][1]:
-                self.selected_ids = list(set(self.selected_ids).union(ids))
-            if value[0] > self.ranges['year'][0] or value[1] < self.ranges['year'][1]:
-                self.selected_ids = list(set(self.selected_ids).intersection(ids))
         self.ranges['year'] = value.copy()
+        # self.update_filtered_ids()
 
     def update_month(self, instance, value):
-        if self.continuous_range:
-            temp = self.ranges.copy()
-            new_lower, new_upper = parse_date_ranges(value, temp['day'], temp['year'], temp['hour'], temp['minute'],
-                                                     self.years)
-            old_lower, old_upper = parse_date_ranges(temp['month'], temp['day'], temp['year'], temp['hour'],
-                                                     temp['minute'], self.years)
-            ids = self.database.get_entry_ids_from_continuous_range(new_lower, new_upper)
-            if new_lower < old_lower or new_upper > old_upper:
-                self.selected_ids = list(set(self.selected_ids).union(ids))
-            if new_lower > old_lower or new_upper < old_upper:
-                self.selected_ids = list(set(self.selected_ids).intersection(ids))
-        else:
-            ids = self.database.get_entry_ids_from_month_range([value[0] + 1, value[1] + 1])
-            if value[0] < self.ranges['month'][0] or value[1] > self.ranges['month'][1]:
-                self.selected_ids = list(set(self.selected_ids).union(ids))
-            if value[0] > self.ranges['month'][0] or value[1] < self.ranges['month'][1]:
-                self.selected_ids = list(set(self.selected_ids).intersection(ids))
         self.ranges['month'] = value.copy()
+        # self.update_filtered_ids()
 
     def update_day(self, instance, value):
-        if self.continuous_range:
-            temp = self.ranges.copy()
-            new_lower, new_upper = parse_date_ranges(temp['month'], value, temp['year'], temp['hour'], temp['minute'],
-                                                     self.years)
-            old_lower, old_upper = parse_date_ranges(temp['month'], temp['day'], temp['year'], temp['hour'],
-                                                     temp['minute'], self.years)
-            ids = self.database.get_entry_ids_from_continuous_range(new_lower, new_upper)
-            if new_lower < old_lower or new_upper > old_upper:
-                self.selected_ids = list(set(self.selected_ids).union(ids))
-            if new_lower > old_lower or new_upper < old_upper:
-                self.selected_ids = list(set(self.selected_ids).intersection(ids))
-        else:
-            ids = self.database.get_entry_ids_from_day_range([value[0] + 1, value[1] + 1])
-            if value[0] < self.ranges['day'][0] or value[1] > self.ranges['day'][1]:
-                self.selected_ids = list(set(self.selected_ids).union(ids))
-            if value[0] > self.ranges['day'][0] or value[1] < self.ranges['day'][1]:
-                self.selected_ids = list(set(self.selected_ids).intersection(ids))
         self.ranges['day'] = value.copy()
+        # self.update_filtered_ids()
 
     def update_hour(self, instance, value):
-        if self.continuous_range:
-            temp = self.ranges.copy()
-            new_lower, new_upper = parse_date_ranges(temp['month'], temp['day'], temp['year'], value, temp['minute'],
-                                                     self.years)
-            old_lower, old_upper = parse_date_ranges(temp['month'], temp['day'], temp['year'], temp['hour'],
-                                                     temp['minute'], self.years)
-            ids = self.database.get_entry_ids_from_continuous_range(new_lower, new_upper)
-            if new_lower < old_lower or new_upper > old_upper:
-                self.selected_ids = list(set(self.selected_ids).union(ids))
-            if new_lower > old_lower or new_upper < old_upper:
-                self.selected_ids = list(set(self.selected_ids).intersection(ids))
-        else:
-            ids = self.database.get_entry_ids_from_hour_range(value)
-            if value[0] < self.ranges['hour'][0] or value[1] > self.ranges['hour'][1]:
-                self.selected_ids = list(set(self.selected_ids).union(ids))
-            if value[0] > self.ranges['hour'][0] or value[1] < self.ranges['hour'][1]:
-                self.selected_ids = list(set(self.selected_ids).intersection(ids))
         self.ranges['hour'] = value.copy()
+        # self.update_filtered_ids()
 
     def update_minute(self, instance, value):
-        if self.continuous_range:
-            temp = self.ranges.copy()
-            new_lower, new_upper = parse_date_ranges(temp['month'], temp['day'], temp['year'], temp['hour'], value,
-                                                     self.years)
-            old_lower, old_upper = parse_date_ranges(temp['month'], temp['day'], temp['year'], temp['hour'],
-                                                     temp['minute'], self.years)
-            ids = self.database.get_entry_ids_from_continuous_range(new_lower, new_upper)
-            if new_lower < old_lower or new_upper > old_upper:
-                self.selected_ids = list(set(self.selected_ids).union(ids))
-            if new_lower > old_lower or new_upper < old_upper:
-                self.selected_ids = list(set(self.selected_ids).intersection(ids))
-        else:
-            ids = self.database.get_entry_ids_from_minute_range(value)
-            if value[0] < self.ranges['minute'][0] or value[1] > self.ranges['minute'][1]:
-                self.selected_ids = list(set(self.selected_ids).union(ids))
-            if value[0] > self.ranges['minute'][0] or value[1] < self.ranges['minute'][1]:
-                self.selected_ids = list(set(self.selected_ids).intersection(ids))
         self.ranges['minute'] = value.copy()
+        # self.update_filtered_ids()
+
+    def update_weekday(self, instance, value):
+        self.ranges['weekday'] = value.copy()
+        # self.update_filtered_ids()
+
+    def on_has_parent(self, instance, value):
+        self.update_filtered_ids()
+
+    def on_has_children(self, instance, value):
+        self.update_filtered_ids()
+
+    def on_has_attachments(self, instance, value):
+        self.update_filtered_ids()
+
+    def on_has_body(self, instance, value):
+        self.update_filtered_ids()
+
+    def on_filtered_tags(self, instance, value):
+        self.update_filtered_ids()
+
+    def update_filtered_ids(self):
+        if self.years:
+            temp = self.ranges.copy()
+            if self.continuous_range:
+                temp['years'] = self.years
+                del temp['weekday']
+                lower, upper = parse_date_ranges(**temp)
+                filtered_ids = self.database.get_entry_ids_from_continuous_range(lower, upper)
+            else:
+                temp['year'] = [self.years[temp['year'][0]], self.years[temp['year'][1]]]
+                temp['month'] = [temp['month'][0] + 1, temp['month'][1] + 1]
+                temp['day'] = [temp['day'][0] + 1, temp['day'][1] + 1]
+                filtered_ids = self.database.get_entry_ids_from_interval_ranges(**temp)
+            if self.has_children:
+                filtered_ids = list(set(filtered_ids).intersection(self.database.get_entry_ids_of_all_parents()))
+            if self.has_parent:
+                filtered_ids = list(set(filtered_ids).intersection(self.database.get_entry_ids_of_all_children()))
+            if self.has_attachments:
+                filtered_ids = list(set(filtered_ids).intersection(self.database.get_entry_ids_from_attachments()))
+            if self.filtered_tags:
+                filtered_ids = list(set(filtered_ids).intersection(
+                    self.database.get_entry_ids_from_tags(self.filtered_tags, self.tags_filter_type)))
+            self.selected_ids = filtered_ids
+
+    def on_current_screen(self, instance, value):
+        self.caller.filter_screen = self.current_screen
 
     def clear_filters(self):
         self.has_parent = False
@@ -519,12 +447,15 @@ class FiltersPopup(Popup):
         self.has_body = False
         self.ranges = {'year': [0, len(self.years) - 1], 'month': [0, 11], 'day': [0, 30], 'hour': [0, 23],
                        'minute': [0, 59], 'weekday': [0, 6]}
-        self.date_sort_module.update_ranges(self.ranges)
+        self.date_filter_module.update_ranges(self.ranges)
         self.continuous_range = False
 
     def on_dismiss(self):
         self.caller.filtered_entry_ids = self.selected_ids
         self.caller.date_sort = self.ranges
+        self.caller.filter_has_parent = self.has_parent
+        self.caller.filter_has_children = self.has_children
+        self.caller.filter_has_attachments = self.has_attachments
         super(FiltersPopup, self).on_dismiss()
 
 

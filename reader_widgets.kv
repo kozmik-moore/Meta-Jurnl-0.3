@@ -25,30 +25,7 @@
             width: 1
             rectangle: self.x, self.y, self.width, self.height
 
-<TagsModule>:
-    padding: 4, 6, 4, 0
-    spacing: 2
-    orientation: 'vertical'
-    canvas.before:
-        Color:
-            rgba: light_blue
-        Line:
-            width: 1
-            rectangle: self.x, self.y, self.width, self.height
-    GenericButton:
-        size_hint_x: 1
-        text: 'Tags'
-        on_release:
-            root.call_tags_popup()
-    GenericRecycleView:
-        viewclass: 'TagLabel'
-        data: root.filtered_data
-
-<TagsPopup>:
-    pos_hint: {'right': 1}
-    size_hint_x: None
-    width: 500
-    title: 'Sort tags...'
+<TagFilterModule>:
     searchbox: searchbox
     BoxLayout:
         orientation: 'vertical'
@@ -72,6 +49,7 @@
             height: 35
             GenericInput:
                 id: searchbox
+                size_hint_x: 2
                 focus: True
                 text: ''
                 multiline: False
@@ -79,7 +57,7 @@
                 on_text:
                     root.search(self.text)
             GenericButton:
-                size_hint_x: None
+                size_hint_x: 1
                 width: 90
                 text: 'Clear'
                 disabled: True if not root.searchbox.text else False
@@ -87,7 +65,7 @@
                     root.clear_search_bar()
                     root.searchbox.text = ''
             GenericButton:
-                size_hint_x: None
+                size_hint_x: 1
                 width: 90
                 text: 'Add'
                 disabled: True if not root.searchbox.text else False
@@ -116,7 +94,7 @@
         data: root.date_data
         viewclass: 'DateButton'
 
-<DatetimeSortModule>:
+<DateFilterModule>:
     orientation: 'vertical'
     GridLayout:
         cols: 2
@@ -184,9 +162,9 @@
             root.minute[1] = int(self.max_value)
     SlideBox:
         decoupled_values: root.continuous_range
-        disable_on_decouple:
+        disable_on_decouple: True
         label: 'Weekdays'
-        label_list: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+        label_list: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
         min_value: root.weekday[0] if root.weekday else 0
         max_value: root.weekday[1] if root.weekday else 0
         on_min_value:
@@ -414,10 +392,25 @@
             current: None if not root.current_screen else root.current_screen
             Screen:
                 name: 'Tags'
+                BoxLayout:
+                    orientation: 'vertical'
+                    Spinner:
+                        option_cls: 'SpinnerButton'
+                        background_color: dark_gray
+                        text: root.tags_filter_type
+                        values: 'Contains One Of...', 'Contains At Least...', 'Contains Only...'
+                        size_hint: 1, None
+                        size: 200, 35
+                        on_text:
+                            root.tags_filter_type = self.text
+                    TagFilterModule:
+                        id: tag_filter_module
+                        filtered: root.filtered_tags
+                        database: root.database if root.database else None
             Screen:
                 name: 'Dates'
-                DatetimeSortModule:
-                    id: date_sort_module
+                DateFilterModule:
+                    id: date_filter_module
                     years: root.years
                     continuous_range: root.continuous_range
                     on_continuous_range:
@@ -432,6 +425,15 @@
                 on_release:
                     root.clear_filters()
 
+<SpinnerButton>:
+    size_hint_x: 1
+    background_color: .3, .3, .3, 1
+    canvas.before:
+        Color:
+            rgba: 0, 0, 0, 1
+        Line:
+            width: 2
+            rectangle: self.x, self.y, self.width, self.height
 
 <ChildrenPopup>:
     size_hint_x: None
