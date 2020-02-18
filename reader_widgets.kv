@@ -6,24 +6,21 @@
 #: set dark_gray (.1, .1, .1, .5)
 #: set transparent (0, 0, 0, 0)
 
-<BodyModule>:
-    background_color: transparent
-
 <TagButton>:
     category: ''
     sorter: None
     screen: ''
     on_release:
-        root.sorter.add_to_filtered_tags(self.text) if root.category == 'unfiltered' else root.sorter.add_to_unfiltered_tags(self.text)
+        root.sorter.add_tag_to_filtered(self.text) if root.category == 'unfiltered' else root.sorter.filtered_tags.remove(self.text)
 
 <TagLabel>:
     background_color: transparent
-    canvas.before:
-        Color:
-            rgba: (1, 1, 1, 1)
-        Line:
-            width: 1
-            rectangle: self.x, self.y, self.width, self.height
+#    canvas.before:
+#        Color:
+#            rgba: (1, 1, 1, 1)
+#        Line:
+#            width: 1
+#            rectangle: self.x, self.y, self.width, self.height
 
 <TagFilterModule>:
     searchbox: searchbox
@@ -49,6 +46,7 @@
             height: 35
             GenericInput:
                 id: searchbox
+                background_color: 0.1, 0.1, 0.1, 1
                 size_hint_x: 2
                 focus: True
                 text: ''
@@ -72,9 +70,6 @@
                 on_release:
                     root.add_to_filtered_tags(root.searchbox.text)
 
-<DateLabel>:
-    background_color: transparent
-
 <DateButton>:
     entry_id: -1
     caller: None
@@ -82,17 +77,6 @@
 #    background_color: light_blue if root.entry_id == root.s_id else (.4, .4, .4, 1)
     on_release:
         root.caller.entry_id = self.entry_id
-
-<DateModule>:
-    orientation: 'vertical'
-    GenericButton:
-        size_hint_x: 1
-        text: 'Dates'
-        on_release:
-            root.call_dates_popup()
-    GenericRecycleView:
-        data: root.date_data
-        viewclass: 'DateButton'
 
 <DateFilterModule>:
     orientation: 'vertical'
@@ -172,26 +156,6 @@
         on_max_value:
             root.weekday[1] = int(self.max_value)
 
-<FlagsModule>:
-    orientation: 'vertical'
-    BoxLayout:
-        orientation: 'vertical'
-        size_hint_y: None
-        height: self.minimum_height
-        GenericLabel:
-            size_hint: None, None
-            size: 35, 35
-            text: 'U' if root.is_saved == False else ''
-        GenericLabel:
-            size_hint: None, None
-            size: 35, 35
-            text: 'L' if root.is_linked else ''
-        GenericLabel:
-            size_hint: None, None
-            size: 35, 35
-            text: 'E' if root.is_being_edited else ''
-    BoxLayout:
-
 <ReadingModule>:
     BoxLayout:
         size_hint_x: None
@@ -205,7 +169,7 @@
             Line:
                 width: 1
                 rectangle: self.x, self.y, self.width, self.height
-        GenericButton:
+        MenuButton:
             size_hint_x: 1
             text: 'Select Filters'
             on_release:
@@ -213,8 +177,8 @@
         GenericRecycleView:
             viewclass: 'DateButton'
             data: root.filtered_dates_data
-        GenericButton:
-            text: 'Statistics'
+        MenuButton:
+            text: 'Stats: ' + root.proportion
     BoxLayout:
         orientation: 'vertical'
         padding: 5
@@ -232,6 +196,7 @@
             do_scroll_y: True
             size_hint_y: 1
             GenericInput:
+                background_color: 0, 0, 0, 1
                 size_hint_y: None
                 height: self.minimum_height
                 size_hint_x: 1
@@ -242,13 +207,15 @@
         BoxLayout:
             size_hint_y: None
             height: self.minimum_height
-            GenericButton:
+            MenuButton:
                 text: 'Edit'
                 disabled: True if root.entry_id == -1 else False
-            GenericButton:
+                on_release:
+                    root.set_edit_property()
+            MenuButton:
                 text: 'Link'
                 disabled: True if root.entry_id == -1 else False
-            GenericButton:
+            MenuButton:
                 size_hint_x: 1
                 text: 'Clear' if self.width > 50 else 'Cl'
                 disabled: True if root.entry_id == -1 else False
@@ -275,19 +242,19 @@
                 size_hint_y: None
                 height: self.minimum_height
                 spacing: 2
-                GenericButton:
+                MenuButton:
                     size_hint_x: 1
                     text: 'Parent'
                     disabled: True if root.has_parent is False else False
                     on_release:
                         root.entry_id = root.parent_id
-                GenericButton:
+                MenuButton:
                     size_hint_x: 1
                     text: 'Children'
                     disabled: True if root.has_children is False else False
                     on_release:
                         root.call_children_popup()
-                GenericButton:
+                MenuButton:
                     size_hint_x: 1
                     text: 'Attachments'
                     disabled: True if root.has_attachments is False else False
@@ -296,9 +263,22 @@
         BoxLayout:
             size_hint_y: None
             height: 35
-        GenericLabel:
-            text: 'Tags'
-            underline: True
+        BoxLayout:
+            size_hint_y: None
+            height: 25
+            spacing: 2
+            BoxLayout:
+            GenericLabel:
+                canvas.before:
+                    Color:
+                        rgba: 1, 1, 1, 1
+                    Line:
+                        width: 1
+                        rectangle: self.x, self.y, self.width, self.height
+                text: 'Tags'
+                size_hint: None, None
+                size: self.parent.width - 35, self.texture_size[1] + 5
+            BoxLayout:
         AnchorLayout:
             anchor_y: 'bottom'
             GenericRecycleView:
@@ -309,113 +289,133 @@
     pos_hint: {'x': 0}
     size_hint_x: None
     width: 400
-    title: 'Filter Dates'
+    title: 'Filters'
     BoxLayout:
         orientation: 'vertical'
-        GridLayout:
-            size_hint_y: None
-            height: self.minimum_height
-            cols: 2
-            rows: 2
-            BoxLayout:
-                size_hint_y: None
-                height: self.minimum_height
-                Label:
-                    text: 'Has Parent'
-                    text_size: self.size
-                    halign: 'center'
-                    valign: 'center'
-                CheckBox:
-                    size_hint: None, None
-                    size: 35, 35
-                    active: root.has_parent
-                    on_active:
-                        root.has_parent = self.active
-            BoxLayout:
-                size_hint_y: None
-                height: self.minimum_height
-                Label:
-                    text: 'Has Children'
-                    text_size: self.size
-                    halign: 'center'
-                    valign: 'center'
-                CheckBox:
-                    size_hint: None, None
-                    size: 35, 35
-                    active: root.has_children
-                    on_active:
-                        root.has_children = self.active
-            BoxLayout:
-                size_hint_y: None
-                height: self.minimum_height
-                Label:
-                    text: 'Has Attachments'
-                    text_size: self.size
-                    halign: 'center'
-                    valign: 'center'
-                CheckBox:
-                    size_hint: None, None
-                    size: 35, 35
-                    active: root.has_attachments
-                    on_active:
-                        root.has_attachments = self.active
-            BoxLayout:
-                size_hint_y: None
-                height: self.minimum_height
-                Label:
-                    text: 'Body Contains...'
-                    text_size: self.size
-                    halign: 'center'
-                    valign: 'center'
-                CheckBox:
-                    size_hint: None, None
-                    size: 35, 35
-                    active: root.has_body
-                    on_active:
-                        root.has_body = self.active
+        spacing: 2
+        padding: 0, 1
+        Spinner:
+            option_cls: 'SpinnerButton'
+            background_color: dark_gray
+            text: 'Tags' if not root.current_screen else root.current_screen
+            bold: True
+            values: 'Tags', 'Dates', 'Attributes'
+            size_hint: 1, None
+            size: 200, 35
+            on_text:
+                root.current_screen = self.text
         BoxLayout:
-            size_hint_y: None
-            height: 35
-            GenericButton:
-                size_hint_x: 1
-                text: 'Tags'
-                on_release:
-                    root.current_screen = 'Tags'
-            GenericButton:
-                size_hint_x: 1
-                text: 'Dates'
-                on_release:
-                    root.current_screen = 'Dates'
-        ScreenManager:
-            id: screen_manager
-            transition: notransition()
-            current: None if not root.current_screen else root.current_screen
-            Screen:
-                name: 'Tags'
-                BoxLayout:
-                    orientation: 'vertical'
-                    Spinner:
-                        option_cls: 'SpinnerButton'
-                        background_color: dark_gray
-                        text: root.tags_filter_type
-                        values: 'Contains One Of...', 'Contains At Least...', 'Contains Only...'
-                        size_hint: 1, None
-                        size: 200, 35
-                        on_text:
-                            root.tags_filter_type = self.text
-                    TagFilterModule:
-                        id: tag_filter_module
-                        filtered: root.filtered_tags
-                        database: root.database if root.database else None
-            Screen:
-                name: 'Dates'
-                DateFilterModule:
-                    id: date_filter_module
-                    years: root.years
-                    continuous_range: root.continuous_range
-                    on_continuous_range:
-                        root.continuous_range = self.continuous_range
-                    ranges: root.ranges
+            padding: 1, 2
+            ScreenManager:
+                id: screen_manager
+                transition: notransition()
+                current: root.current_screen
+                Screen:
+                    name: 'Tags'
+                    BoxLayout:
+                        orientation: 'vertical'
+                        BoxLayout:
+                            size_hint_y: None
+                            height: self.minimum_height
+                            Spinner:
+                                option_cls: 'SpinnerButton'
+                                background_color: dark_gray
+                                bold: True
+                                text: root.tags_filter_type
+                                values: 'Contains One Of...', 'Contains At Least...', 'Contains Only...', 'Untagged'
+                                size_hint: 1, None
+                                size: 200, 35
+                                on_text:
+                                    root.tags_filter_type = self.text
+                            Spinner:
+                                option_cls: 'SpinnerButton'
+                                background_color: dark_gray
+                                text: 'Mass Select'
+                                bold: True
+                                values: 'All', 'None', 'Invert'
+                                size_hint: 1, None
+                                size: 200, 35
+                                on_text:
+                                    root.mass_select = self.text
+                                    self.text = 'Mass Select'
+                        TagFilterModule:
+                            id: tag_filter_module
+                            filtered_tags: root.filtered_tags
+                            database: root.database if root.database else None
+                Screen:
+                    name: 'Dates'
+                    DateFilterModule:
+                        id: date_filter_module
+                        years: root.years
+                        continuous_range: root.continuous_range
+                        on_continuous_range:
+                            root.continuous_range = self.continuous_range
+                        ranges: root.ranges
+                Screen:
+                    name: 'Attributes'
+                    AnchorLayout:
+                        anchor_y: 'top'
+                        GridLayout:
+                            size_hint_y: None
+                            height: self.minimum_height
+                            cols: 2
+                            rows: 2
+                            BoxLayout:
+                                size_hint_y: None
+                                height: self.minimum_height
+                                Label:
+                                    text: 'Has Parent'
+                                    text_size: self.size
+                                    halign: 'center'
+                                    valign: 'center'
+                                CheckBox:
+                                    size_hint: None, None
+                                    size: 35, 35
+                                    active: root.has_parent
+                                    on_active:
+                                        root.has_parent = self.active
+                            BoxLayout:
+                                size_hint_y: None
+                                height: self.minimum_height
+                                Label:
+                                    text: 'Has Children'
+                                    text_size: self.size
+                                    halign: 'center'
+                                    valign: 'center'
+                                CheckBox:
+                                    size_hint: None, None
+                                    size: 35, 35
+                                    active: root.has_children
+                                    on_active:
+                                        root.has_children = self.active
+                            BoxLayout:
+                                size_hint_y: None
+                                height: self.minimum_height
+                                Label:
+                                    text: 'Has Attachments'
+                                    text_size: self.size
+                                    halign: 'center'
+                                    valign: 'center'
+                                CheckBox:
+                                    size_hint: None, None
+                                    size: 35, 35
+                                    active: root.has_attachments
+                                    on_active:
+                                        root.has_attachments = self.active
+                            BoxLayout:
+                                size_hint_y: None
+                                height: self.minimum_height
+                                Label:
+                                    text: 'Body Contains...'
+                                    text_size: self.size
+                                    halign: 'center'
+                                    valign: 'center'
+                                CheckBox:
+                                    size_hint: None, None
+                                    size: 35, 35
+                                    active: root.has_body
+                                    on_active:
+                                        root.has_body = self.active
         AnchorLayout:
             size_hint_y: None
             height: 35
@@ -593,3 +593,13 @@
         Label:
             text: '' if not root.label_list else str(root.label_list[int(root.hi.value)])
             halign: 'right'
+
+<MenuButton>:
+    background_color: .3, .3, .3, 1
+    color: light_blue
+#    canvas.before:
+#        Color:
+#            rgba: (1, 1, 1, 1)
+#        Line:
+#            width: 1
+#            rectangle: self.x, self.y, self.width, self.height

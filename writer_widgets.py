@@ -3,6 +3,7 @@ from dateutil.parser import parse, ParserError
 from os import mkdir, scandir, remove, makedirs
 from os.path import exists, join, basename
 
+from kivy.clock import Clock
 from kivy.factory import Factory
 from kivy.lang import Builder
 from kivy.properties import ListProperty, ObjectProperty, StringProperty, NumericProperty, BooleanProperty
@@ -161,11 +162,11 @@ class TagsPopup(Popup):
         super(TagsPopup, self).on_dismiss()
 
 
-class TagButton(GenericButton):
+class WriterTagButton(GenericButton):
     sorter = ObjectProperty(TagsModule, allownone=True)
 
     def __init__(self, **kwargs):
-        super(TagButton, self).__init__(**kwargs)
+        super(WriterTagButton, self).__init__(**kwargs)
 
 
 class AttachmentsModule:
@@ -505,8 +506,14 @@ class WritingModule(BoxLayout):
     database = ObjectProperty(None, allownone=True)
 
     def __init__(self, database: DatabaseManager = None, **kwargs):
-        super(WritingModule, self).__init__(**kwargs)
         self.database = database if database else DatabaseManager()
+        super(WritingModule, self).__init__(**kwargs)
+        try:
+            self.get_ids()
+        except KeyError:
+            Clock.schedule_once(self.get_ids)
+
+    def get_ids(self, value=None):
         modules = {x: self.ids[x] for x in ['body', 'date', 'tags', 'attachments', 'flags', 'ids']}
         modules['database'] = self.database
         self.entry_manager = EntryManager(**modules)
@@ -598,13 +605,14 @@ class EntryManager:
     def load(self, entry_id: int = -1, parent_id: int = -1, body: str = '', date: datetime = None,
              attachments: list = None, tags: list = None):
         if entry_id != -1:
+            self.ids.entry_id = entry_id
             entry = self.database.get_entry_from_entry_id(entry_id)
             self.body.text = entry['body']
             for tag in entry['tags']:
                 self.tags.add_to_filtered_tags(tag)
             self.ids.parent_id = entry['parent_id']
             self.date.datetime_obj = entry['date']
-            for attachment in entry['attachments_master']:
+            for attachment in entry['attachments']:
                 self.attachments.add_to_filtered_attachments('database att_id: {}'.format(str(attachment['att_id'])))
 
     def create_linked_entry(self, parent_id: int = None, tags: list = None):

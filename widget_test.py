@@ -1,22 +1,17 @@
-from kivy.app import App
-from kivy.factory import Factory
-from kivy.uix.button import Button
+# from kivy.app import App
 
-from database import DatabaseManager
-from reader_widgets import FiltersPopup, ReadingModule
+from app_widgets import JournalApp
 
-
-class MyApp(App):
-    # kwargs = {'has_parent': False, 'has_children': False, 'has_attachments': False, 'has_body': False}
-    # widget = Button(text='Test', on_release=Factory.FiltersPopup(**kwargs).open)
-    widget = ReadingModule(database=DatabaseManager('jurnl.sqlite'))
-
-    def __init__(self, **kwargs):
-        super(MyApp, self).__init__(**kwargs)
-
-    def build(self):
-        return self.widget
-
-
-app = MyApp()
+app = JournalApp()
+# from writer_widgets import WritingModule
+#
+#
+# class MyApp(App):
+#     widget = WritingModule()
+#
+#     def build(self):
+#         return self.widget
+#
+#
+# app = MyApp()
 app.run()

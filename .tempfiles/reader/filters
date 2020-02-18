@@ -1,8 +1,8 @@
 False
 False
-False
 True
-Contains...
+True
+Contains One Of...
 {'year': [0, 5], 'month': [0, 11], 'day': [0, 30], 'hour': [0, 23], 'minute': [0, 59], 'weekday': [0, 6]}
-[]
-[257, 258, 260, 261, 264, 265, 141, 271, 274, 277, 278, 279, 281, 283, 287, 288, 289, 290, 296, 298, 300, 301, 302, 304, 305, 306, 307, 308, 309, 314, 318, 319, 320, 321, 322, 324, 330, 339, 216, 229, 230, 231, 236, 237, 243, 244, 245, 246, 247, 249, 250, 251, 253, 254, 255]
+['Advice to Self', 'Anger and Discontentment', 'Anime', 'Argument', 'Aria', 'Art', 'Belief', 'Cognitive Science', 'Comics', 'Computer Science', 'Conversations', 'Culture', 'Death', 'Defining Moments', 'Developmental Psychology', 'Dog Training', 'Dogs', 'Dreams', 'Economics', 'Education', 'End of the Weekend', 'End-of-the-week', 'Fear', 'Film', 'Fitness', 'Free Will', 'Friends', 'Funny', 'Genetics and Evolution', 'Humor', 'Improvement', 'Insights', 'Journal Project', 'Language', 'Law', 'Learning Experience', 'Letters', 'Logic', 'Looking Back', 'Mathematics', 'Memories', 'Memory-dump', 'Miscellaneous', 'Morality', 'More For Later', 'Music', 'Musings', 'My Childhood', 'Philosophy', 'Philosophy-Education', 'Politics', 'Programming', 'Programming Ideas', 'Questions For Later', 'Race', 'Rants', 'Reflections', 'Religion and Superstition', 'Reminder To Self', 'School', 'Science', 'Science and Engineering', 'Sex and Relationships', 'Society', 'Stories', 'Story Ideas', 'Teaching', 'Teaching Practices', 'Technology', 'Test', 'The Weekend', 'Travel', 'Updates', 'Video Games', 'Voice']
+[141, 253, 255, 260, 290, 314, 320]

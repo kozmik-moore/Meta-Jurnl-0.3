@@ -16,22 +16,13 @@ from base_widgets import GenericInput, GenericButton, GenericLabel
 Builder.load_file('reader_widgets.kv')
 
 
-class BodyModule(GenericInput):
-    database = ObjectProperty(None, allownone=True)
-
-    def __init__(self, database: DatabaseManager = None, body: str = None, **kwargs):
-        super(BodyModule, self).__init__(**kwargs)
-        self.database = database if database else DatabaseManager()
-        self.text = body if body else ''
-
-
 class SpinnerButton(GenericButton):
     pass
 
 
 class TagFilterModule(BoxLayout):
     database = ObjectProperty()
-    filtered_tags = list()
+    filtered_tags = ListProperty()
     unfiltered_tags = list()
     filtered_data = ListProperty()
     unfiltered_data = ListProperty()
@@ -40,27 +31,41 @@ class TagFilterModule(BoxLayout):
     def __init__(self, filtered: list = None, database: DatabaseManager = None, **kwargs):
         self.database = database if database else DatabaseManager()
         super(TagFilterModule, self).__init__(**kwargs)
-        for tag in self.database.get_all_tags():
-            self.add_to_unfiltered_tags(tag)
+        self.unfiltered_tags = self.database.get_all_tags()
         if filtered:
-            for tag in filtered:
-                self.add_to_filtered_tags(tag)
+            self.filtered_tags = filtered
 
-    def add_to_filtered_tags(self, tag):
-        if tag not in self.filtered_tags:
-            if tag in self.unfiltered_tags:
-                self.unfiltered_tags.remove(tag)
-            self.filtered_tags.append(tag)
-            self.filtered_tags.sort()
-            self.update_recycleviews()
+    def add_tag_to_filtered(self, tag):
+        f = self.filtered_tags.copy()
+        f.append(tag)
+        f.sort()
+        self.filtered_tags = f
 
-    def add_to_unfiltered_tags(self, tag):
-        if tag not in self.unfiltered_tags:
-            if tag in self.filtered_tags:
-                self.filtered_tags.remove(tag)
-            self.unfiltered_tags.append(tag)
-            self.unfiltered_tags.sort()
-            self.update_recycleviews()
+    def select_all_tags(self):
+        temp = list(set(self.unfiltered_tags).union(self.filtered_tags))
+        temp.sort()
+        self.filtered_tags = temp
+
+    def deselect_all_tags(self):
+        temp = list(set(self.unfiltered_tags).union(self.filtered_tags))
+        temp.sort()
+        self.unfiltered_tags = temp
+
+    def invert_tags_selection(self):
+        f = self.filtered_tags.copy()
+        u = self.unfiltered_tags.copy()
+        self.filtered_tags = u
+        self.unfiltered_tags = f
+
+    def on_filtered_tags(self, instance, value):
+        u = self.database.get_all_tags()
+        f = self.filtered_tags.copy()
+        f.sort()
+        for tag in f:
+            if tag in u:
+                u.remove(tag)
+        self.unfiltered_tags = u
+        self.update_recycleviews()
 
     def update_recycleviews(self):
         filtered = [x for x in self.filtered_tags if self.search_text.lower() in x.lower()]
@@ -86,10 +91,6 @@ class TagButton(GenericButton):
 
 
 class TagLabel(GenericLabel):
-    pass
-
-
-class DateLabel(GenericLabel):
     pass
 
 
@@ -138,6 +139,7 @@ class ReadingModule(BoxLayout):
     filter_has_children = BooleanProperty(False)
     filter_has_attachments = BooleanProperty(False)
     filter_has_body = StringProperty(False)
+    body_search = StringProperty()
     tag_sort = StringProperty()
     date_sort = DictProperty()
     filter_tags = ListProperty()
@@ -154,10 +156,12 @@ class ReadingModule(BoxLayout):
     date_label_format = StringProperty('%A, %B %d, %Y %H:%M')
     date_button_format = StringProperty('%Y-%m-%d %H:%M')
     filter_screen = StringProperty()
+    proportion = StringProperty()
+    edit_property = NumericProperty()
 
-    def __init__(self, database: DatabaseManager, **kwargs):
+    def __init__(self, database: DatabaseManager = None, **kwargs):
+        self.database = database if database else DatabaseManager()
         super(ReadingModule, self).__init__(**kwargs)
-        self.database = database
         root = join('.tempfiles', 'reader')
         if exists(root):
             location = join(root, 'entry_id')
@@ -182,7 +186,7 @@ class ReadingModule(BoxLayout):
                     self.filter_has_attachments = True if temp == 'True' else False
                     temp = file.readline().strip('\n')
                     self.tag_sort = temp if temp in ['Contains At Least...', 'Contains Only...',
-                                                     'Contains...'] else 'Contains...'
+                                                     'Contains One Of...', 'Untagged'] else 'Contains One Of...'
                     temp = file.readline().strip('\n')
                     self.date_sort = literal_eval(temp) if temp and literal_eval(temp) else {
                         'year': [0, len(self.database.get_years()) - 1], 'month': [0, 11], 'day': [0, 30],
@@ -192,21 +196,30 @@ class ReadingModule(BoxLayout):
                                         x in self.database.get_all_tags()] if temp and literal_eval(temp) else []
                     temp = file.readline().strip('\n')
                     self.filtered_entry_ids = literal_eval(temp) if temp and literal_eval(
-                        temp) else self.database.get_all_entry_ids()
+                        temp) else []
                     file.close()
             else:
                 self.continuous_range = False
                 self.filter_has_parent = False
                 self.filter_has_children = False
                 self.filter_has_attachments = False
-                self.tag_sort = 'Contains...'
+                self.tag_sort = 'Contains One Of...'
                 self.date_sort = {'year': [0, len(self.database.get_years()) - 1], 'month': [0, 11], 'day': [0, 30],
                                   'hour': [0, 23], 'minute': [0, 59], 'weekday': [0, 6]}
                 self.filter_tags = []
-                self.filtered_entry_ids = self.database.get_all_entry_ids()
+                self.filtered_entry_ids = []
         else:
             self.entry_id = -1
             makedirs(root)
+        if self.database.get_number_of_entries() != 0:
+            a = len(self.filtered_entry_ids)
+            b = self.database.get_number_of_entries()
+            r = a / b
+            ratio = 100 * round(r, 3)
+            text = '{} | {} ({:.1f}%)'.format(a, b, ratio)
+        else:
+            text = 'Empty Journal'
+        self.proportion = text
 
     def on_entry_id(self, instance, value):
         self.body = self.database.get_body_by_entry_id(value) if value != -1 else ''
@@ -233,6 +246,15 @@ class ReadingModule(BoxLayout):
         self.filtered_dates_data = [
             {'text': self.database.get_date_by_entry_id(entry_id, self.date_button_format), 'entry_id': entry_id,
              'caller': self} for entry_id in value]
+        if self.database.get_number_of_entries() != 0:
+            a = len(self.filtered_entry_ids)
+            b = self.database.get_number_of_entries()
+            r = a / b
+            ratio = 100 * round(r, 3)
+            text = '{} | {} ({:.1f}%)'.format(a, b, ratio)
+        else:
+            text = 'Empty Journal'
+        self.proportion = text
         self.write_filters_to_temp_file()
 
     def on_continuous_range(self, instance, value):
@@ -256,6 +278,10 @@ class ReadingModule(BoxLayout):
     def on_filter_tags(self, instance, value):
         self.write_filters_to_temp_file()
 
+    def set_edit_property(self):
+        self.edit_property = self.entry_id
+        self.edit_property = -1
+
     def call_children_popup(self):
         Factory.ChildrenPopup(self.children_ids, self.date, self, self.database).open()
 
@@ -266,7 +292,8 @@ class ReadingModule(BoxLayout):
         kwargs = {'has_parent': self.filter_has_parent, 'has_children': self.filter_has_children,
                   'has_attachments': self.filter_has_attachments, 'ranges': self.date_sort, 'caller': self,
                   'continuous_range': self.continuous_range, 'selected_ids': self.filtered_entry_ids,
-                  'database': self.database}
+                  'database': self.database, 'filter_tags': self.filter_tags, 'tag_sort': self.tag_sort,
+                  'body_search_text': self.body_search, 'has_body': self.filter_has_body}
         Factory.FiltersPopup(**kwargs).open()
 
     def clear_ui(self):
@@ -324,37 +351,41 @@ class FiltersPopup(Popup):
         'weekday': [0, 6]})
     years = ListProperty()
     continuous_range = BooleanProperty()
-    tags_filter_type = StringProperty('Contains')
+    tags_filter_type = StringProperty('Contains One Of...')
     filtered_tags = ListProperty([])
     database = ObjectProperty()
     body_search_text = StringProperty(None, allownone=True)
     current_screen = StringProperty()
     caller = ObjectProperty()
     selected_ids = ListProperty()
+    mass_select = StringProperty('Mass Select')
 
-    def __init__(self, **kwargs):
-        self.database = kwargs['database']
+    def __init__(self, database, has_parent, has_children, has_attachments, has_body, ranges, caller,
+                 continuous_range, selected_ids, filter_tags, tag_sort, body_search_text, **kwargs):
+        self.database = database
         super(FiltersPopup, self).__init__(**kwargs)
-        self.has_parent = kwargs['has_parent'] if 'has_parent' in kwargs.keys() else False
-        self.has_children = kwargs['has_children'] if 'has_children' in kwargs.keys() else False
-        self.has_attachments = kwargs['has_attachments'] if 'has_attachments' in kwargs.keys() else False
-        self.has_body = kwargs['has_body'] if 'has_body' in kwargs.keys() else False
+        self.has_parent = has_parent if has_parent else False
+        self.has_children = has_children if has_children else False
+        self.has_attachments = has_attachments if has_attachments else False
+        self.has_body = has_body if has_body else False
+        self.body_search_text = body_search_text if body_search_text else ''
         self.years = self.database.get_years()
-        self.ranges = kwargs['ranges'] if 'ranges' in kwargs.keys() else {
+        self.ranges = ranges if ranges else {
             'year': [0, len(self.years) - 1],
             'month': [0, 11],
             'day': [0, 30],
             'hour': [0, 23],
             'minute': [0, 59],
             'weekday': [0, 6]}
-        self.caller = kwargs['caller'] if 'caller' in kwargs.keys() else ReadingModule()
-        self.continuous_range = kwargs['continuous_range'] if 'continuous_range' in kwargs.keys() else False
-        self.selected_ids = kwargs['selected_ids'] if 'selected_ids' in kwargs.keys() else []
+        self.caller = caller if caller else ReadingModule()
+        self.continuous_range = continuous_range if continuous_range else False
+        self.selected_ids = selected_ids if selected_ids else []
+        self.tags_filter_type = tag_sort if tag_sort else 'Contains One Of...'
+        self.filtered_tags = filter_tags if filter_tags else []
         self.date_filter_module = self.ids[
             'date_filter_module'] if 'date_filter_module' in self.ids else DateFilterModule()
         self.tags_filter_module = self.ids[
-            'tags_filter_module'] if 'tags_filter_module' in self.ids else TagFilterModule()
-        self.tags_filter_type = kwargs['tag_sort'] if 'tag_sort' in kwargs else 'Contains One Of...'
+            'tag_filter_module'] if 'tag_filter_module' in self.ids else TagFilterModule()
         self.current_screen = self.caller.filter_screen
         self.date_filter_module.update_ranges(self.ranges)
         self.date_filter_module.bind(year=self.update_year)
@@ -363,6 +394,7 @@ class FiltersPopup(Popup):
         self.date_filter_module.bind(hour=self.update_hour)
         self.date_filter_module.bind(minute=self.update_minute)
         self.date_filter_module.bind(weekday=self.update_weekday)
+        self.tags_filter_module.bind(filtered_tags=self.update_filtered_tags)
 
     def on_ranges(self, instance, value):
         if self.caller:
@@ -410,7 +442,24 @@ class FiltersPopup(Popup):
     def on_has_body(self, instance, value):
         self.update_filtered_ids()
 
-    def on_filtered_tags(self, instance, value):
+    def on_mass_select(self, instance, value):
+        if value in ['All', 'None', 'Invert']:
+            if value == 'All':
+                self.tags_filter_module.filtered_tags = self.database.get_all_tags()
+            elif value == 'None':
+                self.tags_filter_module.filtered_tags = []
+            else:
+                self.tags_filter_module.invert_tags_selection()
+
+    def on_tags_filter_type(self, instance, value):
+        if self.filtered_tags and value == 'Untagged':
+            self.tags_filter_module.filtered_tags = []
+        self.update_filtered_ids()
+
+    def update_filtered_tags(self, instance, value):
+        self.filtered_tags = value
+        if self.tags_filter_type == 'Untagged' and self.filtered_tags:
+            self.tags_filter_type = 'Contains One Of...'
         self.update_filtered_ids()
 
     def update_filtered_ids(self):
@@ -432,9 +481,9 @@ class FiltersPopup(Popup):
                 filtered_ids = list(set(filtered_ids).intersection(self.database.get_entry_ids_of_all_children()))
             if self.has_attachments:
                 filtered_ids = list(set(filtered_ids).intersection(self.database.get_entry_ids_from_attachments()))
-            if self.filtered_tags:
-                filtered_ids = list(set(filtered_ids).intersection(
-                    self.database.get_entry_ids_from_tags(self.filtered_tags, self.tags_filter_type)))
+            filtered_ids = list(set(filtered_ids).intersection(
+                self.database.get_entry_ids_from_tags(self.filtered_tags.copy(), self.tags_filter_type)))
+            filtered_ids.sort(key=self.database.get_date_by_entry_id)
             self.selected_ids = filtered_ids
 
     def on_current_screen(self, instance, value):
@@ -449,6 +498,8 @@ class FiltersPopup(Popup):
                        'minute': [0, 59], 'weekday': [0, 6]}
         self.date_filter_module.update_ranges(self.ranges)
         self.continuous_range = False
+        self.tags_filter_module.filtered_tags = []
+        self.tags_filter_type = 'Contains One Of...'
 
     def on_dismiss(self):
         self.caller.filtered_entry_ids = self.selected_ids
@@ -456,6 +507,10 @@ class FiltersPopup(Popup):
         self.caller.filter_has_parent = self.has_parent
         self.caller.filter_has_children = self.has_children
         self.caller.filter_has_attachments = self.has_attachments
+        self.caller.filter_tags = self.filtered_tags
+        self.caller.tag_sort = self.tags_filter_type
+        if self.caller.entry_id not in self.selected_ids:
+            self.caller.clear_ui()
         super(FiltersPopup, self).on_dismiss()
 
 
@@ -577,3 +632,7 @@ class SlideBox(BoxLayout):
     def on_decoupled_values(self, instance, value):
         if value is False and self.max_value < self.min_value:
             self.max_value = self.min_value
+
+
+class MenuButton(GenericButton):
+    pass

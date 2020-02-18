@@ -230,7 +230,7 @@ class DatabaseManager:
         if tags:
             if op_type == 'Contains At Least...':
                 tag = tags.pop(0)
-                sql = 'SELECT entry_id FROM tags WHERE path=?'
+                sql = 'SELECT entry_id FROM tags WHERE tag=?'
                 self.cursor.execute(sql, (tag,))
                 temp = set(self.cursor.fetchall())
                 for tag in tags:
@@ -244,12 +244,18 @@ class DatabaseManager:
                         if set(self.get_tags_by_entry_id(item)).intersection(set(tags)) == set(tags):
                             ids.append(item)
             if op_type == 'Contains One Of...':
-                sql = 'SELECT entry_id FROM tags WHERE path IN ({})'.format(','.join(['?'] * len(tags)))
+                sql = 'SELECT entry_id FROM tags WHERE tag IN ({})'.format(','.join(['?'] * len(tags)))
                 self.cursor.execute(sql, tags)
                 temp = set()
                 for item in self.cursor.fetchall():
                     temp.add(item[0])
                 ids = list(temp)
+            if op_type == 'Untagged':
+                sql = 'SELECT entry_id FROM tags'
+                self.cursor.execute(sql)
+                tagged_ids = [x[0] for x in self.cursor]
+                all_ids = set(self.get_all_entry_ids())
+                ids = list(all_ids.difference(tagged_ids))
         return ids
 
     def get_entry_id_of_untagged_entries(self):

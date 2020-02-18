@@ -7,7 +7,7 @@
 <BodyModule>:
     background_color: 0, 0, 0, 0
 
-<TagButton>:
+<WriterTagButton>:
     category: ''
     sorter: None
     screen: ''
@@ -30,7 +30,7 @@
         on_release:
             root.call_tags_popup()
     RecycleView:
-        viewclass: 'TagButton'
+        viewclass: 'WriterTagButton'
         data: root.filtered_data
         RecycleGridLayout:
             cols: 2
@@ -56,14 +56,14 @@
                 GenericRecycleView:
                     id: unfiltered
                     data: root.unfiltered_data
-                    viewclass: 'TagButton'
+                    viewclass: 'WriterTagButton'
             AnchorLayout:
                 GenericLabel:
                     text: 'None' if len(root.filtered_data) == 0 else ''
                 GenericRecycleView:
                     id: filtered
                     data: root.filtered_data
-                    viewclass: 'TagButton'
+                    viewclass: 'WriterTagButton'
         BoxLayout:
             size_hint_y: None
             height: 35
