@@ -478,7 +478,7 @@ class DatabaseManager:
         entry['body'] = self.get_body_by_entry_id(entry_id)
         entry['date'] = self.get_date_by_entry_id(entry_id)
         entry['tags'] = self.get_tags_by_entry_id(entry_id)
-        entry['attachments'] = self.get_all_attachment_data_from_entry_id(entry_id)
+        entry['att_ids'] = self.get_att_ids_from_entry_id(entry_id)
         entry['parent_id'] = self.get_parent_by_entry_id(entry_id)
         entry['children'] = self.get_children_by_entry_id(entry_id)
         return entry

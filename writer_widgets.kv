@@ -102,7 +102,7 @@
         root.sorter.add_to_unfiltered_attachments(self.path)
     background_color: light_blue if 'database att_id: ' in self.path else (.4, .4, .4, 1)
 
-<AttachmentsPopup>:
+<WriterAttachmentsPopup>:
     pos_hint: {'right': 1}
     size_hint_x: None
     width: 500
@@ -269,7 +269,7 @@
                 id: save
                 text: 'Save'
                 on_release:
-                    root.entry_manager.save()
+                    root.set_save_property()
             GenericButton:
                 size_hint_x: 1
                 id: link

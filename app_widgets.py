@@ -21,12 +21,27 @@ class JournalInterface(BoxLayout):
         self.writer_module = self.ids['writer_module'] if 'writer_module' in self.ids else WritingModule()
         self.reader_module = self.ids['reader_module'] if 'reader_module' in self.ids else ReadingModule()
         self.reader_module.bind(edit_property=self.edit_stored_entry)
+        self.writer_module.bind(save_property=self.update_reader_module)
+        self.reader_module.bind(link_property=self.link_stored_entry)
 
     def edit_stored_entry(self, instance, entry_id):
         if entry_id > 0:
             self.writer_module.entry_manager.clear_ui()
             self.writer_module.entry_manager.load(entry_id)
             self.screen = 'writer'
+
+    def link_stored_entry(self, instance, entry_id):
+        if entry_id > 0:
+            tags = self.database.get_tags_by_entry_id(entry_id)
+            self.writer_module.entry_manager.create_linked_entry(entry_id, tags)
+            self.screen = 'writer'
+
+    def update_reader_module(self, instance, entry_id):
+        if entry_id > 0:
+            reader_id = self.reader_module.entry_id
+            if entry_id == reader_id:
+                self.reader_module.clear_ui()
+                self.reader_module.entry_id = entry_id
 
 
 class JournalApp(App):

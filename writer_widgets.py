@@ -13,6 +13,7 @@ from kivy.uix.widget import Widget
 
 from database import DatabaseManager
 from base_widgets import GenericInput, GenericButton
+from reader_widgets import ReadingModule
 
 Builder.load_file('writer_widgets.kv')
 
@@ -174,31 +175,19 @@ class AttachmentsModule:
     unfiltered_attachments = ListProperty()  # list of paths
     database = ObjectProperty(None, allownone=True)
 
-    def __init__(self, database: DatabaseManager = None, **kwargs):
+    def __init__(self, filtered: list = None,  database: DatabaseManager = None, **kwargs):
         super(AttachmentsModule, self).__init__(**kwargs)
         if not exists('Imports'):
             mkdir('Imports')
         self.database = database if database else DatabaseManager()
+        if filtered:
+            self.filtered_attachments = filtered
 
     def on_filtered_attachments(self, instance, value):  # used for mass loading paths
         self.write_to_temp_file()
 
     def on_unfiltered_attachments(self, instance, value):  # used for mass loading paths
         self.write_to_temp_file()
-
-    # def add_to_filtered_attachments(self, path):            # used for singly loading paths
-    #     if path not in self.filtered_attachments:
-    #         if path in self.unfiltered_attachments:
-    #             self.unfiltered_attachments.remove(path)
-    #         self.filtered_attachments.append(path)
-    #         self.write_to_temp_file()
-    #
-    # def add_to_unfiltered_attachments(self, path):          # used for singly loading paths
-    #     if path not in self.unfiltered_attachments:
-    #         if path in self.filtered_attachments:
-    #             self.filtered_attachments.remove(path)
-    #         self.unfiltered_attachments.append(path)
-    #         self.write_to_temp_file()
 
     def clear_filtered_attachments(self):
         self.filtered_attachments = []
@@ -234,10 +223,10 @@ class AttachmentsModule:
             file.close()
 
     def call_attachments_popup(self):
-        Factory.AttachmentsPopup(self, self.filtered_attachments, self.unfiltered_attachments, self.database).open()
+        Factory.WriterAttachmentsPopup(self, self.filtered_attachments, self.unfiltered_attachments, self.database).open()
 
 
-class AttachmentsPopup(Popup):
+class WriterAttachmentsPopup(Popup):
     filtered_attachments = list()  # list of paths
     unfiltered_attachments = list()  # list of paths
     filtered_data = ListProperty()
@@ -246,7 +235,7 @@ class AttachmentsPopup(Popup):
     sorter = None
 
     def __init__(self, sorter: AttachmentsModule, filtered: list, unfiltered: list, database: DatabaseManager):
-        super(AttachmentsPopup, self).__init__()
+        super(WriterAttachmentsPopup, self).__init__()
         self.database = database
         self.sorter = sorter if sorter else AttachmentsModule()
         # for item in list(scandir('Imports')):
@@ -335,7 +324,7 @@ class AttachmentsPopup(Popup):
     def on_dismiss(self):
         self.sorter.filtered_attachments = self.filtered_attachments
         self.sorter.unfiltered_attachments = self.unfiltered_attachments
-        super(AttachmentsPopup, self).on_dismiss()
+        super(WriterAttachmentsPopup, self).on_dismiss()
 
 
 class AttachmentButton(GenericButton):
@@ -352,9 +341,11 @@ class AttachmentsModuleButton(GenericButton, AttachmentsModule):
         super(AttachmentsModuleButton, self).__init__(**kwargs)
         self.database = database if database else DatabaseManager()
         if filtered:
+            temp = filtered.copy()
             for path in filtered:
-                if exists(path):
-                    self.add_to_filtered_attachments(path)
+                if not exists(path):
+                    temp.remove(path)
+            self.filtered_attachments = temp
 
 
 class DateModuleButton(GenericButton):
@@ -504,6 +495,8 @@ class FlagsModule(BoxLayout):
 class WritingModule(BoxLayout):
     entry_manager = ObjectProperty(None, allownone=True)
     database = ObjectProperty(None, allownone=True)
+    save_property = NumericProperty()
+    link_property = NumericProperty()
 
     def __init__(self, database: DatabaseManager = None, **kwargs):
         self.database = database if database else DatabaseManager()
@@ -517,6 +510,11 @@ class WritingModule(BoxLayout):
         modules = {x: self.ids[x] for x in ['body', 'date', 'tags', 'attachments', 'flags', 'ids']}
         modules['database'] = self.database
         self.entry_manager = EntryManager(**modules)
+
+    def set_save_property(self):
+        self.entry_manager.save()
+        self.save_property = self.entry_manager.ids.entry_id
+        self.save_property = -1
 
 
 class EntryManager:
@@ -612,8 +610,7 @@ class EntryManager:
                 self.tags.add_to_filtered_tags(tag)
             self.ids.parent_id = entry['parent_id']
             self.date.datetime_obj = entry['date']
-            for attachment in entry['attachments']:
-                self.attachments.add_to_filtered_attachments('database att_id: {}'.format(str(attachment['att_id'])))
+            self.attachments.filtered_attachments = ['database att_id: {}'.format(str(x)) for x in entry['att_ids']]
 
     def create_linked_entry(self, parent_id: int = None, tags: list = None):
         if not parent_id:

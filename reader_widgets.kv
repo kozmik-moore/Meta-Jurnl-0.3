@@ -215,6 +215,8 @@
             MenuButton:
                 text: 'Link'
                 disabled: True if root.entry_id == -1 else False
+                on_release:
+                    root.set_link_property()
             MenuButton:
                 size_hint_x: 1
                 text: 'Clear' if self.width > 50 else 'Cl'

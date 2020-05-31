@@ -158,6 +158,7 @@ class ReadingModule(BoxLayout):
     filter_screen = StringProperty()
     proportion = StringProperty()
     edit_property = NumericProperty()
+    link_property = NumericProperty()
 
     def __init__(self, database: DatabaseManager = None, **kwargs):
         self.database = database if database else DatabaseManager()
@@ -281,6 +282,10 @@ class ReadingModule(BoxLayout):
     def set_edit_property(self):
         self.edit_property = self.entry_id
         self.edit_property = -1
+
+    def set_link_property(self):
+        self.link_property = self.entry_id
+        self.link_property = -1
 
     def call_children_popup(self):
         Factory.ChildrenPopup(self.children_ids, self.date, self, self.database).open()

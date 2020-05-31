@@ -8,7 +8,16 @@
 
 <JournalInterface>:
     orientation: 'vertical'
+    spacing: 2
+    padding: 3
     BoxLayout:
+        canvas.before:
+            Color:
+                rgba: transparent
+            Line:
+                width: 1
+                rectangle: self.x, self.y, self.width, self.height
+        padding: 5
         size_hint_y: None
         height: 35
         AnchorLayout:
@@ -16,13 +25,13 @@
             MenuButton:
                 text: 'Menu'
                 size_hint_x: None
-                width: 100
+                width: 150
         AnchorLayout:
             anchor_x: 'right'
             MenuButton:
                 text: 'Switch'
                 size_hint_x: None
-                width: 100
+                width: 150
                 on_release:
                     root.screen = 'writer' if root.screen == 'reader' else 'reader'
     ScreenManager:
