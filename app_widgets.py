@@ -51,6 +51,7 @@ class JournalApp(App):
     def __init__(self, **kwargs):
         self.database = DatabaseManager()
         self.ui = JournalInterface(database=self.database, **kwargs)
+        self.title = 'Meta-Jurnl'
         super(JournalApp, self).__init__(**kwargs)
 
     def build(self):
