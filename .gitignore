@@ -130,3 +130,5 @@ dmypy.json
 # Project
 jurnl.sqlite
 *.svgz
+*.odg*
+settings.json

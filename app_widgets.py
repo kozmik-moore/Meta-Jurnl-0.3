@@ -1,3 +1,10 @@
+from datetime import datetime
+from json import dumps, loads
+from os import makedirs, listdir, remove
+from os.path import exists, join
+from shutil import copyfile
+
+from dateutil.parser import parse
 from kivy.app import App
 from kivy.lang import Builder
 from kivy.properties import ObjectProperty, StringProperty
@@ -6,7 +13,6 @@ from kivy.uix.boxlayout import BoxLayout
 from database import DatabaseManager
 from writer_widgets import WritingModule
 from reader_widgets import ReadingModule
-
 
 Builder.load_file('app_widgets.kv')
 
@@ -49,6 +55,7 @@ class JournalApp(App):
     ui = ObjectProperty()
 
     def __init__(self, **kwargs):
+        self.storage = StorageModule()
         self.database = DatabaseManager()
         self.ui = JournalInterface(database=self.database, **kwargs)
         self.title = 'Meta-Jurnl'
@@ -56,3 +63,58 @@ class JournalApp(App):
 
     def build(self):
         return self.ui
+
+
+class StorageModule:
+
+    def __init__(self):
+        self.settings = None
+        self.database = DatabaseManager()
+        self.read_settings_from_file()
+        if self.settings['last backup'] == 'None' or (
+                datetime.now() - parse(self.settings['last backup'])).total_seconds() >= self.settings[
+                'backup freq'] * 3600:
+            self.backup_database()
+
+    @property
+    def settings(self):
+        return self._settings
+
+    @settings.setter
+    def settings(self, d):
+        self._settings = d
+
+    def read_settings_from_file(self):
+        if exists('settings.json'):
+            with open('settings.json') as file:
+                data = file.read()
+                self._settings = loads(data)
+                file.close()
+        else:
+            self.write_settings_to_file()
+
+    def write_settings_to_file(self):
+        if not exists('settings.json'):
+            self._settings = {'last backup': 'None', 'backup freq': 72, 'backup location': 'Backups',
+                              'imports location': 'Imports', 'date format': '%Y-%m-%d %H:%M', 'number of backups': 3}
+        json = dumps(self.settings, indent=4)
+        with open('settings.json', 'w') as file:
+            file.write(json)
+            file.close()
+
+    def backup_database(self):
+        location = self.settings['backup location']
+        if not exists(location):
+            makedirs(location)
+        dbs = listdir(location)
+        if len(dbs) == int(self.settings['number of backups']):
+            sorted_dbs = sorted(dbs, reverse=True)
+            remove(join(location, sorted_dbs[-1]))
+        now = datetime.now()
+        filename = 'backup_' + now.strftime('%Y%m%d%H%M') + '.sqlite'
+        copyfile('jurnl.sqlite', join(location, filename))
+        self.settings['last backup'] = now.strftime('%A, %b %d, %Y, %H:%M')
+        self.write_settings_to_file()
+
+    def check_backups(self):
+        pass
