@@ -128,7 +128,6 @@ dmypy.json
 .idea/
 
 # Project
-jurnl.sqlite
 *.svgz
 *.odg*
 settings.json
