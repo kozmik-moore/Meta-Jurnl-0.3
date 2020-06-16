@@ -71,6 +71,7 @@ class StorageModule:
         self.settings = None
         self.database = DatabaseManager()
         self.read_settings_from_file()
+        self.check_dirs()
         if self.settings['last backup'] == 'None' or (
                 datetime.now() - parse(self.settings['last backup'])).total_seconds() >= self.settings[
                 'backup freq'] * 3600:
@@ -104,8 +105,6 @@ class StorageModule:
 
     def backup_database(self):
         location = self.settings['backup location']
-        if not exists(location):
-            makedirs(location)
         dbs = listdir(location)
         if len(dbs) == int(self.settings['number of backups']):
             sorted_dbs = sorted(dbs, reverse=True)
@@ -116,5 +115,9 @@ class StorageModule:
         self.settings['last backup'] = now.strftime('%A, %b %d, %Y, %H:%M')
         self.write_settings_to_file()
 
-    def check_backups(self):
-        pass
+    def check_dirs(self):
+        for s in self.settings:
+            if 'location' in s:
+                location = self.settings[s]
+                if not exists(location):
+                    makedirs(location)
