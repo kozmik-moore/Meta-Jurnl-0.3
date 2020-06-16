@@ -493,7 +493,7 @@
         orientation: 'vertical'
         GenericRecycleView:
             data: root.attachments_data
-            viewclass: 'AttachmentButton'
+            viewclass: 'ReaderAttachmentButton'
         BoxLayout:
             size_hint_y: None
             height: 35
@@ -513,7 +513,7 @@
                 on_release:
                     root.searchbox.text = ''
 
-<AttachmentButton>:
+<ReaderAttachmentButton>:
     att_id: -1
     added: None     # add support for searching by date added
     caller: None

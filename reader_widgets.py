@@ -597,7 +597,7 @@ class AttachmentsPopup(Popup):
         self.announcement = name + ' exported to \'Exports\' folder.'
 
 
-class AttachmentButton(GenericButton):
+class ReaderAttachmentButton(GenericButton):
     pass
 
 
