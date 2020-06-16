@@ -132,3 +132,4 @@ jurnl.sqlite
 *.svgz
 *.odg*
 settings.json
+rsync.conf
