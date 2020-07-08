@@ -1,9 +1,6 @@
 from copy import deepcopy
 from os import listdir, remove, chdir
 from os.path import exists, abspath
-from subprocess import call
-
-from app_widgets import StorageModule
 from database import DatabaseManager
 
 from dateutil.parser import parse
@@ -11,8 +8,7 @@ from dateutil.parser import parse
 
 class AutoRunModule:
 
-    def __init__(self, storage: StorageModule = None, database: DatabaseManager = None):
-        self.storage = StorageModule() if not storage else storage
+    def __init__(self, database: DatabaseManager = None):
         self.database = DatabaseManager() if not database else database
 
     def import_remote_entries(self):

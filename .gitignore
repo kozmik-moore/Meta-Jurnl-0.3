@@ -97,6 +97,9 @@ celerybeat-schedule
 # SageMath parsed files
 *.sage.py
 
+# Pycharm
+.idea*
+
 # Environments
 .env
 .venv
@@ -124,11 +127,10 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
-# Kivy
-.idea/
-
 # Project
 *.svgz
 *.odg*
 settings.json
 rsync.conf
+Pipfile*
+Test-Resources/
