@@ -1,11 +1,9 @@
 """Functions for creating and querying the database for general information"""
 from contextlib import closing
-from os.path import exists, basename
-from datetime import datetime
-from sqlite3 import connect, Error, Connection
+from sqlite3 import connect, Connection
 from typing import Union, List
 
-from reader import get_date
+from dateutil.parser import parse
 
 
 def create_database(database: str) -> None:
@@ -37,10 +35,7 @@ def get_all_entry_ids(database: Union[Connection, str] = 'jurnl.sqlite'):
     """
     d = database if type(database) == Connection else connect(database)
     with closing(d.cursor()) as c:
-        ids: List[int] = [x[0] for x in c.execute('SELECT entry_id FROM bodies').fetchall()]
-        ids.sort(key=get_date)
-    if type(database) == str:  # TODO remove closing code from all functions (db may still be managed via str)
-        d.close()
+        ids = [x[0] for x in c.execute('SELECT entry_id FROM dates ORDER BY string').fetchall()]
     return ids
 
 
@@ -64,14 +59,10 @@ def get_all_dates(database: Union[Connection, str] = 'jurnl.sqlite'):
     :return: a list of datetime objects
     """
     d = database if type(database) == Connection else connect(database)
-    ids = get_all_entry_ids(database=d)
-    dates = []
-    for entry_id in ids:
-        dates.append(get_date(entry_id=entry_id, database=d))
-    dates.sort()
-    if type(database) == str:  # database is not being managed by caller
-        d.close()
-    return dates
+    with closing(d.cursor()) as c:
+        dates = c.execute('SELECT string FROM dates').fetchall()
+        dates = [parse(x[0]) for x in dates]
+        return dates
 
 
 def get_all_children(database: Union[Connection, str] = 'jurnl.sqlite'):
@@ -83,11 +74,9 @@ def get_all_children(database: Union[Connection, str] = 'jurnl.sqlite'):
     """
     d = database if type(database) == Connection else connect(database)
     with closing(d.cursor()) as c:
-        ids = [x[0] for x in c.execute('SELECT child FROM relations ').fetchall()]
-        ids.sort(key=get_date)
-    if type(database) == str:  # database is not being managed by caller
-        d.close()
-    return ids
+        sql = 'SELECT entry_id FROM dates WHERE entry_id=(SELECT child FROM relations) ORDER BY string'
+        ids = [x[0] for x in c.execute(sql).fetchall()]
+        return ids
 
 
 def get_all_parents(database: Union[Connection, str] = 'jurnl.sqlite'):
@@ -99,10 +88,8 @@ def get_all_parents(database: Union[Connection, str] = 'jurnl.sqlite'):
     """
     d = database if type(database) == Connection else connect(database)
     with closing(d.cursor()) as c:
-        ids = [x[0] for x in c.execute('SELECT parent FROM relations ').fetchall()]
-        ids.sort(key=get_date)
-    if type(database) == str:  # database is not being managed by caller
-        d.close()
+        sql = 'SELECT entry_id FROM dates WHERE entry_id=(SELECT parent FROM relations) ORDER BY string'
+        ids = [x[0] for x in c.execute(sql).fetchall()]
     return ids
 
 
@@ -129,8 +116,6 @@ def get_number_of_entries(database: Union[Connection, str] = 'jurnl.sqlite'):
     d = database if type(database) == Connection else connect(database)
     with closing(d.cursor()) as c:
         count = c.execute('SELECT COUNT() FROM bodies').fetchone()[0]
-    if type(database) == str:  # database is not being managed by caller
-        d.close()
     return count
 
 
@@ -145,8 +130,6 @@ def get_years(database: Union[Connection, str] = 'jurnl.sqlite'):
     with closing(d.cursor()) as c:
         years = list({x[0] for x in c.execute('SELECT year FROM dates')})
         years.sort()
-    if type(database) == str:  # database is not being managed by caller
-        d.close()
     return years
 
 
@@ -156,247 +139,3 @@ def close_connection(database: Union[Connection, str] = 'jurnl.sqlite'):
     :param database: a Connection or str representing the database that is being queried
     """
     database.close()
-
-
-class DatabaseWriter:
-    def __init__(self, database: str = '') -> None:
-        db_name = 'jurnl.sqlite' if database == '' else database
-        if exists(db_name):
-            try:
-                self.__connection = connect(db_name)
-                self.__cursor = self.__connection.cursor()
-            except Error as detail:
-                print('Error connecting to database:', detail)
-        else:
-            create_database(db_name)
-            self.__connection = connect(db_name)
-            self.__cursor = self.__connection.cursor()
-
-        self.date_format = '%Y-%m-%d %H:%M'
-
-    """---------------------------------DatabaseManager Methods----------------------------------"""
-
-    def close_connection(self):
-        """
-        Closes the connection to the database
-        """
-        self.__connection.close()
-
-    """---------------------------------Date Methods----------------------------------"""
-
-    def modify_date(self, entry_id: int, date: datetime):
-        """Changes the date of the given entry to the given date
-
-        :param entry_id: an int representing the given entry
-        :param date: a datetime representing the new date
-        """
-        self.__cursor.execute('UPDATE dates SET year=?,month=?,day=?,hour=?,minute=?,weekday=?,string=?'
-                              'WHERE entry_id=?',
-                              (date.year, date.month, date.day, date.hour, date.minute, date.weekday(),
-                               date.strftime(self.date_format), entry_id))
-        self.__connection.commit()
-
-    def set_date(self, entry_id: int, date: datetime):
-        """Adds a date to the database for the given entry
-
-        :param entry_id: an int representing the given entry
-        :param date: a datetime representing the date associated with the given entry
-        """
-        self.__cursor.execute('INSERT INTO dates(entry_id,year,month,day,hour,minute,weekday,string) '
-                              'VALUES(?,?,?,?,?,?,?,?)', (entry_id, date.year, date.month, date.day, date.hour,
-                                                          date.minute, date.weekday(),
-                                                          date.strftime(self.date_format)))
-        self.__connection.commit()
-
-    def change_last_edit(self, entry_id: int):
-        """Updates the database to reflect the last time the given entry was changed
-
-        :param entry_id: an int representing the given entry
-        """
-        now = datetime.now().strftime(self.date_format)
-        self.__cursor.execute('UPDATE dates SET last_edit=? WHERE entry_id=?', (now, entry_id))
-        self.__connection.commit()
-
-    """---------------------------------Body Methods----------------------------------"""
-
-    def set_body(self, body: str):
-        """Adds the given content to the database and returns the id of the newly created entry. This is the only way
-        to create a key against which all other information is referenced
-
-        :rtype: int
-        :param body: the content of the new entry
-        :return: an int representing the id of the new entry
-        """
-        self.__cursor.execute('INSERT INTO bodies(body) VALUES(?)', (body.strip(),))
-        entry = self.__cursor.lastrowid
-        return entry
-
-    def modify_body(self, entry_id: int, body: str):
-        """Changes the content of the given entry
-
-        :param entry_id: an int representing the entry
-        :param body: a str representing the content to replace with
-        """
-        self.__cursor.execute('UPDATE bodies SET body=? WHERE entry_id=?', (body.strip(), entry_id))
-        self.__connection.commit()
-
-    """---------------------------------Tags Methods----------------------------------"""
-
-    def add_tags(self, entry_id: int, tags: tuple):
-        for tag in tags:
-            self.__cursor.execute('INSERT INTO tags(entry_id,tag) VALUES(?,?)', (entry_id, tag))
-        self.__connection.commit()
-
-    def remove_tags(self, entry_id, tags: tuple):
-        """Removes the given tags for the given entry
-
-        :param entry_id: an int representing the given int
-        :param tags: a tuple representing the tags to be removed from the entry
-        """
-        for tag in tags:
-            self.__cursor.execute('DELETE FROM tags WHERE entry_id=? AND tag=?', (entry_id, tag))
-        self.__connection.commit()
-
-    """---------------------------------Attachments Methods----------------------------------"""
-
-    def add_attachments(self, entry_id: int, attachments: tuple):
-        """Generates data for a given file and adds the data to the database for the given entry
-
-        :param entry_id: an int representing the entry
-        :param attachments: a tuple of path-like objects (preferably of type str)
-        """
-        for path in attachments:
-            name = basename(path)
-            with open(path, 'rb') as f:
-                bytestream = f.read()
-                f.close()
-            now = datetime.now().strftime('%Y-%m-%d %H:%M')
-            self.__cursor.execute('INSERT INTO attachments(entry_id,filename,file,added) VALUES (?,?,?,?)',
-                                  (entry_id, name, bytestream, now))
-        self.__connection.commit()
-
-    def remove_attachments(self, ids: tuple):
-        """
-        Removes from the database all data associated with the given attachments
-        :param ids: an int representing the id of a given attachment
-        """
-        for att_id in ids:
-            self.__cursor.execute('DELETE FROM attachments WHERE att_id=?', (att_id,))
-        self.__connection.commit()
-
-    """---------------------------------Relations Methods----------------------------------"""
-
-    def add_relation(self, parent: int, child: int):
-        """Adds a parent-child relation to the database representing the link between an entry and the one that
-        generated it
-
-        :param parent: an int representing the id of the generating entry
-        :param child: an int representing the id of the generated entry
-        """
-        if (child,) not in self.__cursor.execute('SELECT child FROM relations WHERE parent=?', (parent,)).fetchall():
-            self.__cursor.execute('INSERT INTO relations(child,parent) VALUES (?,?)', (child, parent))
-            self.__connection.commit()
-
-    def remove_relation(self, parent: int, child: int):
-        """Removes a parent-child relation from the database, breaking the link between an entry and the one that
-        generated it
-
-        :param parent: an int representing the id of the generating entry
-        :param child: an int representing the id of the generated entry
-        """
-        if (child,) in self.__cursor.execute('SELECT child FROM relations WHERE parent=?', (parent,)).fetchall():
-            self.__cursor.execute('DELETE FROM relations WHERE child=? AND parent=?', (child, parent))
-            self.__connection.commit()
-
-    def set_parent(self, parent: int, entry: int):
-        """Directly sets the parent attribute of an entry
-
-        :param parent: an int representing the id of the generating entry
-        :param entry: an int representing the id of the given entry
-        """
-        self.__cursor.execute('UPDATE relations SET parent=? WHERE child=?', (parent, entry))
-        self.__connection.commit()
-
-    def set_children(self, entry: int, children: tuple):
-        """Directly sets the children attribute of an entry, adding new links and removing discarded ones
-
-        :param entry: an int representing the id of the given entry
-        :param children: a tuple of ints representing the ids of the children to be set
-        """
-        cmd = ('SELECT child FROM relations WHERE parent=?', (entry,))
-        current = {x[0] for x in self.__cursor.execute(cmd[0], cmd[1]).fetchall()}
-        update = set(children)
-        added = tuple((x[0], entry) for x in update.difference(current))
-        self.__cursor.executemany('INSERT INTO relations(child,parent) VALUES(?,?)', added)
-        removed = tuple((x[0], entry) for x in current.difference(update))
-        self.__cursor.executemany('REMOVE FROM relations WHERE child=? AND parent=?', removed)
-        self.__connection.commit()
-
-    """---------------------------------Entry Methods----------------------------------"""
-
-    def create_entry(self, body: str, tags: tuple = None, attachments: tuple = None, parent: int = None):
-        """Systematically creates a new entry in the database from given information with a minimum of a body and a
-        date (the date is automatically generated)
-
-        :param body: a str representing the content of the entry
-        :param tags: a tuple representing the tags associated with the entry
-        :param attachments: a tuple containing the path-like objects pointing to the entry's attachments
-        :param parent: an int representing the entry that generated
-        :return: an int identifying the newly created entry
-        """
-        entry = self.set_body(body)
-        self.set_date(entry, datetime.now())
-        if tags:
-            self.add_tags(entry, tags)
-        if attachments:
-            self.add_attachments(entry, attachments)
-        if parent:
-            self.add_relation(parent, entry)
-        return entry
-
-    def modify_entry(self, entry_id: int, date: datetime = None, body: str = None, tags: tuple = None,
-                     attachments: tuple = None, parent: int = None, children: tuple = None):
-        """Systematically modifies the given entry with the information provided
-
-        :param entry_id: an int representing the given entry
-        :param date: a datetime representing the date the given entry was created
-        :param body: a str representing the content of the entry
-        :param tags: a tuple representing the tags associated with the given entry
-        :param attachments: a tuple of path-likes and ints representing the location of attachments for the given entry;
-        path-likes indicate that the attachment is not yet in the database while ints do
-        :param parent: an int representing the entry that generated this entry
-        :param children: a tuple representing the entries that are generated from this entry
-        """
-
-        if date:
-            self.modify_date(entry_id, date)
-        if body:
-            self.modify_body(entry_id, body)
-        if tags is not None:
-            temp = self.__cursor.execute('SELECT tag FROM tags WHERE entry_id=?', (entry_id,)).fetchall()
-            current = {x[0] for x in temp}
-            if set(tags) != current:
-                self.remove_tags(entry_id, tuple(current.difference(tags)))
-                self.add_tags(entry_id, tuple(set(tags).difference(current)))
-        if attachments is not None:
-            temp = self.__cursor.execute('SELECT tag FROM tags WHERE entry_id=?', (entry_id,)).fetchall()
-            current = {x[0] for x in temp}
-            if set(attachments) != current:
-                self.remove_attachments(tuple(current.difference(attachments)))
-                self.add_attachments(entry_id, tuple(set(attachments).difference(current)))
-        if parent:
-            self.set_parent(parent, entry_id)
-        if children is not None:
-            self.set_children(entry_id, children)
-
-    def delete_entry(self, entry_id):
-        """Systematically removes the entry from the database
-
-        :param entry_id: an int representing the id of the given entry
-        """
-        self.__cursor.execute('DELETE FROM bodies WHERE entry_id=?', (entry_id,))
-        self.__cursor.execute('DELETE FROM dates WHERE entry_id=?', (entry_id,))
-        self.__cursor.execute('DELETE FROM tags WHERE entry_id=?', (entry_id,))
-        self.__cursor.execute('DELETE FROM attachments WHERE entry_id=?', (entry_id,))
-        self.__cursor.execute('DELETE FROM relations WHERE child=? OR parent=?', (entry_id, entry_id))
-        self.__connection.commit()
