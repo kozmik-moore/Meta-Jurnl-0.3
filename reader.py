@@ -7,46 +7,48 @@ from typing import Union, List, Tuple
 
 from dateutil.parser import parse
 
-from database import get_all_entry_ids
+from database import get_all_entry_ids, create_database
 
 
 class Reader:
     def __init__(self, path_to_db: str = 'jurnl.sqlite'):
-        self.__database_path = path_to_db
-        self.__database = connect(path_to_db)
-        self.__current_entry = None
+        if not exists(path_to_db):
+            create_database(path_to_db)
+        self.database_path = path_to_db
+        self.database = connect(path_to_db)
+        self.reader_entry = None
 
     @property
     def database_location(self):
-        return self.__database_path
+        return self.database_path
 
     @property
     def database_connection(self):
-        return self.__database
+        return self.database
 
     @database_connection.setter
     def database_connection(self, d: Union[str, None]):
         if d is not None and exists(d):
             try:
-                self.__database = connect(d)
+                self.database = connect(d)
             except DatabaseError as err:
                 raise err
         else:
-            self.__database = None
+            self.database = None
 
     @property
-    def current_entry(self):
-        return self.__current_entry
+    def reader_entry(self):
+        return self._reader_entry
 
-    @current_entry.setter
-    def current_entry(self, entry_id: Union[int, None]):
+    @reader_entry.setter
+    def reader_entry(self, entry_id: Union[int, None]):
         """Sets the entry id field and modifies the has_parent, has_children, and has_attachments flags accordingly
 
         :param entry_id: an int representing an entry from the database or None if the entry is not set
         """
         # TODO check for database or create if none exists prior to assigning entry_id
-        if self.database_connection:
-            self.__current_entry = entry_id if entry_id in get_all_entry_ids(self.database_connection) else None
+        if self.database_connection and entry_id:
+            self._reader_entry = entry_id if entry_id in get_all_entry_ids(self.database_connection) else None
 
     @property
     def body(self):
@@ -54,9 +56,9 @@ class Reader:
 
         :return: a str representing the content of the entry or None if the entry is not set
         """
-        body = None
-        if self.current_entry:
-            body = get_body(database=self.database_connection, entry_id=self.current_entry)
+        body = ''
+        if self._reader_entry:
+            body = get_body(database=self.database_connection, entry_id=self._reader_entry)
         return body
 
     @property
@@ -65,9 +67,9 @@ class Reader:
 
         :return: a tuple of str representing the tags of the entry or None if the entry is not set
         """
-        tags = None
-        if self.current_entry:
-            tags = get_tags(database=self.database_connection, entry_id=self.current_entry)
+        tags = ()
+        if self._reader_entry:
+            tags = get_tags(database=self.database_connection, entry_id=self._reader_entry)
         return tags
 
     @property
@@ -77,15 +79,15 @@ class Reader:
         :return: a datetime representing the date the entry was created or None if the entry is not set
         """
         date = None
-        if self.current_entry:
-            date = get_date(database=self.database_connection, entry_id=self.current_entry)
+        if self._reader_entry:
+            date = get_date(database=self.database_connection, entry_id=self._reader_entry)
         return date
 
     @property
     def date_last_edited(self):
         date = None
-        if self.current_entry:
-            date = date_last_edited(self.current_entry, self.database_connection)
+        if self._reader_entry:
+            date = date_last_edited(self._reader_entry, self.database_connection)
         return date
 
     @property
@@ -94,10 +96,10 @@ class Reader:
 
         :return: a tuple of int representing the attachments of the entry or None if the entry is not set
         """
-        attachments = None
-        if self.current_entry:
+        attachments = ()
+        if self._reader_entry:
             attachments = [att_id for att_id in
-                           get_attachment_ids(database=self.database_connection, entry_id=self.current_entry)]
+                           get_attachment_ids(database=self.database_connection, entry_id=self._reader_entry)]
             attachments.sort(key=get_attachment_date)
             attachments = tuple(attachments)
         return attachments
@@ -109,8 +111,8 @@ class Reader:
         :return: an int representing the parent or None if there is no parent or the entry is not set
         """
         parent = None
-        if self.current_entry:
-            parent = get_parent(database=self.database_connection, child_id=self.current_entry)
+        if self._reader_entry:
+            parent = get_parent(database=self.database_connection, child_id=self._reader_entry)
         return parent
 
     @property
@@ -120,8 +122,8 @@ class Reader:
         :return: a list of ints representing the children of the entry
         """
         children = None
-        if self.current_entry:
-            children = tuple(get_children(database=self.database_connection, parent_id=self.current_entry))
+        if self._reader_entry:
+            children = tuple(get_children(database=self.database_connection, parent_id=self._reader_entry))
         return children
 
     @property
@@ -131,8 +133,8 @@ class Reader:
         :return: a bool indicating whether an entry has children or None indicating that the entry id field is not set
         """
         h = None
-        if self.current_entry:
-            h = True if get_children(self.current_entry, self.database_connection) else False
+        if self._reader_entry:
+            h = True if get_children(self._reader_entry, self.database_connection) else False
         return h
 
     @property
@@ -142,8 +144,8 @@ class Reader:
         :return: a bool indicating whether an entry has attachments or None indicating that the entry is not set
         """
         h = None
-        if self.current_entry:
-            h = True if get_attachment_ids(self.current_entry, self.database_connection) else False
+        if self._reader_entry:
+            h = True if get_attachment_ids(self._reader_entry, self.database_connection) else False
         return h
 
     @property
@@ -153,8 +155,8 @@ class Reader:
         :return: a bool indicating whether an entry has a parent or None indicating that the entry id field is not set
         """
         h = None
-        if self.current_entry:
-            h = True if get_parent(self.current_entry, self.database_connection) else False
+        if self._reader_entry:
+            h = True if get_parent(self._reader_entry, self.database_connection) else False
         return h
 
     def close_database(self):

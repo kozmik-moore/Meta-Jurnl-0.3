@@ -18,22 +18,21 @@ class Writer(Reader):
         super(Writer, self).__init__(path_to_db=path_to_db)
 
     @property
-    def current_entry(self):
-        return Reader.current_entry
+    def writer_entry(self):
+        return self._reader_entry
 
-    @current_entry.setter
-    def current_entry(self, entry_id: Union[int, None]):
+    @writer_entry.setter
+    def writer_entry(self, entry_id: Union[int, None]):
         """Updates all fields with information from the database
 
-        :param entry_id: either an int representing an entry from the database or None, which indicates that any
-        saved edits will be associated with a new entry
+        :param entry_id: either an int (representing an entry from the database) or None (indicating a new entry)
         """
-        Reader.current_entry = entry_id
-        if type(entry_id) == int:
-            self.body = super(Writer, self).body
-            self.attachments = super(Writer, self).attachments
-            self.date = super(Writer, self).date
-            self.tags = super(Writer, self).tags
+        self.reader_entry = entry_id
+        self.body = super(Writer, self).body
+        self.attachments = super(Writer, self).attachments
+        self.date = super(Writer, self).date
+        self.tags = super(Writer, self).tags
+        self.parent = super(Writer, self).parent
 
     @property
     def body(self):
@@ -47,7 +46,7 @@ class Writer(Reader):
         """
         if type(v) is str:
             self.__body = v
-            self.__check_for_changes()
+            self.check_for_changes()
 
     @property
     def tags(self):
@@ -61,7 +60,7 @@ class Writer(Reader):
         """
         if type(v) == tuple and all(isinstance(s, str) for s in v):
             self.__tags = v
-            self.__check_for_changes()
+            self.check_for_changes()
 
     @property
     def date(self):
@@ -75,7 +74,7 @@ class Writer(Reader):
         """
         if type(v) is datetime or v is None:
             self.__date = v
-            self.__check_for_changes()
+            self.check_for_changes()
 
     @property
     def attachments(self):
@@ -83,27 +82,26 @@ class Writer(Reader):
 
     @attachments.setter
     def attachments(self, v: Tuple[Union[int, str]]):
-        """Type-checks and changes the Writer's list of attachments for an entry and checks to see whether the
-        changes flag needs to be updated
+        """Changes the Writer's list of attachments and checks to see whether the changes flag needs to be updated
 
         :param v: a tuple of int and str representing attachment locations; an int indicates the attachment is in the
         database and a str indicates it is in the filesystem and represents a the path to the file
         """
         if type(v) is tuple and all(isinstance(x, (int, str)) for x in v):
             self.__attachments = v
-            if v:
-                Reader.has_attachments.fset(self, True)
-            self.__check_for_changes()
+            self.check_for_changes()
 
     @property
     def parent(self):
-        return self.__parent
+        p = self.__parent
+        if self.writer_entry:
+            p = super(Writer, self).parent
+        return p
 
     @parent.setter
     def parent(self, v: int):
-        if type(v) is int and v > 0:
+        if v is None or type(v) is int and all([v > 0, not self.writer_entry]):
             self.__parent = v
-            self.has_parent = True
 
     @property
     def has_attachments(self) -> Union[bool, None]:
@@ -119,12 +117,12 @@ class Writer(Reader):
         if type(v) == bool:
             self.__changes = v
 
-    def __check_for_changes(self):
+    def check_for_changes(self):
         """If the entry exists in the database, compares the Writer's entry fields to the entry fields in the
         database. If it does not, checks the fields empty. Afterwards, updates the changes flag
         """
         changed = False
-        if self.current_entry:
+        if self.writer_entry:
             if self.body != super(Writer, self).body:
                 changed = True
             if not changed and self.tags != super(Writer, self).tags:
@@ -139,19 +137,19 @@ class Writer(Reader):
 
     def write_to_database(self):
         if any([self.body, self.date, self.tags, self.attachments]) and self.changes:
-            if self.current_entry:
-                modify_entry(entry_id=self.current_entry, tags=self.tags, body=self.body, date=self.date,
+            if self.writer_entry:
+                modify_entry(entry_id=self.writer_entry, tags=self.tags, body=self.body, date=self.date,
                              attachments=self.attachments, parent=self.parent)
             else:
-                self.current_entry = create_entry(body=self.body, tags=self.tags, attachments=self.attachments,
-                                                  date=self.date, parent=self.parent)
+                self.writer_entry = create_entry(body=self.body, tags=self.tags, attachments=self.attachments,
+                                                 date=self.date, parent=self.parent)
 
     def clear_fields(self):
         """Clears all entry fields if there have been no changes to the body, date, tags, or attachments.
 
         """
         if not self.changes:
-            self.current_entry = None
+            self.writer_entry = None
             self.body = ''
             self.date = None
             self.tags = tuple()
@@ -163,7 +161,7 @@ class Writer(Reader):
         """Clears all entry fields regardless of changes to fields
 
         """
-        self.current_entry = None
+        self.writer_entry = None
         self.body = ''
         self.tags = tuple()
         self.parent = None
@@ -174,8 +172,8 @@ class Writer(Reader):
         """Removes entry from the database and clears entry fields
 
         """
-        if self.current_entry:
-            delete_entry(self.current_entry, self.database_connection)
+        if self.writer_entry:
+            delete_entry(self.writer_entry, self.database_connection)
             self.reset()
 
 
