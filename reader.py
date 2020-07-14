@@ -15,9 +15,6 @@ class Reader:
         self.__database_path = path_to_db
         self.__database = connect(path_to_db)
         self.__current_entry = None
-        self.__attachments_flag = False
-        self.__parent_flag = False
-        self.__children_flag = False
 
     @property
     def database_location(self):
@@ -50,18 +47,6 @@ class Reader:
         # TODO check for database or create if none exists prior to assigning entry_id
         if self.database_connection:
             self.__current_entry = entry_id if entry_id in get_all_entry_ids(self.database_connection) else None
-            if type(entry_id) == int and entry_id > 0:
-                if entry_id in get_all_entry_ids():
-                    self.has_parent = True if get_parent(
-                        database=self.database_connection, child_id=self.__current_entry) else False
-                    self.has_children = True if get_children(database=self.database_connection,
-                                                             parent_id=self.__current_entry) else False
-                    self.has_attachments = True if get_attachment_ids(database=self.database_connection,
-                                                                      entry_id=self.__current_entry) else False
-            elif entry_id is None:
-                self.has_parent = None
-                self.has_children = None
-                self.has_attachments = None
 
     @property
     def body(self):
@@ -141,37 +126,25 @@ class Reader:
 
     @property
     def has_children(self) -> Union[bool, None]:
-        """Returns the state of the flag indicating whether the entry has children
+        """Checks whether the entry id is set. If it is, checks if it has children and returns a bool
 
         :return: a bool indicating whether an entry has children or None indicating that the entry id field is not set
         """
-        return self.__children_flag
-
-    @has_children.setter
-    def has_children(self, v: Union[bool, None]):
-        """Sets the has_children flag
-
-        :param v: a bool or None, indicating whether an entry has children or None indicating that the entry is not set
-        """
-        if type(v) == bool:
-            self.__children_flag = v
+        h = None
+        if self.current_entry:
+            h = True if get_children(self.current_entry, self.database_connection) else False
+        return h
 
     @property
     def has_attachments(self) -> Union[bool, None]:
-        """Returns the state of the flag indicating whether the entry has attachments
+        """Checks whether the entry id is set. If it is, checks if it has attachments and returns a bool
 
         :return: a bool indicating whether an entry has attachments or None indicating that the entry is not set
         """
-        return self.__attachments_flag
-
-    @has_attachments.setter
-    def has_attachments(self, v: Union[bool, None]):
-        """Sets the has_attachments flag
-
-        :param v: a bool indicating whether an entry has attachments or None indicating that the entry is not set
-        """
-        if type(v) == bool:
-            self.__attachments_flag = v
+        h = None
+        if self.current_entry:
+            h = True if get_attachment_ids(self.current_entry, self.database_connection) else False
+        return h
 
     @property
     def has_parent(self) -> Union[bool, None]:
@@ -179,16 +152,10 @@ class Reader:
 
         :return: a bool indicating whether an entry has a parent or None indicating that the entry id field is not set
         """
-        return self.__children_flag
-
-    @has_parent.setter
-    def has_parent(self, v: Union[bool, None]):
-        """Sets the has_parent flag
-
-        :param v: a bool, indicating whether an entry has a parent or None indicating that the entry id field is not set
-        """
-        if type(v) == bool:
-            self.__parent_flag = v
+        h = None
+        if self.current_entry:
+            h = True if get_parent(self.current_entry, self.database_connection) else False
+        return h
 
     def close_database(self):
         self.database_connection.close()
