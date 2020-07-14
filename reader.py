@@ -49,14 +49,14 @@ class Reader:
         """
         # TODO check for database or create if none exists prior to assigning entry_id
         if self.database_connection:
-            self.__current_entry = entry_id if entry_id in get_all_entry_ids() else None
+            self.__current_entry = entry_id if entry_id in get_all_entry_ids(self.database_connection) else None
             if type(entry_id) == int and entry_id > 0:
                 if entry_id in get_all_entry_ids():
                     self.has_parent = True if get_parent(
-                        database=self.__database, child_id=self.__current_entry) else False
-                    self.has_children = True if get_children(database=self.__database,
+                        database=self.database_connection, child_id=self.__current_entry) else False
+                    self.has_children = True if get_children(database=self.database_connection,
                                                              parent_id=self.__current_entry) else False
-                    self.has_attachments = True if get_attachment_ids(database=self.__database,
+                    self.has_attachments = True if get_attachment_ids(database=self.database_connection,
                                                                       entry_id=self.__current_entry) else False
             elif entry_id is None:
                 self.has_parent = None
@@ -71,7 +71,7 @@ class Reader:
         """
         body = None
         if self.current_entry:
-            body = get_body(database=self.__database, entry_id=self.__current_entry)
+            body = get_body(database=self.database_connection, entry_id=self.current_entry)
         return body
 
     @property
@@ -82,7 +82,7 @@ class Reader:
         """
         tags = None
         if self.current_entry:
-            tags = get_tags(database=self.__database, entry_id=self.__current_entry)
+            tags = get_tags(database=self.database_connection, entry_id=self.current_entry)
         return tags
 
     @property
@@ -93,7 +93,7 @@ class Reader:
         """
         date = None
         if self.current_entry:
-            date = get_date(database=self.__database, entry_id=self.__current_entry)
+            date = get_date(database=self.database_connection, entry_id=self.current_entry)
         return date
 
     @property
@@ -112,7 +112,7 @@ class Reader:
         attachments = None
         if self.current_entry:
             attachments = [att_id for att_id in
-                           get_attachment_ids(database=self.__database, entry_id=self.__current_entry)]
+                           get_attachment_ids(database=self.database_connection, entry_id=self.current_entry)]
             attachments.sort(key=get_attachment_date)
             attachments = tuple(attachments)
         return attachments
@@ -125,7 +125,7 @@ class Reader:
         """
         parent = None
         if self.current_entry:
-            parent = get_parent(database=self.__database, child_id=self.__current_entry)
+            parent = get_parent(database=self.database_connection, child_id=self.current_entry)
         return parent
 
     @property
@@ -136,7 +136,7 @@ class Reader:
         """
         children = None
         if self.current_entry:
-            children = tuple(get_children(database=self.__database, parent_id=self.__current_entry))
+            children = tuple(get_children(database=self.database_connection, parent_id=self.current_entry))
         return children
 
     @property
@@ -258,7 +258,8 @@ def get_tags(entry_id: int, database: Union[Connection, str] = 'jurnl.sqlite') -
         c.execute('SELECT tag FROM tags WHERE entry_id=?', (entry_id,))
         tags = [str(tag[0]) for tag in c]
         tags.sort()
-    return tuple(tags)
+        tags = tuple(tags)
+    return tags
 
 
 """---------------------------------Attachments Methods----------------------------------"""

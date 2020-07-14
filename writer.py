@@ -8,7 +8,7 @@ from reader import Reader
 
 
 class Writer(Reader):
-    def __init__(self, path_to_db: str):
+    def __init__(self, path_to_db: str = 'jurnl.sqlite'):
         self.__body = ''
         self.__tags = tuple()
         self.__date = None
@@ -17,7 +17,11 @@ class Writer(Reader):
         self.__changes = False
         super(Writer, self).__init__(path_to_db=path_to_db)
 
-    @Reader.current_entry.setter
+    @property
+    def current_entry(self):
+        return Reader.current_entry
+
+    @current_entry.setter
     def current_entry(self, entry_id: Union[int, None]):
         """Updates all fields with information from the database
 
@@ -26,10 +30,10 @@ class Writer(Reader):
         """
         Reader.current_entry = entry_id
         if type(entry_id) == int:
-            self.body = Reader.body
-            self.attachments = Reader.attachments
-            self.date = Reader.date
-            self.tags = Reader.tags
+            self.body = super(Writer, self).body
+            self.attachments = super(Writer, self).attachments
+            self.date = super(Writer, self).date
+            self.tags = super(Writer, self).tags
 
     @property
     def body(self):
@@ -43,7 +47,7 @@ class Writer(Reader):
         """
         if type(v) is str:
             self.__body = v
-            self.check_for_changes()
+            self.__check_for_changes()
 
     @property
     def tags(self):
@@ -55,9 +59,9 @@ class Writer(Reader):
 
         :param v: a list of str representing tags for the entry
         """
-        if type(v) == list and all(isinstance(s, str) for s in v):
+        if type(v) == tuple and all(isinstance(s, str) for s in v):
             self.__tags = v
-            self.check_for_changes()
+            self.__check_for_changes()
 
     @property
     def date(self):
@@ -71,7 +75,7 @@ class Writer(Reader):
         """
         if type(v) is datetime or v is None:
             self.__date = v
-            self.check_for_changes()
+            self.__check_for_changes()
 
     @property
     def attachments(self):
@@ -88,8 +92,8 @@ class Writer(Reader):
         if type(v) is tuple and all(isinstance(x, (int, str)) for x in v):
             self.__attachments = v
             if v:
-                self.has_attachments = True
-            self.check_for_changes()
+                Reader.has_attachments.fset(self, True)
+            self.__check_for_changes()
 
     @property
     def parent(self):
@@ -102,6 +106,11 @@ class Writer(Reader):
             self.has_parent = True
 
     @property
+    def has_attachments(self) -> Union[bool, None]:
+        has_att = False if not self.__attachments else True
+        return has_att
+
+    @property
     def changes(self):
         return self.__changes
 
@@ -110,19 +119,19 @@ class Writer(Reader):
         if type(v) == bool:
             self.__changes = v
 
-    def check_for_changes(self):
+    def __check_for_changes(self):
         """If the entry exists in the database, compares the Writer's entry fields to the entry fields in the
         database. If it does not, checks the fields empty. Afterwards, updates the changes flag
         """
         changed = False
         if self.current_entry:
-            if self.body != Reader.body:
+            if self.body != super(Writer, self).body:
                 changed = True
-            if not changed and self.tags != Reader.tags:
+            if not changed and self.tags != super(Writer, self).tags:
                 changed = True
-            if not changed and self.date != Reader.date:
+            if not changed and self.date != super(Writer, self).date:
                 changed = True
-            if not changed and self.attachments != Reader.attachments:
+            if not changed and self.attachments != super(Writer, self).attachments:
                 changed = True
         elif any([self.body, self.tags, self.date, self.attachments, self.parent]):
             changed = True
