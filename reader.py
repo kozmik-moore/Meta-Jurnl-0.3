@@ -45,11 +45,11 @@ class Reader:
             self._database = None
 
     @property
-    def id(self):
+    def id_(self):
         return self._id
 
-    @id.setter
-    def id(self, entry_id: Union[int, None]):
+    @id_.setter
+    def id_(self, entry_id: Union[int, None]):
         """Sets the entry id field and modifies the has_parent, has_children, and has_attachments flags accordingly
 
         :param entry_id: an int representing an entry from the database or None if the entry is not set

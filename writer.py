@@ -17,13 +17,13 @@ class Writer(Reader):
         self.__changes = False
         super(Writer, self).__init__(path_to_db=path_to_db)
 
-    @Reader.id.setter
-    def id(self, entry_id: Union[int, None]):
+    @Reader.id_.setter
+    def id_(self, entry_id: Union[int, None]):
         """Updates all fields with information from the database
 
         :param entry_id: either an int (representing an entry from the database) or None (indicating a new entry)
         """
-        self.id = entry_id
+        Reader.id_.fset(self, entry_id)
         self.body = self.get_body
         self.attachments = self.get_attachments
         self.date = self.get_date
@@ -93,7 +93,7 @@ class Writer(Reader):
 
     @parent.setter
     def parent(self, v: int):
-        if v is None or type(v) == int and all([v > 0, not self.id]):
+        if v is None or type(v) == int and all([v > 0, not self.id_]):
             self.__parent = v
 
     @property
@@ -115,7 +115,7 @@ class Writer(Reader):
         database. If it does not, checks the fields empty. Afterwards, updates the changes flag
         """
         changed = False
-        if self.id:
+        if self.id_:
             if self.body != self.get_body:
                 changed = True
             if not changed and self.tags != self.get_tags:
@@ -130,11 +130,11 @@ class Writer(Reader):
 
     def write_to_database(self):
         if any([self.body, self.date, self.tags, self.attachments]) and self.changes:
-            if self.id:
-                modify_entry(entry_id=self.id, tags=self.tags, body=self.body, date=self.date,
+            if self.id_:
+                modify_entry(entry_id=self.id_, tags=self.tags, body=self.body, date=self.date,
                              attachments=self.attachments, parent=self.parent)
             else:
-                self.id = create_entry(body=self.body, tags=self.tags, attachments=self.attachments,
+                self.id_ = create_entry(body=self.body, tags=self.tags, attachments=self.attachments,
                                         date=self.date, parent=self.parent)
 
     def clear_fields(self):
@@ -142,7 +142,7 @@ class Writer(Reader):
 
         """
         if not self.changes:
-            self.id = None
+            self.id_ = None
             self.body = ''
             self.date = None
             self.tags = tuple()
@@ -154,7 +154,7 @@ class Writer(Reader):
         """Clears all entry fields regardless of changes to fields
 
         """
-        self.id = None
+        self.id_ = None
         self.body = ''
         self.tags = tuple()
         self.parent = None
@@ -165,8 +165,8 @@ class Writer(Reader):
         """Removes entry from the database and clears entry fields
 
         """
-        if self.id:
-            delete_entry(self.id, self.database_connection)
+        if self.id_:
+            delete_entry(self.id_, self.database_connection)
             self.reset()
 
 
