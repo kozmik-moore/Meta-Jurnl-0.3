@@ -26,12 +26,12 @@ while curs != 'q':
     print('--------')
     try:
         curs = int(curs)
-        if type(curs) is int and curs > 0:
-            b.id_ = int(curs)
+        if type(curs) == int and curs > 0:
+            b.id_ = curs
             print_entry(b)
-            b.body = ''
-            b.tags = ('New Tag',)
-            print_entry(b)
+            # b.body = ''
+            # b.tags = ('New Tag',)
+            # print_entry(b)
         else:
             print('That is not a valid entry')
             print('--------')
