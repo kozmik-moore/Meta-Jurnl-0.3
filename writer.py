@@ -17,22 +17,18 @@ class Writer(Reader):
         self.__changes = False
         super(Writer, self).__init__(path_to_db=path_to_db)
 
-    @property
-    def writer_entry(self):
-        return self._reader_entry
-
-    @writer_entry.setter
+    @Reader.id_.setter
     def writer_entry(self, entry_id: Union[int, None]):
         """Updates all fields with information from the database
 
         :param entry_id: either an int (representing an entry from the database) or None (indicating a new entry)
         """
-        self.reader_entry = entry_id
-        self.body = super(Writer, self).body
-        self.attachments = super(Writer, self).attachments
-        self.date = super(Writer, self).date
-        self.tags = super(Writer, self).tags
-        self.parent = super(Writer, self).parent
+        self.id_ = entry_id
+        self.body = self.get_body
+        self.attachments = self.get_attachments
+        self.date = self.get_date
+        self.tags = self.get_tags
+        self.parent = self.get_parent
 
     @property
     def body(self):
@@ -93,10 +89,7 @@ class Writer(Reader):
 
     @property
     def parent(self):
-        p = self.__parent
-        if self.writer_entry:
-            p = super(Writer, self).parent
-        return p
+        return self.__parent
 
     @parent.setter
     def parent(self, v: int):
@@ -123,13 +116,13 @@ class Writer(Reader):
         """
         changed = False
         if self.writer_entry:
-            if self.body != super(Writer, self).body:
+            if self.body != self.get_body:
                 changed = True
-            if not changed and self.tags != super(Writer, self).tags:
+            if not changed and self.tags != self.get_tags:
                 changed = True
-            if not changed and self.date != super(Writer, self).date:
+            if not changed and self.date != self.get_date:
                 changed = True
-            if not changed and self.attachments != super(Writer, self).attachments:
+            if not changed and self.attachments != self.get_attachments:
                 changed = True
         elif any([self.body, self.tags, self.date, self.attachments, self.parent]):
             changed = True
@@ -141,15 +134,15 @@ class Writer(Reader):
                 modify_entry(entry_id=self.writer_entry, tags=self.tags, body=self.body, date=self.date,
                              attachments=self.attachments, parent=self.parent)
             else:
-                self.writer_entry = create_entry(body=self.body, tags=self.tags, attachments=self.attachments,
-                                                 date=self.date, parent=self.parent)
+                self.id_ = create_entry(body=self.body, tags=self.tags, attachments=self.attachments,
+                                        date=self.date, parent=self.parent)
 
     def clear_fields(self):
         """Clears all entry fields if there have been no changes to the body, date, tags, or attachments.
 
         """
         if not self.changes:
-            self.writer_entry = None
+            self.id_ = None
             self.body = ''
             self.date = None
             self.tags = tuple()
@@ -161,7 +154,7 @@ class Writer(Reader):
         """Clears all entry fields regardless of changes to fields
 
         """
-        self.writer_entry = None
+        self.id_ = None
         self.body = ''
         self.tags = tuple()
         self.parent = None
