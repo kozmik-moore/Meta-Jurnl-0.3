@@ -4,7 +4,7 @@ from datetime import datetime
 from os import makedirs
 from os.path import exists
 from sqlite3 import connect, Connection, DatabaseError
-from typing import Union, List, Tuple
+from typing import Union, Tuple
 
 from dateutil.parser import parse
 
@@ -12,50 +12,52 @@ from database import get_all_entry_ids, create_database
 
 
 class Reader:
+    """The class for storing the id of the currently selected entry and reporting its properties from the database"""
+
     def __init__(self, path_to_db: str = 'jurnl.sqlite'):
         if not exists(path_to_db):
             create_database(path_to_db)
-        self._database_path = path_to_db
-        self._database = connect(path_to_db)
-        self._id = None
+        self.__database_path = path_to_db
+        self.__database = connect(path_to_db)
+        self._id_ = None
 
     @property
     def database_location(self):
-        return self._database_path
+        return self.__database_path
 
     @property
     def database_connection(self):
-        return self._database
+        return self.__database
 
     @database_connection.setter
     def database_connection(self, path: Union[str, None]):
         if path is not None:
             if exists(path):
                 try:
-                    self._database.close()
-                    self._database = connect(path)
-                    self._database_path = path
+                    self.__database.close()
+                    self.__database = connect(path)
+                    self.__database_path = path
                 except DatabaseError as err:
                     raise err
             else:
                 makedirs(path)
                 create_database(path)
         else:
-            self._database.close()
-            self._database = None
+            self.__database.close()
+            self.__database = None
 
     @property
-    def id_(self):
-        return self._id
+    def reader_id(self):
+        return self._id_
 
-    @id_.setter
-    def id_(self, entry_id: Union[int, None]):
+    @reader_id.setter
+    def reader_id(self, entry_id: Union[int, None]):
         """Sets the entry id field and modifies the has_parent, has_children, and has_attachments flags accordingly
 
         :param entry_id: an int representing an entry from the database or None if the entry is not set
         """
         if self.database_connection and entry_id:
-            self._id = entry_id if entry_id in get_all_entry_ids(self.database_connection) else None
+            self._id_ = entry_id if entry_id in get_all_entry_ids(self.database_connection) else None
 
     @property
     def get_body(self):
@@ -64,8 +66,8 @@ class Reader:
         :return: a str representing the content of the entry or None if the entry is not set
         """
         body = ''
-        if self._id:
-            body = get_body(database=self.database_connection, entry_id=self._id)
+        if self.reader_id:
+            body = get_body(database=self.database_connection, entry_id=self.reader_id)
         return body
 
     @property
@@ -75,8 +77,8 @@ class Reader:
         :return: a tuple of str representing the tags of the entry or None if the entry is not set
         """
         tags = ()
-        if self._id:
-            tags = get_tags(database=self.database_connection, entry_id=self._id)
+        if self.reader_id:
+            tags = get_tags(database=self.database_connection, entry_id=self.reader_id)
         return tags
 
     @property
@@ -86,15 +88,15 @@ class Reader:
         :return: a datetime representing the date the entry was created or None if the entry is not set
         """
         date = None
-        if self._id:
-            date = get_date(database=self.database_connection, entry_id=self._id)
+        if self.reader_id:
+            date = get_date(database=self.database_connection, entry_id=self.reader_id)
         return date
 
     @property
     def get_date_last_edited(self):
         date = None
-        if self._id:
-            date = date_last_edited(self._id, self.database_connection)
+        if self.reader_id:
+            date = date_last_edited(self.reader_id, self.database_connection)
         return date
 
     @property
@@ -104,11 +106,8 @@ class Reader:
         :return: a tuple of int representing the attachments of the entry or None if the entry is not set
         """
         attachments = ()
-        if self._id:
-            attachments = [att_id for att_id in
-                           get_attachment_ids(database=self.database_connection, entry_id=self._id)]
-            attachments.sort(key=get_attachment_date)
-            attachments = tuple(attachments)
+        if self.reader_id:
+            attachments = get_attachment_ids(database=self.database_connection, entry_id=self.reader_id)
         return attachments
 
     @property
@@ -118,8 +117,8 @@ class Reader:
         :return: an int representing the parent or None if there is no parent or the entry is not set
         """
         parent = None
-        if self._id:
-            parent = get_parent(database=self.database_connection, child_id=self._id)
+        if self.reader_id:
+            parent = get_parent(database=self.database_connection, child_id=self.reader_id)
         return parent
 
     @property
@@ -129,8 +128,8 @@ class Reader:
         :return: a list of ints representing the children of the entry
         """
         children = None
-        if self._id:
-            children = tuple(get_children(database=self.database_connection, parent_id=self._id))
+        if self.reader_id:
+            children = tuple(get_children(database=self.database_connection, parent_id=self.reader_id))
         return children
 
     @property
@@ -140,8 +139,8 @@ class Reader:
         :return: a bool indicating whether an entry has children or None indicating that the entry id field is not set
         """
         h = None
-        if self._id:
-            h = True if get_children(self._id, self.database_connection) else False
+        if self.reader_id:
+            h = True if get_children(self.reader_id, self.database_connection) else False
         return h
 
     @property
@@ -151,8 +150,8 @@ class Reader:
         :return: a bool indicating whether an entry has attachments or None indicating that the entry is not set
         """
         h = None
-        if self._id:
-            h = True if get_attachment_ids(self._id, self.database_connection) else False
+        if self.reader_id:
+            h = True if get_attachment_ids(self.reader_id, self.database_connection) else False
         return h
 
     @property
@@ -162,8 +161,8 @@ class Reader:
         :return: a bool indicating whether an entry has a parent or None indicating that the entry id field is not set
         """
         h = None
-        if self._id:
-            h = True if get_parent(self._id, self.database_connection) else False
+        if self.reader_id:
+            h = True if get_parent(self.reader_id, self.database_connection) else False
         return h
 
     def close_database(self):
@@ -230,27 +229,25 @@ def get_tags(entry_id: int, database: Union[Connection, str] = 'jurnl.sqlite') -
     """
     d = database if type(database) == Connection else connect(database)
     with closing(d.cursor()) as c:
-        c.execute('SELECT tag FROM tags WHERE entry_id=?', (entry_id,))
-        tags = [str(tag[0]) for tag in c]
-        tags.sort()
-        tags = tuple(tags)
+        c.execute('SELECT tag FROM tags WHERE entry_id=? ORDER BY tag', (entry_id,))
+        tags = tuple([str(tag[0]) for tag in c])
     return tags
 
 
 """---------------------------------Attachments Methods----------------------------------"""
 
 
-def get_attachment_ids(entry_id: int, database: Union[Connection, str] = 'jurnl.sqlite') -> List[int]:
+def get_attachment_ids(entry_id: int, database: Union[Connection, str] = 'jurnl.sqlite') -> Tuple[int]:
     """Gets all attachment ids associated with a given entry
 
     :param entry_id: the id of the entry for which all attachment ids are desired
     :param database: a Connection or str representing the database that is being queried
-    :return: a list of ints representing the ids of the attachments associated with the given entry
+    :return: a tuple of ints representing the ids of the attachments associated with the given entry
     """
     d = database if type(database) == Connection else connect(database)
     with closing(d.cursor()) as c:
-        c.execute('SELECT att_id FROM attachments WHERE entry_id=?', (entry_id,))
-        ids = [x[0] for x in c.fetchall()]
+        c.execute('SELECT att_id FROM attachments WHERE entry_id=? ORDER BY added', (entry_id,))
+        ids = tuple([int(x[0]) for x in c.fetchall()])
     return ids
 
 
@@ -292,9 +289,9 @@ def get_attachment_date(att_id: int, database: Union[Connection, str] = 'jurnl.s
     d = database if type(database) == Connection else connect(database)
     with closing(d.cursor()) as c:
         c.execute('SELECT added FROM attachments WHERE att_id=?', (att_id,))
-        name = c.fetchone()[0]
-        name = parse(name)
-    return name
+        date = c.fetchone()[0]
+        date = parse(date)
+    return date
 
 
 """---------------------------------Relations Methods----------------------------------"""

@@ -5,7 +5,7 @@ from random import randint
 
 
 def print_entry(w: Writer):
-    print('Entry: ', w.id_)
+    print('Entry: ', w.writer_id)
     print('Body: ', w.body)
     print('Date: ', w.date)
     print('Last edited: ', w.get_date_last_edited)
@@ -27,11 +27,11 @@ while curs != 'q':
     try:
         curs = int(curs)
         if type(curs) == int and curs > 0:
-            b.id_ = curs
+            b.writer_id = curs
             print_entry(b)
-            # b.body = ''
-            # b.tags = ('New Tag',)
-            # print_entry(b)
+            b.body = 'This a new test'
+            b.tags = ('New Tag',)
+            print_entry(b)
         else:
             print('That is not a valid entry')
             print('--------')

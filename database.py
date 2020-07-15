@@ -1,7 +1,7 @@
 """Functions for creating and querying the database for general information"""
 from contextlib import closing
 from sqlite3 import connect, Connection
-from typing import Union, List
+from typing import Union
 
 from dateutil.parser import parse
 
