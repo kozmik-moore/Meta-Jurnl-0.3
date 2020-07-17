@@ -26,11 +26,11 @@ class Reader:
         return self.__database_path
 
     @property
-    def database_connection(self):
+    def connection(self):
         return self.__database
 
-    @database_connection.setter
-    def database_connection(self, path: Union[str, None]):
+    @connection.setter
+    def connection(self, path: Union[str, None]):
         if path is not None:
             if exists(path):
                 try:
@@ -56,8 +56,8 @@ class Reader:
 
         :param entry_id: an int representing an entry from the database or None if the entry is not set
         """
-        if self.database_connection and entry_id:
-            self._id_ = entry_id if entry_id in get_all_entry_ids(self.database_connection) else None
+        if self.connection:
+            self._id_ = entry_id if entry_id in get_all_entry_ids(self.connection) else None
 
     @property
     def get_body(self):
@@ -67,7 +67,7 @@ class Reader:
         """
         body = ''
         if self.reader_id:
-            body = get_body(database=self.database_connection, entry_id=self.reader_id)
+            body = get_body(database=self.connection, entry_id=self.reader_id)
         return body
 
     @property
@@ -78,7 +78,7 @@ class Reader:
         """
         tags = ()
         if self.reader_id:
-            tags = get_tags(database=self.database_connection, entry_id=self.reader_id)
+            tags = get_tags(database=self.connection, entry_id=self.reader_id)
         return tags
 
     @property
@@ -89,14 +89,14 @@ class Reader:
         """
         date = None
         if self.reader_id:
-            date = get_date(database=self.database_connection, entry_id=self.reader_id)
+            date = get_date(database=self.connection, entry_id=self.reader_id)
         return date
 
     @property
     def get_date_last_edited(self):
         date = None
         if self.reader_id:
-            date = date_last_edited(self.reader_id, self.database_connection)
+            date = get_date_last_edited(self.reader_id, self.connection)
         return date
 
     @property
@@ -107,7 +107,7 @@ class Reader:
         """
         attachments = ()
         if self.reader_id:
-            attachments = get_attachment_ids(database=self.database_connection, entry_id=self.reader_id)
+            attachments = get_attachment_ids(database=self.connection, entry_id=self.reader_id)
         return attachments
 
     @property
@@ -118,7 +118,7 @@ class Reader:
         """
         parent = None
         if self.reader_id:
-            parent = get_parent(database=self.database_connection, child_id=self.reader_id)
+            parent = get_parent(database=self.connection, child_id=self.reader_id)
         return parent
 
     @property
@@ -129,7 +129,7 @@ class Reader:
         """
         children = None
         if self.reader_id:
-            children = tuple(get_children(database=self.database_connection, parent_id=self.reader_id))
+            children = tuple(get_children(database=self.connection, parent_id=self.reader_id))
         return children
 
     @property
@@ -140,7 +140,7 @@ class Reader:
         """
         h = None
         if self.reader_id:
-            h = True if get_children(self.reader_id, self.database_connection) else False
+            h = True if get_children(self.reader_id, self.connection) else False
         return h
 
     @property
@@ -151,7 +151,7 @@ class Reader:
         """
         h = None
         if self.reader_id:
-            h = True if get_attachment_ids(self.reader_id, self.database_connection) else False
+            h = True if get_attachment_ids(self.reader_id, self.connection) else False
         return h
 
     @property
@@ -162,11 +162,11 @@ class Reader:
         """
         h = None
         if self.reader_id:
-            h = True if get_parent(self.reader_id, self.database_connection) else False
+            h = True if get_parent(self.reader_id, self.connection) else False
         return h
 
     def close_database(self):
-        self.database_connection = None
+        self.connection = None
 
 
 # TODO add exception catching to functions which need it
@@ -191,7 +191,7 @@ def get_date(entry_id: int, database: Union[Connection, str] = 'jurnl.sqlite'):
     return date
 
 
-def date_last_edited(entry_id: int, database: Union[Connection, str] = 'jurnl.sqlite'):
+def get_date_last_edited(entry_id: int, database: Union[Connection, str] = 'jurnl.sqlite'):
     d = database if type(database) == Connection else connect(database)
     with closing(d.cursor()) as c:
         c.execute('SELECT last_edit FROM dates WHERE entry_id=?', (entry_id,))

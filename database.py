@@ -43,9 +43,8 @@ def get_all_tags(database: Union[Connection, str] = 'jurnl.sqlite'):
     try:
         d = database if type(database) == Connection else connect(database)
         with closing(d.cursor()) as c:
-            c.execute('SELECT tag FROM tags')
+            c.execute('SELECT tag FROM tags ORDER BY tag')
             tags = list({tag[0] for tag in c})
-            tags.sort()
             return tags
     except TypeError:
         print('Input is not of type Cursor or str')
