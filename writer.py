@@ -293,13 +293,16 @@ def set_tags(entry_id: int, tags: Tuple[str], database: Union[Connection, str] =
     """
     d = database if type(database) == Connection else connect(database)
     with closing(d.cursor()) as c:
-        old = get_tags(entry_id, database)
-        added = set(tags).difference(old)
-        added = [(entry_id, tag) for tag in added]
-        c.executemany('INSERT INTO tags(entry_id,tag) VALUES(?,?)', added)
-        removed = set(old).difference(tags)
-        removed = [(entry_id, tag) for tag in removed]
-        c.executemany('DELETE FROM tags WHERE entry_id=? AND tag=?', removed)
+        if not tags:
+            c.execute('INSERT INTO tags(entry_id) VALUES(?)', (entry_id,))
+        else:
+            old = get_tags(entry_id, database)
+            added = set(tags).difference(old)
+            added = [(entry_id, tag) for tag in added]
+            c.executemany('INSERT INTO tags(entry_id,tag) VALUES(?,?)', added)
+            removed = set(old).difference(tags)
+            removed = [(entry_id, tag) for tag in removed]
+            c.executemany('DELETE FROM tags WHERE entry_id=? AND tag=?', removed)
     d.commit()
 
 
