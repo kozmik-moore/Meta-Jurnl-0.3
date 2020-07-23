@@ -1,9 +1,8 @@
 """Functions for creating and querying the database for general information"""
 from contextlib import closing
+from datetime import datetime
 from sqlite3 import connect, Connection
 from typing import Union
-
-from dateutil.parser import parse
 
 
 def create_database(database: str) -> None:
@@ -35,7 +34,8 @@ def get_all_entry_ids(database: Union[Connection, str] = 'jurnl.sqlite'):
     """
     d = database if type(database) == Connection else connect(database)
     with closing(d.cursor()) as c:
-        ids = [x[0] for x in c.execute('SELECT entry_id FROM dates ORDER BY string').fetchall()]
+        t = c.execute('SELECT entry_id FROM dates ORDER BY string').fetchall()
+        ids = [x[0] for x in t]
     return ids
 
 
@@ -59,9 +59,23 @@ def get_all_dates(database: Union[Connection, str] = 'jurnl.sqlite'):
     """
     d = database if type(database) == Connection else connect(database)
     with closing(d.cursor()) as c:
-        dates = c.execute('SELECT string FROM dates').fetchall()
-        dates = [parse(x[0]) for x in dates]
+        dates = c.execute('SELECT string FROM dates ORDER BY string').fetchall()
+        dates = [datetime.strptime(x[0], '%Y-%m-%d %H:%M') for x in dates]
         return dates
+
+
+def get_oldest_date(database: Union[Connection, str] = 'jurnl.sqlite'):
+    d = database if type(database) == Connection else connect(database)
+    with closing(d.cursor()) as c:
+        date = get_all_dates(d)[0]
+        return date
+
+
+def get_newest_date(database: Union[Connection, str] = 'jurnl.sqlite'):
+    d = database if type(database) == Connection else connect(database)
+    with closing(d.cursor()) as c:
+        date = get_all_dates(d)[-1]
+        return date
 
 
 def get_all_children(database: Union[Connection, str] = 'jurnl.sqlite'):

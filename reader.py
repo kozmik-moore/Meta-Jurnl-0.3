@@ -6,9 +6,8 @@ from os.path import exists
 from sqlite3 import connect, Connection, DatabaseError
 from typing import Union, Tuple
 
-from dateutil.parser import parse
-
-from database import get_all_entry_ids, create_database
+from database import get_all_entry_ids, create_database, get_oldest_date, get_newest_date, get_all_tags, \
+    get_all_parents, get_all_children
 
 
 class Reader:
@@ -169,6 +168,181 @@ class Reader:
         self.connection = None
 
 
+class Filter:
+    def __init__(self, path_to_db: str = 'jurnl.sqlite'):
+        self._database_path = path_to_db
+        self._database = connect(self._database_path)
+        self._by_attachments = False
+        self._by_children = False
+        self._by_parent = False
+        self._by_body = ''
+        self._by_date = ()
+        self._date_type = 'Continuous'
+        self._by_tags = tuple()
+        self._by_untagged = False
+        self._tags_type = 'Contains One Of...'
+        self._filtered = tuple()
+
+    @property
+    def filtered_ids(self):
+        return self._filtered
+
+    @property
+    def attachments(self):
+        return self._by_attachments
+
+    @attachments.setter
+    def attachments(self, v: bool):
+        if type(v) == bool:
+            self._by_attachments = bool
+            self.filter()
+
+    @property
+    def parent(self):
+        return self._by_parent
+
+    @parent.setter
+    def parent(self, v: bool):
+        if type(v) == bool:
+            self._by_parent = bool
+            self.filter()
+
+    @property
+    def children(self):
+        return self._by_children
+
+    @children.setter
+    def children(self, v: bool):
+        if type(v) == bool:
+            self._by_children = bool
+            self.filter()
+
+    @property
+    def date(self):
+        return self._by_date
+
+    @date.setter
+    def date(self, t: Tuple[datetime]):
+        if all([type(t) == tuple, len(t) == 2]):
+            if not t:
+                self._by_date = ()
+            else:
+                f = t[0]
+                s = t[1]
+                if not f or type(f) != datetime:
+                    f = get_oldest_date(self._database)
+                if not s or type(s) != datetime:
+                    s = get_newest_date(self._database)
+                self._by_date = (f, s)
+            self.filter()
+
+    @property
+    def body(self):
+        return self._by_body
+
+    @body.setter
+    def body(self, v: str):
+        if type(v) == str:
+            self._by_body = v
+            self.filter()
+
+    @property
+    def tags(self):
+        return self._by_tags
+
+    @tags.setter
+    def tags(self, v: Union[Tuple[str], str]):
+        if type(v) == tuple and all(isinstance(x, str) for x in v):
+            self._by_tags = v
+            self.filter()
+        elif type(v) == str:
+            if v == 'all':
+                self._by_tags = tuple(get_all_tags(self._database))
+                self._by_untagged = True
+                self.filter()
+            elif v == 'none':
+                self._by_tags = ()
+                self._by_untagged = False
+                self.filter()
+            elif v == 'invert':
+                a = set(get_all_tags(self._database))
+                self._by_tags = tuple(a.difference(self._by_tags))
+                self._by_untagged = False if True else True
+                self.filter()
+
+    @property
+    def untagged(self):
+        return self._by_untagged
+
+    @untagged.setter
+    def untagged(self, v: bool):
+        if type(v) == bool:
+            self._by_untagged = v
+            self.filter()
+
+    @property
+    def tag_filter(self):
+        return self._tags_type
+
+    @tag_filter.setter
+    def tag_filter(self, v: str):
+        if v in [
+            'Contains One Of...',
+            'Contains At Least...',
+            'Contains Only...'
+        ]:
+            self._tags_type = v
+            self.filter()
+
+    def filter(self):
+        filtered = set(get_all_entry_ids(self._database))
+        if self._by_attachments:
+            filtered = filtered.intersection(get_entry_ids_from_attachments(self._database))
+        if self._by_body:
+            filtered = filtered.intersection(get_entry_ids_from_body(self._by_body, self._database))
+        if any([self._by_tags, self._by_untagged]):
+            l_ = ()
+            if self._by_tags and self._by_untagged:
+                l_ = tuple(list(self._by_tags) + ['(UNTAGGED)'])
+            elif not self._by_tags and self._by_untagged:
+                l_ = ('(UNTAGGED)',)
+            elif self._by_tags and not self._by_untagged:
+                l_ = self._by_tags
+            filtered = filtered.intersection(get_entry_ids_from_tags(l_, self._database, self._tags_type))
+        if self._by_date:
+            l_ = set()
+            f: datetime = self._by_date[0]
+            s: datetime = self._by_date[1]
+            if self._date_type == 'Continuous':
+                l_ = tuple(get_entry_ids_from_range(f, s, self._database))
+            elif self._date_type == 'Interval':
+                l_ = get_entry_ids_from_intervals(f, s, self._database)
+            filtered = filtered.intersection(l_)
+        if self._by_children:
+            filtered = filtered.intersection(get_all_parents(self._database))
+        if self._by_parent:
+            filtered = filtered.intersection(get_all_children(self._database))
+        filtered = list(filtered)
+        filtered.sort(key=lambda i: get_date(entry_id=i, database=self._database))
+        self._filtered = tuple(filtered)
+
+    def reset_filters(self):
+        self._by_attachments = False
+        self._by_children = False
+        self._by_parent = False
+        self._by_body = ''
+        self._by_date = ()
+        self._date_type = 'Continuous'
+        self._by_tags = tuple()
+        self._by_untagged = False
+        self._tags_type = 'Contains One Of...'
+        self._filtered = tuple()
+
+    def close(self):
+        self._database.close()
+        self._database = None
+
+
 # TODO add exception catching to functions which need it
 
 
@@ -195,7 +369,7 @@ def get_date_last_edited(entry_id: int, database: Union[Connection, str] = 'jurn
     d = database if type(database) == Connection else connect(database)
     with closing(d.cursor()) as c:
         c.execute('SELECT last_edit FROM dates WHERE entry_id=?', (entry_id,))
-        date = parse(c.fetchone()[0])
+        date = datetime.strptime(c.fetchone()[0], '%Y-%m-%d %H:%M')
     return date
 
 
@@ -290,7 +464,7 @@ def get_attachment_date(att_id: int, database: Union[Connection, str] = 'jurnl.s
     with closing(d.cursor()) as c:
         c.execute('SELECT added FROM attachments WHERE att_id=?', (att_id,))
         date = c.fetchone()[0]
-        date = parse(date)
+        date = datetime.strptime(date, '%Y-%m-%d %H:%M')
     return date
 
 
@@ -334,97 +508,103 @@ def get_parent(child_id: int, database: Union[Connection, str] = 'jurnl.sqlite')
 
 
 def get_entry_ids_from_year_range(database: Union[Connection, str] = 'jurnl.sqlite',
-                                  year: tuple = (1970, datetime.now().year)):
+                                  lower: int = 1970, upper: int = datetime.now().year):
     """Filters the database for entries that were created over a given range of years
 
+    :param upper:
+    :param lower:
     :rtype: list
-    :param year: a tuple containing the endpoints of the range
     :param database: a Connection or str representing the database that is being queried
     :return: a list containing the filtered entries
     """
     d = database if type(database) == Connection else connect(database)
     with closing(d.cursor()) as c:
-        c.execute('SELECT entry_id FROM dates WHERE year BETWEEN ? AND ?', (year[0], year[1]))
+        c.execute('SELECT entry_id FROM dates WHERE year BETWEEN ? AND ?', (lower, upper))
         ids = [x[0] for x in c.fetchall()]
         ids.sort(key=get_date)
     return ids
 
 
-def get_entry_ids_from_month_range(database: Union[Connection, str] = 'jurnl.sqlite', month: tuple = (1, 12)):
+def get_entry_ids_from_month_range(database: Union[Connection, str] = 'jurnl.sqlite', lower: int = 1, upper: int = 12):
     """Filters the database for entries that were created over a given range of months
 
+    :param upper:
+    :param lower:
     :rtype: list
-    :param month: a tuple containing the endpoints of the range
     :param database: a Connection or str representing the database that is being queried
     :return: a list containing the filtered entries
     """
     d = database if type(database) == Connection else connect(database)
     with closing(d.cursor()) as c:
-        c.execute('SELECT entry_id FROM dates WHERE month BETWEEN ? AND ?', (month[0], month[1]))
+        c.execute('SELECT entry_id FROM dates WHERE month BETWEEN ? AND ?', (lower, upper))
         ids = [x[0] for x in c.fetchall()]
         ids.sort(key=get_date)
     return ids
 
 
-def get_entry_ids_from_day_range(database: Union[Connection, str] = 'jurnl.sqlite', day: tuple = (1, 31)):
+def get_entry_ids_from_day_range(database: Union[Connection, str] = 'jurnl.sqlite', lower: int = 1, upper: int = 31):
     """Filters the database for entries that were created over a given range of days
 
+    :param upper:
+    :param lower:
     :rtype: list
-    :param day: a tuple containing the endpoints of the range
     :param database: a Connection or str representing the database that is being queried
     :return: a list containing the filtered entries
     """
     d = database if type(database) == Connection else connect(database)
     with closing(d.cursor()) as c:
-        c.execute('SELECT entry_id FROM dates WHERE day BETWEEN ? AND ?', (day[0], day[1]))
+        c.execute('SELECT entry_id FROM dates WHERE day BETWEEN ? AND ?', (lower, upper))
         ids = [x[0] for x in c.fetchall()]
         ids.sort(key=get_date)
     return ids
 
 
-def get_entry_ids_from_hour_range(database: Union[Connection, str] = 'jurnl.sqlite', hour: tuple = (0, 23)):
+def get_entry_ids_from_hour_range(database: Union[Connection, str] = 'jurnl.sqlite', lower: int = 0, upper: int = 23):
     """Filters the database for entries that were created over a given range of hours
 
+    :param upper:
+    :param lower:
     :rtype: list
-    :param hour: a tuple containing the endpoints of the range
     :param database: a Connection or str representing the database that is being queried
     :return: a list containing the filtered entries
     """
     d = database if type(database) == Connection else connect(database)
     with closing(d.cursor()) as c:
-        c.execute('SELECT entry_id FROM dates WHERE hour BETWEEN ? AND ?', (hour[0], hour[1]))
+        c.execute('SELECT entry_id FROM dates WHERE hour BETWEEN ? AND ?', (lower, upper))
         ids = [x[0] for x in c.fetchall()]
         ids.sort(key=get_date)
     return ids
 
 
-def get_entry_ids_from_minute_range(database: Union[Connection, str] = 'jurnl.sqlite', minute: tuple = (0, 59)):
+def get_entry_ids_from_minute_range(database: Union[Connection, str] = 'jurnl.sqlite', lower: int = 0, upper: int = 59):
     """Filters the database for entries that were created over a given range of minutes
 
+    :param upper:
+    :param lower:
     :rtype: list
-    :param minute: a tuple containing the endpoints of the range
     :param database: a Connection or str representing the database that is being queried
     :return: a list containing the filtered entries
     """
     d = database if type(database) == Connection else connect(database)
     with closing(d.cursor()) as c:
-        c.execute('SELECT entry_id FROM dates WHERE minute BETWEEN ? AND ?', (minute[0], minute[1]))
+        c.execute('SELECT entry_id FROM dates WHERE minute BETWEEN ? AND ?', (lower, upper))
         ids = [x[0] for x in c.fetchall()]
         ids.sort(key=get_date)
     return ids
 
 
-def get_entry_ids_from_weekday_range(database: Union[Connection, str] = 'jurnl.sqlite', weekday: tuple = (0, 6)):
+def get_entry_ids_from_weekday_range(database: Union[Connection, str] = 'jurnl.sqlite', lower: int = 0, upper: int = 6):
     """Filters the database for entries that were created over a given range of weekdays
 
+    :param upper:
+    :param lower:
     :rtype: list
-    :param weekday: a tuple containing the endpoints of the range
     :param database: a Connection or str representing the database that is being queried
     :return: a list containing the filtered entries
     """
     d = database if type(database) == Connection else connect(database)
     with closing(d.cursor()) as c:
-        c.execute('SELECT entry_id FROM dates WHERE weekday BETWEEN ? AND ?', (weekday[0], weekday[1]))
+        c.execute('SELECT entry_id FROM dates WHERE weekday BETWEEN ? AND ?', (lower, upper))
         ids = [x[0] for x in c.fetchall()]
         ids.sort(key=get_date)
     return ids
@@ -443,9 +623,27 @@ def get_entry_ids_from_range(lower: datetime, upper: datetime, database: Union[C
     with closing(d.cursor()) as c:
         c.execute('SELECT entry_id FROM dates WHERE string BETWEEN ? AND ?',
                   (lower.strftime('%Y-%m-%d %H:%M'), upper.strftime('%Y-%m-%d %H:%M')))
-        ids = [x[0] for x in c]
-        ids.sort(key=get_date)
+        ids = [x[0] for x in c.fetchall()]
+        c.execute(
+            'SELECT entry_id FROM dates WHERE entry_id IN ({}) ORDER BY string'.format(', '.join('?' for _ in ids)),
+            ids)
+        ids = (x[0] for x in c.fetchall())
     return ids
+
+
+def get_entry_ids_from_intervals(lower: datetime, upper: datetime, database: Union[Connection, str] = 'jurnl.sqlite'):
+    d = database if type(database) == Connection else connect(database)
+    with closing(d.cursor()) as c:
+        c.execute("SELECT entry_id FROM dates WHERE (year BETWEEN ? AND ?) AND (month BETWEEN ? AND ?) AND (day "
+                  "BETWEEN ? AND ?) AND (hour BETWEEN ? AND ?) AND (minute BETWEEN ? AND ?) AND (weekday BETWEEN ? AND "
+                  "?)", (lower.year, upper.year, lower.month, upper.month, lower.day, upper.day, lower.hour, upper.hour,
+                         lower.minute, upper.minute, lower.weekday(), upper.weekday()))
+        ids = [x[0] for x in c.fetchall()]
+        c.execute(
+            'SELECT entry_id FROM dates WHERE entry_id IN ({}) ORDER BY string'.format(', '.join('?' for _ in ids)),
+            ids)
+        ids = (x[0] for x in c.fetchall())
+        return ids
 
 
 def get_entry_ids_from_tags(tags: tuple, database: Union[Connection, str] = 'jurnl.sqlite',
@@ -478,9 +676,20 @@ def get_entry_ids_from_tags(tags: tuple, database: Union[Connection, str] = 'jur
             sql = 'SELECT entry_id FROM tags WHERE tag IN ({})'.format(','.join(['?'] * len(tags)))
             ids = list({x[0] for x in c.execute(sql, tags).fetchall()})
         if op_type == 'Untagged':
-            cmd = 'SELECT entry_id FROM tags WHERE tag=\'UNTAGGED\''
+            cmd = 'SELECT entry_id FROM tags WHERE tag=\'(UNTAGGED)\''
             ids = [x[0] for x in c.execute(cmd).fetchall()]
-    return ids
+    return tuple(ids)
+
+
+def get_entry_ids_from_untagged(database: Union[Connection, str] = 'jurnl.sqlite'):
+    d = database if type(database) == Connection else connect(database)
+    with closing(d.cursor()) as c:
+        ids = (x[0] for x in c.execute('SELECT entry_id FROM tags WHERE tag=(UNTAGGED)').fetchall())
+        ids = c.execute(
+            'SELECT entry_id FROM dates WHERE entry_id IN ({}) ORDER BY string'.format(', '.join('?' for _ in ids)),
+            ids).fetchall()
+        ids = (x[0] for x in ids)
+        return ids
 
 
 def get_entry_ids_from_attachments(database: Union[Connection, str] = 'jurnl.sqlite'):
@@ -493,7 +702,7 @@ def get_entry_ids_from_attachments(database: Union[Connection, str] = 'jurnl.sql
     d = database if type(database) == Connection else connect(database)
     with closing(d.cursor()) as c:
         ids = [x[0] for x in c.execute('SELECT entry_id FROM attachments').fetchall()]
-    return ids
+        return ids
 
 
 def get_entry_ids_from_body(search_string: str, database: Union[Connection, str] = 'jurnl.sqlite'):
@@ -504,8 +713,9 @@ def get_entry_ids_from_body(search_string: str, database: Union[Connection, str]
     :param search_string: a str which is used to sort the ids
     :return: a list of ints representing the filtered entries
     """
+    # TODO allow regex for more useful searches
     d = database if type(database) == Connection else connect(database)
     with closing(d.cursor()) as c:
-        c.execute('SELECT entry_id FROM bodies WHERE body LIKE ?', ('%' + search_string + '%',))
+        c.execute('SELECT entry_id FROM bodies WHERE body LIKE ?', ('%' + search_string.lower() + '%',))
         ids = [x[0] for x in c.fetchall()]
-    return ids
+        return ids
