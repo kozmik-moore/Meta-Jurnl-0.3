@@ -149,8 +149,8 @@ class Writer(Reader):
     def write_to_database(self):
         if self.changes:
             if not self.writer_id:
-                self.writer_id = create_entry(self.body, self.tags, self.date, self.attachments, self.parent,
-                                              self.connection)
+                self.writer_id = create_entry(self.connection, self.body, self.tags, self.date, self.attachments,
+                                              self.parent)
             else:
                 if self.__body_changed:
                     modify_body(self.writer_id, self.body, self.connection)
@@ -203,7 +203,7 @@ class Writer(Reader):
 
 
 # TODO Does this need to be modified for when the new date is after the latest edit?
-def modify_date(entry_id: int, date: datetime, database: Union[Connection, str] = 'jurnl.sqlite'):
+def modify_date(entry_id: int, date: datetime, database: Union[Connection, str]):
     """Changes the date of the given entry to the given date
 
     :param entry_id: an int representing the given entry
@@ -219,7 +219,7 @@ def modify_date(entry_id: int, date: datetime, database: Union[Connection, str] 
     d.commit()
 
 
-def set_date(entry_id: int, date: datetime, database: Union[Connection, str] = 'jurnl.sqlite'):
+def set_date(entry_id: int, date: datetime, database: Union[Connection, str]):
     """Adds a date to the database for the given entry
 
     :param entry_id: an int representing the given entry
@@ -235,7 +235,7 @@ def set_date(entry_id: int, date: datetime, database: Union[Connection, str] = '
     d.commit()
 
 
-def modify_last_edit(entry_id: int, database: Union[Connection, str] = 'jurnl.sqlite'):
+def modify_last_edit(entry_id: int, database: Union[Connection, str]):
     """Updates the database to reflect the last time the given entry was changed
 
     :param entry_id: an int representing the given entry
@@ -251,7 +251,7 @@ def modify_last_edit(entry_id: int, database: Union[Connection, str] = 'jurnl.sq
 """---------------------------------Body Methods----------------------------------"""
 
 
-def set_body(body: str, database: Union[Connection, str] = 'jurnl.sqlite'):
+def set_body(body: str, database: Union[Connection, str]):
     """Adds the given content to the database and returns the id of the newly created entry. This is the only way
     to create a key against which all other information is referenced
 
@@ -268,7 +268,7 @@ def set_body(body: str, database: Union[Connection, str] = 'jurnl.sqlite'):
     return entry
 
 
-def modify_body(entry_id: int, body: str, database: Union[Connection, str] = 'jurnl.sqlite'):
+def modify_body(entry_id: int, body: str, database: Union[Connection, str]):
     """Changes the content of the given entry
 
     :param entry_id: an int representing the entry
@@ -284,7 +284,7 @@ def modify_body(entry_id: int, body: str, database: Union[Connection, str] = 'ju
 """---------------------------------Tags Methods----------------------------------"""
 
 
-def set_tags(entry_id: int, tags: Tuple[str], database: Union[Connection, str] = 'jurnl.sqlite'):
+def set_tags(entry_id: int, tags: Tuple[str], database: Union[Connection, str]):
     """Updates the tags for the given entry
 
     :param entry_id: an int representing the given int
@@ -309,7 +309,7 @@ def set_tags(entry_id: int, tags: Tuple[str], database: Union[Connection, str] =
 """---------------------------------Attachments Methods----------------------------------"""
 
 
-def set_attachments(entry_id: int, attachments: Tuple[str], database: Union[Connection, str] = 'jurnl.sqlite'):
+def set_attachments(entry_id: int, attachments: Tuple[str], database: Union[Connection, str]):
     """Generates data for a given file and adds the data to the database for the given entry
 
     :param entry_id: an int representing the entry
@@ -338,7 +338,7 @@ def set_attachments(entry_id: int, attachments: Tuple[str], database: Union[Conn
 """---------------------------------Relations Methods----------------------------------"""
 
 
-def set_relation(parent: int, child: int, database: Union[Connection, str] = 'jurnl.sqlite'):
+def set_relation(parent: int, child: int, database: Union[Connection, str]):
     """Adds a parent-child relation to the database representing the link between an entry and the one that
     generated it
 
@@ -356,8 +356,8 @@ def set_relation(parent: int, child: int, database: Union[Connection, str] = 'ju
 """---------------------------------Entry Methods----------------------------------"""
 
 
-def create_entry(body: str = '', tags: tuple = (), date: datetime = None, attachments: tuple = None, parent: int = None,
-                 database: Union[Connection, str] = 'jurnl.sqlite'):
+def create_entry(database: Union[Connection, str], body: str = '', tags: tuple = (), date: datetime = None,
+                 attachments: tuple = None, parent: int = None):
     """Systematically adds a new entry to the database. This is the preferred method for making new entries.
 
     :param body: a str representing the content of the entry
@@ -374,11 +374,11 @@ def create_entry(body: str = '', tags: tuple = (), date: datetime = None, attach
     set_attachments(id_, attachments, d)
     set_date(id_, date if date else datetime.now(), d)
     if parent:
-        set_relation(parent, id_)
+        set_relation(parent, id_, d)
     return id_
 
 
-def delete_entry(entry_id, database: Union[Connection, str] = 'jurnl.sqlite'):
+def delete_entry(entry_id, database: Union[Connection, str]):
     """Systematically removes the entry from the database
 
     :param entry_id: an int representing the id of the given entry
