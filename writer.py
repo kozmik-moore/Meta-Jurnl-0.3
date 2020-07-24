@@ -1,10 +1,11 @@
+"""Classes and functions for writing entries to the database"""
 from contextlib import closing
 from datetime import datetime
 from os.path import basename
 from sqlite3 import Connection, connect
-from typing import List, Union, Tuple
+from typing import Union, Tuple
 
-from reader import Reader
+from reader import Reader, get_tags, get_attachment_ids
 
 
 class Writer(Reader):
@@ -15,15 +16,23 @@ class Writer(Reader):
         self.__attachments = tuple()
         self.__parent = None
         self.__changes = False
+        self.__body_changed = False
+        self.__tags_changed = False
+        self.__attachments_changed = False
+        self.__date_changed = False
         super(Writer, self).__init__(path_to_db=path_to_db)
 
-    @Reader.id_.setter
-    def writer_entry(self, entry_id: Union[int, None]):
+    @property
+    def writer_id(self):
+        return self.reader_id
+
+    @writer_id.setter
+    def writer_id(self, entry_id: Union[int, None]):
         """Updates all fields with information from the database
 
         :param entry_id: either an int (representing an entry from the database) or None (indicating a new entry)
         """
-        self.id_ = entry_id
+        self.reader_id = entry_id
         self.body = self.get_body
         self.attachments = self.get_attachments
         self.date = self.get_date
@@ -42,6 +51,7 @@ class Writer(Reader):
         """
         if type(v) is str:
             self.__body = v
+            self.__body_changed = self.body != self.get_body
             self.check_for_changes()
 
     @property
@@ -49,13 +59,14 @@ class Writer(Reader):
         return self.__tags
 
     @tags.setter
-    def tags(self, v: List[str]):
+    def tags(self, v: Tuple[str]):
         """Changes the Writer's tags field and checks to see whether the changes flag needs to be updated
 
         :param v: a list of str representing tags for the entry
         """
         if type(v) == tuple and all(isinstance(s, str) for s in v):
             self.__tags = v
+            self.__tags_changed = self.tags != self.get_tags
             self.check_for_changes()
 
     @property
@@ -70,6 +81,7 @@ class Writer(Reader):
         """
         if type(v) is datetime or v is None:
             self.__date = v
+            self.__date_changed = self.date != self.get_date
             self.check_for_changes()
 
     @property
@@ -81,10 +93,11 @@ class Writer(Reader):
         """Changes the Writer's list of attachments and checks to see whether the changes flag needs to be updated
 
         :param v: a tuple of int and str representing attachment locations; an int indicates the attachment is in the
-        database and a str indicates it is in the filesystem and represents a the path to the file
+        database and a str indicates it is in the filesystem and represents an absolute path to the file
         """
         if type(v) is tuple and all(isinstance(x, (int, str)) for x in v):
             self.__attachments = v
+            self.__attachments_changed = self.attachments != self.get_attachments
             self.check_for_changes()
 
     @property
@@ -93,7 +106,7 @@ class Writer(Reader):
 
     @parent.setter
     def parent(self, v: int):
-        if v is None or type(v) is int and all([v > 0, not self.writer_entry]):
+        if v is None or type(v) == int and v > 0:
             self.__parent = v
 
     @property
@@ -115,34 +128,50 @@ class Writer(Reader):
         database. If it does not, checks the fields empty. Afterwards, updates the changes flag
         """
         changed = False
-        if self.writer_entry:
-            if self.body != self.get_body:
+        if self.writer_id:
+            if any([
+                self.__body_changed,
+                self.__tags_changed,
+                self.__attachments_changed,
+                self.__date_changed
+            ]):
                 changed = True
-            if not changed and self.tags != self.get_tags:
-                changed = True
-            if not changed and self.date != self.get_date:
-                changed = True
-            if not changed and self.attachments != self.get_attachments:
-                changed = True
-        elif any([self.body, self.tags, self.date, self.attachments, self.parent]):
+        elif any([
+            self.body,
+            self.tags,
+            self.date,
+            self.attachments,
+            self.parent]
+        ):
             changed = True
         self.changes = changed
 
     def write_to_database(self):
-        if any([self.body, self.date, self.tags, self.attachments]) and self.changes:
-            if self.writer_entry:
-                modify_entry(entry_id=self.writer_entry, tags=self.tags, body=self.body, date=self.date,
-                             attachments=self.attachments, parent=self.parent)
+        if self.changes:
+            if not self.writer_id:
+                self.writer_id = create_entry(self.connection, self.body, self.tags, self.date, self.attachments,
+                                              self.parent)
             else:
-                self.id_ = create_entry(body=self.body, tags=self.tags, attachments=self.attachments,
-                                        date=self.date, parent=self.parent)
+                if self.__body_changed:
+                    modify_body(self.writer_id, self.body, self.connection)
+                if self.__date_changed:
+                    modify_date(self.writer_id, self.date, self.connection)
+                if self.__tags_changed:
+                    tags = ('UNTAGGED',)
+                    if self.tags:
+                        tags = self.tags
+                    set_tags(self.writer_id, tags, self.connection)
+                if self.__attachments_changed:
+                    set_attachments(self.writer_id, self.attachments, self.connection)
+                modify_last_edit(self.writer_id, self.connection)
+            self.writer_id = self.reader_id
 
     def clear_fields(self):
         """Clears all entry fields if there have been no changes to the body, date, tags, or attachments.
 
         """
         if not self.changes:
-            self.id_ = None
+            self.writer_id = None
             self.body = ''
             self.date = None
             self.tags = tuple()
@@ -154,7 +183,7 @@ class Writer(Reader):
         """Clears all entry fields regardless of changes to fields
 
         """
-        self.id_ = None
+        self.writer_id = None
         self.body = ''
         self.tags = tuple()
         self.parent = None
@@ -165,15 +194,16 @@ class Writer(Reader):
         """Removes entry from the database and clears entry fields
 
         """
-        if self.writer_entry:
-            delete_entry(self.writer_entry, self.database_connection)
+        if self.writer_id:
+            delete_entry(self.writer_id, self.connection)
             self.reset()
 
 
 """---------------------------------Date Methods----------------------------------"""
 
 
-def modify_date(entry_id: int, date: datetime, database: Union[Connection, str] = 'jurnl.sqlite'):
+# TODO Does this need to be modified for when the new date is after the latest edit?
+def modify_date(entry_id: int, date: datetime, database: Union[Connection, str]):
     """Changes the date of the given entry to the given date
 
     :param entry_id: an int representing the given entry
@@ -189,7 +219,7 @@ def modify_date(entry_id: int, date: datetime, database: Union[Connection, str] 
     d.commit()
 
 
-def set_date(entry_id: int, date: datetime, database: Union[Connection, str] = 'jurnl.sqlite'):
+def set_date(entry_id: int, date: datetime, database: Union[Connection, str]):
     """Adds a date to the database for the given entry
 
     :param entry_id: an int representing the given entry
@@ -205,7 +235,7 @@ def set_date(entry_id: int, date: datetime, database: Union[Connection, str] = '
     d.commit()
 
 
-def change_last_edit(entry_id: int, database: Union[Connection, str] = 'jurnl.sqlite'):
+def modify_last_edit(entry_id: int, database: Union[Connection, str]):
     """Updates the database to reflect the last time the given entry was changed
 
     :param entry_id: an int representing the given entry
@@ -221,7 +251,7 @@ def change_last_edit(entry_id: int, database: Union[Connection, str] = 'jurnl.sq
 """---------------------------------Body Methods----------------------------------"""
 
 
-def set_body(body: str, database: Union[Connection, str] = 'jurnl.sqlite'):
+def set_body(body: str, database: Union[Connection, str]):
     """Adds the given content to the database and returns the id of the newly created entry. This is the only way
     to create a key against which all other information is referenced
 
@@ -238,7 +268,7 @@ def set_body(body: str, database: Union[Connection, str] = 'jurnl.sqlite'):
     return entry
 
 
-def modify_body(entry_id: int, body: str, database: Union[Connection, str] = 'jurnl.sqlite'):
+def modify_body(entry_id: int, body: str, database: Union[Connection, str]):
     """Changes the content of the given entry
 
     :param entry_id: an int representing the entry
@@ -254,22 +284,8 @@ def modify_body(entry_id: int, body: str, database: Union[Connection, str] = 'ju
 """---------------------------------Tags Methods----------------------------------"""
 
 
-def add_tags(entry_id: int, tags: Tuple[str], database: Union[Connection, str] = 'jurnl.sqlite'):
-    """
-
-    :param entry_id: an int representing the given entry
-    :param tags: a tuple of str representing the tags associated with entry_id
-    :param database: a Connection or str representing the database that is being modified
-    """
-    d = database if type(database) == Connection else connect(database)
-    with closing(d.cursor()) as c:
-        for tag in tags:
-            c.execute('INSERT INTO tags(entry_id,tag) VALUES(?,?)', (entry_id, tag))
-    d.commit()
-
-
-def remove_tags(entry_id, tags: tuple, database: Union[Connection, str] = 'jurnl.sqlite'):
-    """Removes the given tags for the given entry
+def set_tags(entry_id: int, tags: Tuple[str], database: Union[Connection, str]):
+    """Updates the tags for the given entry
 
     :param entry_id: an int representing the given int
     :param tags: a tuple representing the tags to be removed from the entry
@@ -277,24 +293,35 @@ def remove_tags(entry_id, tags: tuple, database: Union[Connection, str] = 'jurnl
     """
     d = database if type(database) == Connection else connect(database)
     with closing(d.cursor()) as c:
-        for tag in tags:
-            c.execute('DELETE FROM tags WHERE entry_id=? AND tag=?', (entry_id, tag))
+        if not tags:
+            c.execute('INSERT INTO tags(entry_id) VALUES(?)', (entry_id,))
+        else:
+            old = get_tags(entry_id, database)
+            added = set(tags).difference(old)
+            added = [(entry_id, tag) for tag in added]
+            c.executemany('INSERT INTO tags(entry_id,tag) VALUES(?,?)', added)
+            removed = set(old).difference(tags)
+            removed = [(entry_id, tag) for tag in removed]
+            c.executemany('DELETE FROM tags WHERE entry_id=? AND tag=?', removed)
     d.commit()
 
 
 """---------------------------------Attachments Methods----------------------------------"""
 
 
-def add_attachments(entry_id: int, attachments: tuple, database: Union[Connection, str] = 'jurnl.sqlite'):
+def set_attachments(entry_id: int, attachments: Tuple[str], database: Union[Connection, str]):
     """Generates data for a given file and adds the data to the database for the given entry
 
     :param entry_id: an int representing the entry
-    :param attachments: a tuple of path-like objects (preferably of type str)
+    :param attachments: a tuple of int (indicating an attachment in the database) or path-like (indicating a location in
+        the filesystem)
     :param database: a Connection or str representing the database that is being modified
     """
     d = database if type(database) == Connection else connect(database)
     with closing(d.cursor()) as c:
-        for path in attachments:
+        old = get_attachment_ids(entry_id, database)
+        added = tuple(set(attachments).difference(old))
+        for path in added:
             name = basename(path)
             with open(path, 'rb') as f:
                 bytestream = f.read()
@@ -302,26 +329,16 @@ def add_attachments(entry_id: int, attachments: tuple, database: Union[Connectio
             now = datetime.now().strftime('%Y-%m-%d %H:%M')
             c.execute('INSERT INTO attachments(entry_id,filename,file,added) VALUES (?,?,?,?)',
                       (entry_id, name, bytestream, now))
-    d.commit()
 
-
-def remove_attachments(ids: tuple, database: Union[Connection, str] = 'jurnl.sqlite'):
-    """
-    Removes from the database all data associated with the given attachments
-    :param ids: an int representing the id of a given attachment
-    :param database: a Connection or str representing the database that is being modified
-    """
-    d = database if type(database) == Connection else connect(database)
-    with closing(d.cursor()) as c:
-        for att_id in ids:
-            c.execute('DELETE FROM attachments WHERE att_id=?', (att_id,))
-    d.commit()
+        removed = set(old).difference(attachments)
+        removed = [(att_id,) for att_id in removed]
+        c.executemany('DELETE FROM attachments WHERE att_id=?', removed)
 
 
 """---------------------------------Relations Methods----------------------------------"""
 
 
-def add_relation(parent: int, child: int, database: Union[Connection, str] = 'jurnl.sqlite'):
+def set_relation(parent: int, child: int, database: Union[Connection, str]):
     """Adds a parent-child relation to the database representing the link between an entry and the one that
     generated it
 
@@ -336,124 +353,32 @@ def add_relation(parent: int, child: int, database: Union[Connection, str] = 'ju
     d.commit()
 
 
-def remove_relation(parent: int, child: int, database: Union[Connection, str] = 'jurnl.sqlite'):
-    """Removes a parent-child relation from the database, breaking the link between an entry and the one that
-    generated it
-
-    :param parent: an int representing the id of the generating entry
-    :param child: an int representing the id of the generated entry
-    :param database: a Connection or str representing the database that is being modified
-    """
-    d = database if type(database) == Connection else connect(database)
-    with closing(d.cursor()) as c:
-        if (child,) in c.execute('SELECT child FROM relations WHERE parent=?', (parent,)).fetchall():
-            c.execute('DELETE FROM relations WHERE child=? AND parent=?', (child, parent))
-    d.commit()
-
-
-def set_parent(parent: int, entry: int, database: Union[Connection, str] = 'jurnl.sqlite'):
-    """Directly sets the parent attribute of an entry
-
-    :param parent: an int representing the id of the generating entry
-    :param entry: an int representing the id of the given entry
-    :param database: a Connection or str representing the database that is being modified
-    """
-    d = database if type(database) == Connection else connect(database)
-    with closing(d.cursor()) as c:
-        c.execute('UPDATE relations SET parent=? WHERE child=?', (parent, entry))
-    d.commit()
-
-
-def set_children(entry: int, children: tuple, database: Union[Connection, str] = 'jurnl.sqlite'):
-    """Directly sets the children attribute of an entry, adding new links and removing discarded ones
-
-    :param entry: an int representing the id of the given entry
-    :param children: a tuple of ints representing the ids of the children to be set
-    :param database: a Connection or str representing the database that is being modified
-    """
-    d = database if type(database) == Connection else connect(database)
-    with closing(d.cursor()) as c:
-        cmd = ('SELECT child FROM relations WHERE parent=?', (entry,))
-        current = {x[0] for x in c.execute(cmd[0], cmd[1]).fetchall()}
-        update = set(children)
-        added = tuple((x[0], entry) for x in update.difference(current))
-        c.executemany('INSERT INTO relations(child,parent) VALUES(?,?)', added)
-        removed = tuple((x[0], entry) for x in current.difference(update))
-        c.executemany('REMOVE FROM relations WHERE child=? AND parent=?', removed)
-    d.commit()
-
-
 """---------------------------------Entry Methods----------------------------------"""
 
 
-def create_entry(body: str, tags: tuple = None, attachments: tuple = None, parent: int = None,
-                 date: datetime = None, database: Union[Connection, str] = 'jurnl.sqlite'):
-    """Systematically creates a new entry in the database from given information with a minimum of a body and a
-    date (the date is automatically generated)
+def create_entry(database: Union[Connection, str], body: str = '', tags: tuple = (), date: datetime = None,
+                 attachments: tuple = None, parent: int = None):
+    """Systematically adds a new entry to the database. This is the preferred method for making new entries.
 
-    :param date: a datetime object representing the date an entry was created
     :param body: a str representing the content of the entry
     :param tags: a tuple representing the tags associated with the entry
-    :param attachments: a tuple containing the path-like objects pointing to the entry's attachments
-    :param parent: an int representing the entry that generated
+    :param date: a datetime representing when the date the entry was created
+    :param attachments: a tuple of path-likes representing the attachments associated with the entry
+    :param parent: an int representing the parent of the entry
     :param database: a Connection or str representing the database that is being modified
-    :return: an int identifying the newly created entry
+    :return: an int identifying the entry in the database
     """
     d = database if type(database) == Connection else connect(database)
-    entry = set_body(body, d)
-    set_date(entry, datetime.now() if not date else date, d)
-    if tags:
-        add_tags(entry, tags, d)
-    if attachments:
-        add_attachments(entry, attachments, d)
+    id_ = set_body(body, d)
+    set_tags(id_, tags, d)
+    set_attachments(id_, attachments, d)
+    set_date(id_, date if date else datetime.now(), d)
     if parent:
-        add_relation(parent, entry, d)
-    return entry
+        set_relation(parent, id_, d)
+    return id_
 
 
-def modify_entry(entry_id: int, date: datetime = None, body: str = None, tags: Tuple[str] = None,
-                 attachments: tuple = None, parent: int = None, children: tuple = None,
-                 database: Union[Connection, str] = 'jurnl.sqlite'):
-    """Systematically modifies the given entry with the information provided
-
-    :param entry_id: an int representing the given entry
-    :param date: a datetime representing the date the given entry was created
-    :param body: a str representing the content of the entry
-    :param tags: a tuple representing the tags associated with the given entry
-    :param attachments: a tuple of path-likes and ints representing the location of attachments for the given entry;
-    path-likes indicate that the attachment is not yet in the database while ints do
-    :param parent: an int representing the entry that generated this entry
-    :param children: a tuple representing the entries that are generated from this entry
-    :param database: a Connection or str representing the database that is being modified
-    """
-    d = database if type(database) == Connection else connect(database)
-    with closing(d.cursor()) as c:
-        if date:
-            modify_date(entry_id, date, d)
-        if body:
-            modify_body(entry_id, body, d)
-            change_last_edit(entry_id, d)
-        if tags is not None:
-            temp = c.execute('SELECT tag FROM tags WHERE entry_id=?', (entry_id,)).fetchall()
-            current = {x[0] for x in temp}
-            if set(tags) != current:
-                remove_tags(entry_id, tuple(current.difference(tags)), d)
-                add_tags(entry_id, tuple(set(tags).difference(current)), d)
-                change_last_edit(entry_id, d)
-        if attachments is not None:
-            temp = c.execute('SELECT att_id FROM attachments WHERE entry_id=?', (entry_id,)).fetchall()
-            current = {x[0] for x in temp}
-            if set(attachments) != current:
-                remove_attachments(tuple(current.difference(attachments)), d)
-                add_attachments(entry_id, tuple(set(attachments).difference(current)), d)
-                change_last_edit(entry_id, d)
-        if parent:
-            set_parent(parent, entry_id, d)
-        if children is not None:
-            set_children(entry_id, children, d)
-
-
-def delete_entry(entry_id, database: Union[Connection, str] = 'jurnl.sqlite'):
+def delete_entry(entry_id, database: Union[Connection, str]):
     """Systematically removes the entry from the database
 
     :param entry_id: an int representing the id of the given entry

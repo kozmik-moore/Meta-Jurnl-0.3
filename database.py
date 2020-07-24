@@ -1,9 +1,8 @@
 """Functions for creating and querying the database for general information"""
 from contextlib import closing
+from datetime import datetime
 from sqlite3 import connect, Connection
-from typing import Union, List
-
-from dateutil.parser import parse
+from typing import Union
 
 
 def create_database(database: str) -> None:
@@ -21,7 +20,7 @@ def create_database(database: str) -> None:
     cursor.execute('CREATE TABLE relations(rel_id INTEGER PRIMARY KEY, child INTEGER NOT NULL, '
                    'parent INTEGER NOT NULL,FOREIGN KEY(child) REFERENCES bodies(entry_id), '
                    'FOREIGN KEY(parent) REFERENCES bodies(entry_id))')
-    cursor.execute('CREATE TABLE tags(tag_id INTEGER PRIMARY KEY, entry_id INTEGER NOT NULL, tag TEXT NOT NULL '
+    cursor.execute('CREATE TABLE tags(tag_id INTEGER PRIMARY KEY, entry_id INTEGER NOT NULL, tag TEXT '
                    'DEFAULT \'(UNTAGGED)\', FOREIGN KEY(entry_id) REFERENCES bodies(entry_id))')
     connection.close()
 
@@ -35,7 +34,8 @@ def get_all_entry_ids(database: Union[Connection, str] = 'jurnl.sqlite'):
     """
     d = database if type(database) == Connection else connect(database)
     with closing(d.cursor()) as c:
-        ids = [x[0] for x in c.execute('SELECT entry_id FROM dates ORDER BY string').fetchall()]
+        t = c.execute('SELECT entry_id FROM dates ORDER BY string').fetchall()
+        ids = [x[0] for x in t]
     return ids
 
 
@@ -43,9 +43,8 @@ def get_all_tags(database: Union[Connection, str] = 'jurnl.sqlite'):
     try:
         d = database if type(database) == Connection else connect(database)
         with closing(d.cursor()) as c:
-            c.execute('SELECT tag FROM tags')
+            c.execute('SELECT tag FROM tags ORDER BY tag')
             tags = list({tag[0] for tag in c})
-            tags.sort()
             return tags
     except TypeError:
         print('Input is not of type Cursor or str')
@@ -60,9 +59,23 @@ def get_all_dates(database: Union[Connection, str] = 'jurnl.sqlite'):
     """
     d = database if type(database) == Connection else connect(database)
     with closing(d.cursor()) as c:
-        dates = c.execute('SELECT string FROM dates').fetchall()
-        dates = [parse(x[0]) for x in dates]
+        dates = c.execute('SELECT string FROM dates ORDER BY string').fetchall()
+        dates = [datetime.strptime(x[0], '%Y-%m-%d %H:%M') for x in dates]
         return dates
+
+
+def get_oldest_date(database: Union[Connection, str] = 'jurnl.sqlite'):
+    d = database if type(database) == Connection else connect(database)
+    with closing(d.cursor()) as c:
+        date = get_all_dates(d)[0]
+        return date
+
+
+def get_newest_date(database: Union[Connection, str] = 'jurnl.sqlite'):
+    d = database if type(database) == Connection else connect(database)
+    with closing(d.cursor()) as c:
+        date = get_all_dates(d)[-1]
+        return date
 
 
 def get_all_children(database: Union[Connection, str] = 'jurnl.sqlite'):
