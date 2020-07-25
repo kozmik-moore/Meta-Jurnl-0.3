@@ -16,34 +16,34 @@ class Reader:
     def __init__(self, path_to_db: str = 'jurnl.sqlite'):
         if not exists(path_to_db):
             create_database(path_to_db)
-        self.__database_path = path_to_db
-        self.__database = connect(path_to_db)
+        self._database_path = path_to_db
+        self._database = connect(path_to_db)
         self._id_ = None
 
     @property
     def database_location(self):
-        return self.__database_path
+        return self._database_path
 
     @property
     def connection(self):
-        return self.__database
+        return self._database
 
     @connection.setter
     def connection(self, path: Union[str, None]):
         if path is not None:
             if exists(path):
                 try:
-                    self.__database.close()
-                    self.__database = connect(path)
-                    self.__database_path = path
+                    self._database.close()
+                    self._database = connect(path)
+                    self._database_path = path
                 except DatabaseError as err:
                     raise err
             else:
                 makedirs(path)
                 create_database(path)
         else:
-            self.__database.close()
-            self.__database = None
+            self._database.close()
+            self._database = None
 
     @property
     def reader_id(self):
@@ -183,6 +183,31 @@ class Filter:
         self._by_is_untagged = False
         self._tags_type = 'Contains One Of...'
         self._filtered = tuple()
+
+    @property
+    def database_location(self):
+        return self._database_path
+
+    @property
+    def connection(self):
+        return self._database
+
+    @connection.setter
+    def connection(self, path: Union[str, None]):
+        if path is not None:
+            if exists(path):
+                try:
+                    self._database.close()
+                    self._database = connect(path)
+                    self._database_path = path
+                except DatabaseError as err:
+                    raise err
+            else:
+                makedirs(path)
+                create_database(path)
+        else:
+            self._database.close()
+            self._database = None
 
     @property
     def filtered_ids(self):
@@ -359,6 +384,9 @@ class Filter:
         self._by_is_untagged = False
         self._tags_type = 'Contains One Of...'
         self._filtered = tuple()
+
+    def refresh(self):
+        self._filter()
 
     def close(self):
         self._database.close()
