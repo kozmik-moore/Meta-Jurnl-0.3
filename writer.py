@@ -1,47 +1,79 @@
 """Classes and functions for writing entries to the database"""
 from contextlib import closing
 from datetime import datetime
-from os.path import basename
-from sqlite3 import Connection, connect
+from os import makedirs
+from os.path import basename, exists
+from sqlite3 import Connection, connect, DatabaseError
 from typing import Union, Tuple
 
+from database import create_database
 from reader import Reader, get_tags, get_attachment_ids
 
 
-class Writer(Reader):
+class Writer:
     def __init__(self, path_to_db: str = 'jurnl.sqlite'):
-        self.__body = ''
-        self.__tags = tuple()
-        self.__date = None
-        self.__attachments = tuple()
-        self.__parent = None
-        self.__changes = False
-        self.__body_changed = False
-        self.__tags_changed = False
-        self.__attachments_changed = False
-        self.__date_changed = False
-        super(Writer, self).__init__(path_to_db=path_to_db)
+        self._database_path = path_to_db
+        self._database = connect(path_to_db)
+        self._reader = Reader(path_to_db)
+
+        self._id = None
+        self._body = ''
+        self._tags = tuple()
+        self._date = None
+        self._attachments = tuple()
+        self._parent = None
+
+        self._changes = False
+        self._body_changed = False
+        self._tags_changed = False
+        self._attachments_changed = False
+        self._date_changed = False
 
     @property
-    def writer_id(self):
-        return self.reader_id
+    def database_location(self):
+        return self._database_path
 
-    @writer_id.setter
-    def writer_id(self, entry_id: Union[int, None]):
+    @property
+    def connection(self):
+        return self._database
+
+    @connection.setter
+    def connection(self, path: Union[str, None]):
+        if path is not None:
+            if exists(path):
+                try:
+                    self._database.close()
+                    self._database = connect(path)
+                    self._database_path = path
+                except DatabaseError as err:
+                    raise err
+            else:
+                makedirs(path)
+                create_database(path)
+        else:
+            self._database.close()
+            self._database = None
+
+    @property
+    def id_(self):
+        return self._id
+
+    @id_.setter
+    def id_(self, entry_id: Union[int, None]):
         """Updates all fields with information from the database
 
         :param entry_id: either an int (representing an entry from the database) or None (indicating a new entry)
         """
-        self.reader_id = entry_id
-        self.body = self.get_body
-        self.attachments = self.get_attachments
-        self.date = self.get_date
-        self.tags = self.get_tags
-        self.parent = self.get_parent
+        self._reader.id_ = entry_id
+        self.body = self._reader.body
+        self.attachments = self._reader.attachments
+        self.date = self._reader.date
+        self.tags = self._reader.tags
+        self.parent = self._reader.parent
 
     @property
     def body(self):
-        return self.__body
+        return self._body
 
     @body.setter
     def body(self, v: str):
@@ -50,13 +82,13 @@ class Writer(Reader):
         :param v: a str representing content for the entry
         """
         if type(v) is str:
-            self.__body = v
-            self.__body_changed = self.body != self.get_body
+            self._body = v
+            self._body_changed = self.body != self._reader.body
             self.check_for_changes()
 
     @property
     def tags(self):
-        return self.__tags
+        return self._tags
 
     @tags.setter
     def tags(self, v: Tuple[str]):
@@ -65,13 +97,13 @@ class Writer(Reader):
         :param v: a list of str representing tags for the entry
         """
         if type(v) == tuple and all(isinstance(s, str) for s in v):
-            self.__tags = v
-            self.__tags_changed = self.tags != self.get_tags
+            self._tags = v
+            self._tags_changed = self.tags != self._reader.tags
             self.check_for_changes()
 
     @property
     def date(self):
-        return self.__date
+        return self._date
 
     @date.setter
     def date(self, v: Union[None, datetime]):
@@ -80,13 +112,13 @@ class Writer(Reader):
         :param v: a datetime representing the date the entry was created
         """
         if type(v) is datetime or v is None:
-            self.__date = v
-            self.__date_changed = self.date != self.get_date
+            self._date = v
+            self._date_changed = self.date != self._reader.date
             self.check_for_changes()
 
     @property
     def attachments(self):
-        return self.__attachments
+        return self._attachments
 
     @attachments.setter
     def attachments(self, v: Tuple[Union[int, str]]):
@@ -96,44 +128,44 @@ class Writer(Reader):
         database and a str indicates it is in the filesystem and represents an absolute path to the file
         """
         if type(v) is tuple and all(isinstance(x, (int, str)) for x in v):
-            self.__attachments = v
-            self.__attachments_changed = self.attachments != self.get_attachments
+            self._attachments = v
+            self._attachments_changed = self.attachments != self._reader.attachments
             self.check_for_changes()
 
     @property
     def parent(self):
-        return self.__parent
+        return self._parent
 
     @parent.setter
     def parent(self, v: int):
         if v is None or type(v) == int and v > 0:
-            self.__parent = v
+            self._parent = v
 
     @property
     def has_attachments(self) -> Union[bool, None]:
-        has_att = False if not self.__attachments else True
+        has_att = False if not self._attachments else True
         return has_att
 
     @property
     def changes(self):
-        return self.__changes
+        return self._changes
 
     @changes.setter
     def changes(self, v: bool):
         if type(v) == bool:
-            self.__changes = v
+            self._changes = v
 
     def check_for_changes(self):
         """If the entry exists in the database, compares the Writer's entry fields to the entry fields in the
         database. If it does not, checks the fields empty. Afterwards, updates the changes flag
         """
         changed = False
-        if self.writer_id:
+        if self.id_:
             if any([
-                self.__body_changed,
-                self.__tags_changed,
-                self.__attachments_changed,
-                self.__date_changed
+                self._body_changed,
+                self._tags_changed,
+                self._attachments_changed,
+                self._date_changed
             ]):
                 changed = True
         elif any([
@@ -148,30 +180,30 @@ class Writer(Reader):
 
     def write_to_database(self):
         if self.changes:
-            if not self.writer_id:
-                self.writer_id = create_entry(self.connection, self.body, self.tags, self.date, self.attachments,
-                                              self.parent)
+            if not self.id_:
+                self.id_ = create_entry(self._database, self.body, self.tags, self.date, self.attachments,
+                                        self.parent)
             else:
-                if self.__body_changed:
-                    modify_body(self.writer_id, self.body, self.connection)
-                if self.__date_changed:
-                    modify_date(self.writer_id, self.date, self.connection)
-                if self.__tags_changed:
+                if self._body_changed:
+                    modify_body(self.id_, self.body, self._database)
+                if self._date_changed:
+                    modify_date(self.id_, self.date, self._database)
+                if self._tags_changed:
                     tags = ('UNTAGGED',)
                     if self.tags:
                         tags = self.tags
-                    set_tags(self.writer_id, tags, self.connection)
-                if self.__attachments_changed:
-                    set_attachments(self.writer_id, self.attachments, self.connection)
-                modify_last_edit(self.writer_id, self.connection)
-            self.writer_id = self.reader_id
+                    set_tags(self.id_, tags, self._database)
+                if self._attachments_changed:
+                    set_attachments(self.id_, self.attachments, self._database)
+                modify_last_edit(self.id_, self._database)
+            self.id_ = self._database
 
     def clear_fields(self):
         """Clears all entry fields if there have been no changes to the body, date, tags, or attachments.
 
         """
         if not self.changes:
-            self.writer_id = None
+            self.id_ = None
             self.body = ''
             self.date = None
             self.tags = tuple()
@@ -183,7 +215,7 @@ class Writer(Reader):
         """Clears all entry fields regardless of changes to fields
 
         """
-        self.writer_id = None
+        self.id_ = None
         self.body = ''
         self.tags = tuple()
         self.parent = None
@@ -194,9 +226,13 @@ class Writer(Reader):
         """Removes entry from the database and clears entry fields
 
         """
-        if self.writer_id:
-            delete_entry(self.writer_id, self.connection)
+        if self.id_:
+            delete_entry(self.id_, self._database)
             self.reset()
+
+    def close_database(self):
+        self._reader.close_database()
+        self.connection = None
 
 
 """---------------------------------Date Methods----------------------------------"""

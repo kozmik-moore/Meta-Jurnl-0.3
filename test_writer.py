@@ -4,6 +4,7 @@ from datetime import datetime
 from dateutil.parser import parse
 
 from database import get_all_entry_ids
+from reader import Reader
 from writer import Writer
 from random import randint
 
@@ -15,25 +16,26 @@ def print_break(message: str = ''):
     print('\n', end='')
 
 
-def read_entry(w: Writer):
+def read_entry(r: Reader):
     print_break()
-    print('Entry: ', w.writer_id)
-    print('Body: ', w.body)
-    print('Date: ', w.date)
-    print('Last edited: ', w.get_date_last_edited)
-    print('Tags: ', w.tags)
-    if w.has_attachments:
-        print('Attachments: ', w.attachments)
-    if w.has_parent:
-        print('Parent: ', w.parent)
-    if w.has_children:
-        print('Children: ', w.get_children)
-    choice = input('\nPress \'c\' to continue or \'l\' to create a link\t')
+    print('Entry: ', r.id_)
+    print('Body: ', r.body)
+    print('Date: ', r.date)
+    print('Last edited: ', r.date_last_edited)
+    print('Tags: ', r.tags)
+    if r.has_attachments:
+        print('Attachments: ', r.attachments)
+    if r.has_parent:
+        print('Parent: ', r.parent)
+    if r.has_children:
+        print('Children: ', r.children)
+    choice = input('\nPress \'Enter\' to continue or \'l\' to create a link\t')
     if choice == 'l':
-        id_ = w.reader_id
-        w.reset()
+        id_ = r.id_
+        w = Writer()
         w.parent = id_
         edit_entry(w)
+    r.close_database()
     print_break()
 
 
@@ -80,6 +82,7 @@ def edit_entry(w: Writer):
         if choice in ['y', 'yes', 'Y', 'Yes']:
             w.write_to_database()
             print_break('Saved')
+    w.close_database()
     print_break()
 
 
@@ -92,17 +95,15 @@ def delete_entry(w: Writer):
         print_break()
 
 
-def exit_(w: Writer):
+def exit_():
     salute = [
         'See You Space Cowboy...',
         'You\'re Gonna Carry That Weight.'
     ]
     print_break(salute[randint(0, len(salute) - 1)])
-    w.close_database()
 
 
 def run():
-    b = Writer()
     print('\n')
     p1 = 'Select an option:\n' \
          '  (a)ll entries\n' \
@@ -119,8 +120,7 @@ def run():
                 print(get_all_entry_ids())
                 print_break()
             if choice == 'c':
-                b.reset()
-                edit_entry(b)
+                edit_entry(Writer())
                 print_break()
             if choice in ['e', 'r', 'd']:
                 p2 = 'Select an entry to {}\n' \
@@ -131,14 +131,18 @@ def run():
                 while c != 'cancel':
                     try:
                         id_ = int(c)
-                        if id_ in get_all_entry_ids(b.connection):
-                            b.writer_id = id_
-                            if choice == 'r':
-                                read_entry(b)
-                            elif choice == 'e':
-                                edit_entry(b)
-                            else:
-                                delete_entry(b)
+                        if id_ in get_all_entry_ids():
+                            if choice in ['e', 'd']:
+                                w = Writer()
+                                w.id_ = id_
+                                if choice == 'e':
+                                    edit_entry(w)
+                                elif choice == 'd':
+                                    delete_entry(w)
+                            elif choice == 'r':
+                                r = Reader()
+                                r.id_ = id_
+                                read_entry(r)
                             c = 'cancel'
                         else:
                             print_break('Entry does not exist')
@@ -148,7 +152,7 @@ def run():
                         c = input('Select an entry to view:\n'
                                   '(Type \'cancel\' to return to previous menu): ')
         choice = input(p1)
-    exit_(b)
+    exit_()
 
 
 run()
