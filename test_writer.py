@@ -35,7 +35,6 @@ def read_entry(r: Reader):
         w = Writer()
         w.parent = id_
         edit_entry(w)
-    r.close_database()
     print_break()
 
 
@@ -82,7 +81,6 @@ def edit_entry(w: Writer):
         if choice in ['y', 'yes', 'Y', 'Yes']:
             w.write_to_database()
             print_break('Saved')
-    w.close_database()
     print_break()
 
 
@@ -104,6 +102,8 @@ def exit_():
 
 
 def run():
+    w = Writer()
+    r = Reader()
     print('\n')
     p1 = 'Select an option:\n' \
          '  (a)ll entries\n' \
@@ -120,7 +120,8 @@ def run():
                 print(get_all_entry_ids())
                 print_break()
             if choice == 'c':
-                edit_entry(Writer())
+                w.reset()
+                edit_entry(w)
                 print_break()
             if choice in ['e', 'r', 'd']:
                 p2 = 'Select an entry to {}\n' \
@@ -133,14 +134,12 @@ def run():
                         id_ = int(c)
                         if id_ in get_all_entry_ids():
                             if choice in ['e', 'd']:
-                                w = Writer()
                                 w.id_ = id_
                                 if choice == 'e':
                                     edit_entry(w)
                                 elif choice == 'd':
                                     delete_entry(w)
                             elif choice == 'r':
-                                r = Reader()
                                 r.id_ = id_
                                 read_entry(r)
                             c = 'cancel'

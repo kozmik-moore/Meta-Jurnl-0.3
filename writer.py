@@ -10,6 +10,7 @@ from database import create_database
 from reader import Reader, get_tags, get_attachment_ids
 
 
+# TODO check if functions close connection after use
 class Writer:
     def __init__(self, path_to_db: str = 'jurnl.sqlite'):
         self._database_path = path_to_db
@@ -65,11 +66,15 @@ class Writer:
         :param entry_id: either an int (representing an entry from the database) or None (indicating a new entry)
         """
         self._reader.id_ = entry_id
-        self.body = self._reader.body
-        self.attachments = self._reader.attachments
-        self.date = self._reader.date
-        self.tags = self._reader.tags
-        self.parent = self._reader.parent
+        if self._reader.id_:
+            self._id = entry_id
+            self.body = self._reader.body
+            self.attachments = self._reader.attachments
+            self.date = self._reader.date
+            self.tags = self._reader.tags
+            self.parent = self._reader.parent
+        else:
+            raise DatabaseError('id does not exist in database')
 
     @property
     def body(self):
@@ -196,7 +201,7 @@ class Writer:
                 if self._attachments_changed:
                     set_attachments(self.id_, self.attachments, self._database)
                 modify_last_edit(self.id_, self._database)
-            self.id_ = self._database
+            self.id_ = self.id_
 
     def clear_fields(self):
         """Clears all entry fields if there have been no changes to the body, date, tags, or attachments.
