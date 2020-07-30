@@ -1,4 +1,4 @@
-"""Contains the classes and functions that support a a reader which can also filter entries"""
+"""Contains the classes and functions that allow for switch-type manipulation of filters"""
 from contextlib import closing
 from datetime import datetime
 from os import makedirs
@@ -6,8 +6,9 @@ from os.path import exists
 from sqlite3 import Connection, connect, DatabaseError
 from typing import Union, Tuple
 
-from database import get_all_entry_ids, create_database
-from reader import Reader
+from database import get_all_entry_ids, create_database, get_oldest_date, get_newest_date, get_all_tags, \
+    get_all_children, get_all_parents
+from reader import Reader, get_tags, get_date
 
 
 def get_entry_ids_from_year_range(database: Union[Connection, str],
@@ -24,7 +25,6 @@ def get_entry_ids_from_year_range(database: Union[Connection, str],
     with closing(d.cursor()) as c:
         c.execute('SELECT entry_id FROM dates WHERE year BETWEEN ? AND ?', (lower, upper))
         ids = [x[0] for x in c.fetchall()]
-        ids.sort(key=get_date)
     return ids
 
 
@@ -41,7 +41,6 @@ def get_entry_ids_from_month_range(database: Union[Connection, str], lower: int 
     with closing(d.cursor()) as c:
         c.execute('SELECT entry_id FROM dates WHERE month BETWEEN ? AND ?', (lower, upper))
         ids = [x[0] for x in c.fetchall()]
-        ids.sort(key=get_date)
     return ids
 
 
@@ -58,7 +57,6 @@ def get_entry_ids_from_day_range(database: Union[Connection, str], lower: int = 
     with closing(d.cursor()) as c:
         c.execute('SELECT entry_id FROM dates WHERE day BETWEEN ? AND ?', (lower, upper))
         ids = [x[0] for x in c.fetchall()]
-        ids.sort(key=get_date)
     return ids
 
 
@@ -75,7 +73,6 @@ def get_entry_ids_from_hour_range(database: Union[Connection, str], lower: int =
     with closing(d.cursor()) as c:
         c.execute('SELECT entry_id FROM dates WHERE hour BETWEEN ? AND ?', (lower, upper))
         ids = [x[0] for x in c.fetchall()]
-        ids.sort(key=get_date)
     return ids
 
 
@@ -92,7 +89,6 @@ def get_entry_ids_from_minute_range(database: Union[Connection, str], lower: int
     with closing(d.cursor()) as c:
         c.execute('SELECT entry_id FROM dates WHERE minute BETWEEN ? AND ?', (lower, upper))
         ids = [x[0] for x in c.fetchall()]
-        ids.sort(key=get_date)
     return ids
 
 
@@ -109,7 +105,6 @@ def get_entry_ids_from_weekday_range(database: Union[Connection, str], lower: in
     with closing(d.cursor()) as c:
         c.execute('SELECT entry_id FROM dates WHERE weekday BETWEEN ? AND ?', (lower, upper))
         ids = [x[0] for x in c.fetchall()]
-        ids.sort(key=get_date)
     return ids
 
 
@@ -217,6 +212,7 @@ def get_entry_ids_from_body(search_string: str, database: Union[Connection, str]
 
 class Filter:
     """Provides methods for filtering-in entries based on their attributes"""
+
     def __init__(self, path_to_db: str = 'jurnl.sqlite'):
         self._database_path = path_to_db
         self._database = connect(self._database_path)
@@ -262,11 +258,11 @@ class Filter:
         return self._filtered
 
     @property
-    def attachments(self):
+    def has_attachments(self):
         return self._by_attachments
 
-    @attachments.setter
-    def attachments(self, v: bool):
+    @has_attachments.setter
+    def has_attachments(self, v: bool):
         """Sets the attachments flag for the filter and calls the filter
 
         :param v: a bool indicating whether the entries are partitioned by having attachments
@@ -332,21 +328,21 @@ class Filter:
                 self._filter()
 
     @property
-    def body(self):
+    def body_has(self):
         return self._by_body
 
-    @body.setter
-    def body(self, v: str):
+    @body_has.setter
+    def body_has(self, v: str):
         if type(v) == str:
             self._by_body = v
             self._filter()
 
     @property
-    def tags(self):
+    def tags_has(self):
         return self._by_tags
 
-    @tags.setter
-    def tags(self, v: Union[Tuple[str], str]):
+    @tags_has.setter
+    def tags_has(self, v: Union[Tuple[str], str]):
         if type(v) == tuple and all(isinstance(x, str) for x in v):
             self._by_tags = v
             self._filter()
@@ -366,11 +362,11 @@ class Filter:
                 self._filter()
 
     @property
-    def untagged(self):
+    def is_untagged(self):
         return self._by_is_untagged
 
-    @untagged.setter
-    def untagged(self, v: bool):
+    @is_untagged.setter
+    def is_untagged(self, v: bool):
         if type(v) == bool:
             self._by_is_untagged = v
             self._filter()
@@ -433,7 +429,7 @@ class Filter:
         self._tags_type = 'Contains One Of...'
         self._filtered = tuple()
 
-    def refresh(self):
+    def refresh_ids(self):
         self._filter()
 
     def close(self):
@@ -441,7 +437,6 @@ class Filter:
         self._database = None
 
 
-
-class FilteredReader(Reader):
+class FilteredReader(Filter, Reader):
     def __init__(self, path_to_database: str = 'jurnl.sqlite'):
         super(FilteredReader, self).__init__(path_to_database)
