@@ -1,3 +1,5 @@
+"""Classes and functions for managing the tempfile, which tracks open Readers and Writers after the application is
+closed """
 from ast import literal_eval
 from configparser import ConfigParser
 from datetime import datetime
@@ -8,6 +10,10 @@ from typing import Tuple, Union
 
 
 def get_file_id():
+    """Searches for and returns the next available tempfile filename
+
+    :return: a str representing the next available tempfile filename
+    """
     ids = [int(x.name) for x in scandir('.tempfiles')]
     ids.sort()
     diff = False
@@ -27,6 +33,11 @@ def get_file_id():
 
 
 def check_attachments(_attachments):
+    """Checks whether all supplied attachments still exist. Edits the list, if any do not
+
+    :param _attachments: a collection of str representing paths
+    :return: a tuple representing the (edited) collection and a str representing whether any changes were required
+    """
     l_ = list()
     status = 'Good'
     for a in _attachments:
@@ -39,6 +50,8 @@ def check_attachments(_attachments):
 
 
 class TempfileManager:
+    """Manages a single tempfile containing all fields of an entry"""
+
     def __init__(self, file_id: str = None, module: str = None):
         if not exists('.tempfiles'):
             makedirs('.tempfiles')
