@@ -33,7 +33,7 @@ def get_file_id():
 
 
 def check_attachments(_attachments):
-    """Checks whether all supplied attachments still exist. Edits the list, if any do not
+    """Checks whether all supplied attachments still exist. Edits the collection, if any do not
 
     :param _attachments: a collection of str representing paths
     :return: a tuple representing the (edited) collection and a str representing whether any changes were required
