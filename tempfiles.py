@@ -9,7 +9,7 @@ from os.path import exists, join
 from typing import Tuple, Union
 
 
-def get_file_id():
+def _get_file_id():
     """Searches for and returns the next available tempfile filename
 
     :return: a str representing the next available tempfile filename
@@ -32,7 +32,7 @@ def get_file_id():
     return id_
 
 
-def check_attachments(_attachments):
+def _check_attachments(_attachments):
     """Checks whether all supplied attachments still exist. Edits the collection, if any do not
 
     :param _attachments: a collection of str representing paths
@@ -55,7 +55,7 @@ class TempfileManager:
     def __init__(self, file_id: str = None, module: str = None):
         if not exists('.tempfiles'):
             makedirs('.tempfiles')
-        self._file_path = join('.tempfiles', get_file_id()) if file_id is None else join('.tempfiles', file_id)
+        self._file_path = join('.tempfiles', _get_file_id()) if file_id is None else join('.tempfiles', file_id)
         self._parser = ConfigParser()
 
         self._type: str = module if module else 'Reader'
@@ -79,7 +79,7 @@ class TempfileManager:
             self._date = datetime.strptime(date, '%Y-%m-%d %H:%M') if date != 'None' else None
             self._attachments = literal_eval(self._parser['Attributes']['attachments'])
             if self._attachments:
-                self._attachments, self._errors['attachments'] = check_attachments(self._attachments)
+                self._attachments, self._errors['attachments'] = _check_attachments(self._attachments)
             parent = literal_eval(self._parser['Attributes']['parent'])
             self._parent = int(parent) if parent else None
         else:

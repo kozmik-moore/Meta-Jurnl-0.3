@@ -66,15 +66,13 @@ class Writer:
         :param entry_id: either an int (representing an entry from the database) or None (indicating a new entry)
         """
         self._reader.id_ = entry_id
+        self._id = entry_id
         if self._reader.id_:
-            self._id = entry_id
             self.body = self._reader.body
             self.attachments = self._reader.attachments
             self.date = self._reader.date
             self.tags = self._reader.tags
             self.parent = self._reader.parent
-        else:
-            raise DatabaseError('id does not exist in database')
 
     @property
     def body(self):
