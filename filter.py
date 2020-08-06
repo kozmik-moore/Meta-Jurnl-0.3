@@ -6,7 +6,7 @@ from os.path import exists
 from sqlite3 import Connection, connect, DatabaseError
 from typing import Union, Tuple
 
-from database import get_all_entry_ids, create_database, get_oldest_date, get_newest_date, get_all_tags, \
+from database_info import get_all_entry_ids, create_database, get_oldest_date, get_newest_date, get_all_tags, \
     get_all_children, get_all_parents
 from reader import Reader, get_tags, get_date
 

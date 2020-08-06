@@ -1,12 +1,10 @@
 """Classes and functions for managing the databases and their backups"""
-from datetime import datetime
 from os import replace, scandir, remove
-from os.path import basename, join, exists, isdir, isfile
+from os.path import isfile
 from shutil import copy
 from sqlite3 import connect, DatabaseError
 
-from configurations import current_database, backup_location, databases, last_backup, backup_interval, \
-    number_of_backups, enabled
+from configurations import *
 
 
 def move_database(new: str):
@@ -98,7 +96,7 @@ def add_database(location: str):
 
     :param location: a str path which is the address of the database
     """
-    if is_database(location)[0]:
+    if is_database(location):
         databases([location])
 
 

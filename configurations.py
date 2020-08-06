@@ -17,8 +17,7 @@ def create_file(database: str = None):
         database = join(getcwd(), 'jurnl.sqlite')
         if not exists(database):
             create_database(database)
-    else:
-        database = abspath(database)
+    database = abspath(database)
     name = basename(database)
     if exists(abspath(database)):
         parser = ConfigParser()
@@ -28,6 +27,7 @@ def create_file(database: str = None):
             'backup interval': '72',
             'number of backups': '3'
         }
+        # TODO add option for obscuring system files (read and write in bytes instead of str)
         parser['Filesystem'] = {
             'current database': database,
             'backup location': join(getcwd(), 'Backup')

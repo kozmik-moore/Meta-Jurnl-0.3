@@ -1,20 +1,17 @@
 """Classes and functions for writing entries to the database"""
 from contextlib import closing
 from datetime import datetime
-from os import makedirs
-from os.path import basename, exists
-from sqlite3 import Connection, connect, DatabaseError
+from os.path import basename
+from sqlite3 import connect
 from typing import Union, Tuple
 
-from database import create_database
+from configurations import current_database
 from reader import Reader, get_tags, get_attachment_ids
 
 
-# TODO check if functions close connection after use
 class Writer:
-    def __init__(self, path_to_db: str = 'jurnl.sqlite'):
-        self._database_path = path_to_db
-        self._database = connect(path_to_db)
+    def __init__(self, path_to_db: str = None):
+        self._path = path_to_db if path_to_db else current_database()
         self._reader = Reader(path_to_db)
 
         self._id = None
@@ -32,28 +29,7 @@ class Writer:
 
     @property
     def database_location(self):
-        return self._database_path
-
-    @property
-    def connection(self):
-        return self._database
-
-    @connection.setter
-    def connection(self, path: Union[str, None]):
-        if path is not None:
-            if exists(path):
-                try:
-                    self._database.close()
-                    self._database = connect(path)
-                    self._database_path = path
-                except DatabaseError as err:
-                    raise err
-            else:
-                makedirs(path)
-                create_database(path)
-        else:
-            self._database.close()
-            self._database = None
+        return self._path
 
     @property
     def id_(self):
@@ -184,23 +160,24 @@ class Writer:
     def write_to_database(self):
         if self.changes:
             if not self.id_:
-                self.id_ = create_entry(self._database, self.body, self.tags, self.date, self.attachments,
+                self.id_ = create_entry(self._path, self.body, self.tags, self.date, self.attachments,
                                         self.parent)
             else:
                 if self._body_changed:
-                    modify_body(self.id_, self.body, self._database)
+                    modify_body(self.id_, self.body, self._path)
                 if self._date_changed:
-                    modify_date(self.id_, self.date, self._database)
+                    modify_date(self.id_, self.date, self._path)
                 if self._tags_changed:
                     tags = ('UNTAGGED',)
                     if self.tags:
                         tags = self.tags
-                    set_tags(self.id_, tags, self._database)
+                    set_tags(self.id_, tags, self._path)
                 if self._attachments_changed:
-                    set_attachments(self.id_, self.attachments, self._database)
-                modify_last_edit(self.id_, self._database)
+                    set_attachments(self.id_, self.attachments, self._path)
+                modify_last_edit(self.id_, self._path)
             self.id_ = self.id_
 
+    # TODO remove
     def clear_fields(self):
         """Clears all entry fields if there have been no changes to the body, date, tags, or attachments.
 
@@ -230,67 +207,58 @@ class Writer:
 
         """
         if self.id_:
-            delete_entry(self.id_, self._database)
+            delete_entry(self.id_, self._path)
             self.reset()
-
-    def close_database(self):
-        self._reader.close_database()
-        self.connection = None
 
 
 """---------------------------------Date Methods----------------------------------"""
 
 
 # TODO Does this need to be modified for when the new date is after the latest edit?
-def modify_date(entry_id: int, date: datetime, database: Union[Connection, str]):
+def modify_date(entry_id: int, date: datetime, database: str = None):
     """Changes the date of the given entry to the given date
 
     :param entry_id: an int representing the given entry
     :param date: a datetime representing the new date
     :param database: a Connection or str representing the database that is being modified
     """
-    d = database if type(database) == Connection else connect(database)
-    with closing(d.cursor()) as c:
-        c.execute('UPDATE dates SET year=?,month=?,day=?,hour=?,minute=?,weekday=?,string=?'
-                  'WHERE entry_id=?',
-                  (date.year, date.month, date.day, date.hour, date.minute, date.weekday(),
-                   date.strftime('%Y-%m-%d %H:%M'), entry_id))
-    d.commit()
+    db = connect(database) if database else connect(current_database())
+    with closing(db) as d:
+        d.execute('UPDATE dates SET created=? WHERE entry_id=?',
+                  (date, entry_id))
+        d.commit()
 
 
-def set_date(entry_id: int, date: datetime, database: Union[Connection, str]):
+def set_date(entry_id: int, date: datetime, database: str = None):
     """Adds a date to the database for the given entry
 
     :param entry_id: an int representing the given entry
     :param date: a datetime representing the date associated with the given entry
     :param database: a Connection or str representing the database that is being modified
     """
-    d = database if type(database) == Connection else connect(database)
-    with closing(d.cursor()) as c:
-        date_string = date.strftime('%Y-%m-%d %H:%M')
-        c.execute('INSERT INTO dates(entry_id,year,month,day,hour,minute,weekday,string,last_edit) '
-                  'VALUES(?,?,?,?,?,?,?,?,?)', (entry_id, date.year, date.month, date.day, date.hour, date.minute,
-                                                date.weekday(), date_string, date_string))
-    d.commit()
+    db = connect(database) if database else connect(current_database())
+    with closing(db) as d:
+        d.execute('INSERT INTO dates(entry_id,created,last_edit) VALUES(?,?,?)', (entry_id, date, date))
+        d.commit()
 
 
-def modify_last_edit(entry_id: int, database: Union[Connection, str]):
+def modify_last_edit(entry_id: int, database: str = None):
     """Updates the database to reflect the last time the given entry was changed
 
     :param entry_id: an int representing the given entry
     :param database: a Connection or str representing the database that is being modified
     """
-    d = database if type(database) == Connection else connect(database)
-    with closing(d.cursor()) as c:
-        now = datetime.now().strftime('%Y-%m-%d %H:%M')
-        c.execute('UPDATE dates SET last_edit=? WHERE entry_id=?', (now, entry_id))
-    d.commit()
+    db = connect(database) if database else connect(current_database())
+    with closing(db) as d:
+        now = datetime.now()
+        d.execute('UPDATE dates SET last_edit=? WHERE entry_id=?', (now, entry_id))
+        d.commit()
 
 
 """---------------------------------Body Methods----------------------------------"""
 
 
-def set_body(body: str, database: Union[Connection, str]):
+def set_body(body: str, database: str = None):
     """Adds the given content to the database and returns the id of the newly created entry. This is the only way
     to create a key against which all other information is referenced
 
@@ -299,56 +267,56 @@ def set_body(body: str, database: Union[Connection, str]):
     :param database: a Connection or str representing the database that is being modified
     :return: an int representing the id of the new entry
     """
-    d = database if type(database) == Connection else connect(database)
-    with closing(d.cursor()) as c:
-        c.execute('INSERT INTO bodies(body) VALUES(?)', (body.strip(),))
+    db = connect(database) if database else connect(current_database())
+    with closing(db) as d:
+        c = d.execute('INSERT INTO bodies(body) VALUES(?)', (body.strip(),))
         entry = c.lastrowid
-    d.commit()
+        d.commit()
     return entry
 
 
-def modify_body(entry_id: int, body: str, database: Union[Connection, str]):
+def modify_body(entry_id: int, body: str, database: str = None):
     """Changes the content of the given entry
 
     :param entry_id: an int representing the entry
     :param body: a str representing the content to replace with
     :param database: a Connection or str representing the database that is being modified
     """
-    d = database if type(database) == Connection else connect(database)
-    with closing(d.cursor()) as c:
-        c.execute('UPDATE bodies SET body=? WHERE entry_id=?', (body.strip(), entry_id))
-    d.commit()
+    db = connect(database) if database else connect(current_database())
+    with closing(db) as d:
+        d.execute('UPDATE bodies SET body=? WHERE entry_id=?', (body.strip(), entry_id))
+        d.commit()
 
 
 """---------------------------------Tags Methods----------------------------------"""
 
 
-def set_tags(entry_id: int, tags: Tuple[str], database: Union[Connection, str]):
+def set_tags(entry_id: int, tags: Tuple[str], database: str = None):
     """Updates the tags for the given entry
 
     :param entry_id: an int representing the given int
     :param tags: a tuple representing the tags to be removed from the entry
     :param database: a Connection or str representing the database that is being modified
     """
-    d = database if type(database) == Connection else connect(database)
-    with closing(d.cursor()) as c:
+    db = connect(database) if database else connect(current_database())
+    with closing(db) as d:
         if not tags:
-            c.execute('INSERT INTO tags(entry_id) VALUES(?)', (entry_id,))
+            d.execute('INSERT INTO tags(entry_id) VALUES(?)', (entry_id,))
         else:
             old = get_tags(entry_id, database)
             added = set(tags).difference(old)
             added = [(entry_id, tag) for tag in added]
-            c.executemany('INSERT INTO tags(entry_id,tag) VALUES(?,?)', added)
+            d.executemany('INSERT INTO tags(entry_id,tag) VALUES(?,?)', added)
             removed = set(old).difference(tags)
             removed = [(entry_id, tag) for tag in removed]
-            c.executemany('DELETE FROM tags WHERE entry_id=? AND tag=?', removed)
-    d.commit()
+            d.executemany('DELETE FROM tags WHERE entry_id=? AND tag=?', removed)
+        d.commit()
 
 
 """---------------------------------Attachments Methods----------------------------------"""
 
 
-def set_attachments(entry_id: int, attachments: Tuple[str], database: Union[Connection, str]):
+def set_attachments(entry_id: int, attachments: Tuple[str], database: str = None):
     """Generates data for a given file and adds the data to the database for the given entry
 
     :param entry_id: an int representing the entry
@@ -356,8 +324,8 @@ def set_attachments(entry_id: int, attachments: Tuple[str], database: Union[Conn
         the filesystem)
     :param database: a Connection or str representing the database that is being modified
     """
-    d = database if type(database) == Connection else connect(database)
-    with closing(d.cursor()) as c:
+    db = connect(database) if database else connect(current_database())
+    with closing(db) as d:
         old = get_attachment_ids(entry_id, database)
         added = tuple(set(attachments).difference(old))
         for path in added:
@@ -365,19 +333,20 @@ def set_attachments(entry_id: int, attachments: Tuple[str], database: Union[Conn
             with open(path, 'rb') as f:
                 bytestream = f.read()
                 f.close()
-            now = datetime.now().strftime('%Y-%m-%d %H:%M')
-            c.execute('INSERT INTO attachments(entry_id,filename,file,added) VALUES (?,?,?,?)',
-                      (entry_id, name, bytestream, now))
+            # TODO get this to appropriately add the timestamp (UTC issue?)
+            d.execute('INSERT INTO attachments(entry_id,filename,file,added) VALUES (?,?,?,?)',
+                      (entry_id, name, bytestream, datetime.now()))
 
         removed = set(old).difference(attachments)
         removed = [(att_id,) for att_id in removed]
-        c.executemany('DELETE FROM attachments WHERE att_id=?', removed)
+        d.executemany('DELETE FROM attachments WHERE att_id=?', removed)
+        d.commit()
 
 
 """---------------------------------Relations Methods----------------------------------"""
 
 
-def set_relation(parent: int, child: int, database: Union[Connection, str]):
+def set_relation(parent: int, child: int, database: str = None):
     """Adds a parent-child relation to the database representing the link between an entry and the one that
     generated it
 
@@ -385,17 +354,17 @@ def set_relation(parent: int, child: int, database: Union[Connection, str]):
     :param child: an int representing the id of the generated entry
     :param database: a Connection or str representing the database that is being modified
     """
-    d = database if type(database) == Connection else connect(database)
-    with closing(d.cursor()) as c:
-        if (child,) not in c.execute('SELECT child FROM relations WHERE parent=?', (parent,)).fetchall():
-            c.execute('INSERT INTO relations(child,parent) VALUES (?,?)', (child, parent))
-    d.commit()
+    db = connect(database) if database else connect(current_database())
+    with closing(db) as d:
+        if (child,) not in d.execute('SELECT child FROM relations WHERE parent=?', (parent,)).fetchall():
+            d.execute('INSERT INTO relations(child,parent) VALUES (?,?)', (child, parent))
+        d.commit()
 
 
 """---------------------------------Entry Methods----------------------------------"""
 
 
-def create_entry(database: Union[Connection, str], body: str = '', tags: tuple = (), date: datetime = None,
+def create_entry(database: str = None, body: str = '', tags: tuple = (), date: datetime = None,
                  attachments: tuple = None, parent: int = None):
     """Systematically adds a new entry to the database. This is the preferred method for making new entries.
 
@@ -407,7 +376,7 @@ def create_entry(database: Union[Connection, str], body: str = '', tags: tuple =
     :param database: a Connection or str representing the database that is being modified
     :return: an int identifying the entry in the database
     """
-    d = database if type(database) == Connection else connect(database)
+    d = database if database else current_database()
     id_ = set_body(body, d)
     set_tags(id_, tags, d)
     set_attachments(id_, attachments, d)
@@ -417,17 +386,17 @@ def create_entry(database: Union[Connection, str], body: str = '', tags: tuple =
     return id_
 
 
-def delete_entry(entry_id, database: Union[Connection, str]):
+def delete_entry(entry_id, database: str = None):
     """Systematically removes the entry from the database
 
     :param entry_id: an int representing the id of the given entry
     :param database: a Connection or str representing the database that is being modified
     """
-    d = database if type(database) == Connection else connect(database)
-    with closing(d.cursor()) as c:
-        c.execute('DELETE FROM bodies WHERE entry_id=?', (entry_id,))
-        c.execute('DELETE FROM dates WHERE entry_id=?', (entry_id,))
-        c.execute('DELETE FROM tags WHERE entry_id=?', (entry_id,))
-        c.execute('DELETE FROM attachments WHERE entry_id=?', (entry_id,))
-        c.execute('DELETE FROM relations WHERE child=? OR parent=?', (entry_id, entry_id))
-    d.commit()
+    db = connect(database) if database else connect(current_database())
+    with closing(db) as d:
+        d.execute('DELETE FROM bodies WHERE entry_id=?', (entry_id,))
+        d.execute('DELETE FROM dates WHERE entry_id=?', (entry_id,))
+        d.execute('DELETE FROM tags WHERE entry_id=?', (entry_id,))
+        d.execute('DELETE FROM attachments WHERE entry_id=?', (entry_id,))
+        d.execute('DELETE FROM relations WHERE child=? OR parent=?', (entry_id, entry_id))
+        d.commit()

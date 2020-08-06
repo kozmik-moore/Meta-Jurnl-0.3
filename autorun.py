@@ -1,7 +1,7 @@
 from copy import deepcopy
 from os import listdir, remove, chdir
 from os.path import exists, abspath
-from database import DatabaseManager
+from database_info import DatabaseManager
 
 from dateutil.parser import parse
 
