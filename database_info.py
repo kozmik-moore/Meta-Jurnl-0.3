@@ -15,8 +15,7 @@ def get_all_entry_ids(database: str = None):
     db = connect(database) if database else connect(current_database())
     with closing(db) as d:
         t = d.execute('SELECT entry_id FROM dates ORDER BY created').fetchall()
-        ids = [x[0] for x in t]
-    return ids
+        return [x[0] for x in t]
 
 
 def get_all_tags(database: str = None):
@@ -29,8 +28,7 @@ def get_all_tags(database: str = None):
     db = connect(database) if database else connect(current_database())
     with closing(db) as d:
         t = set(d.execute('SELECT tag FROM tags ORDER BY tag').fetchall())
-        tags = [x[0] for x in t]
-    return tags
+        return [x[0] for x in t]
 
 
 def get_all_dates(database: str = None):
@@ -48,11 +46,23 @@ def get_all_dates(database: str = None):
 
 
 def get_oldest_date(database: str = None):
+    """
+
+    :rtype: datetime.datetime
+    :param database: a str representing the location of a journal database
+    :return: a datetime representing the date of the oldest entry in the database
+    """
     db = current_database(database) if database else current_database()
     return get_all_dates(db)[0]
 
 
 def get_newest_date(database: str = None):
+    """
+
+    :rtype: datetime.datetime
+    :param database: a str representing the location of a journal database
+    :return: a datetime representing the date of the newest entry in the database
+    """
     db = current_database(database) if database else current_database()
     return get_all_dates(db)[-1]
 
@@ -66,9 +76,7 @@ def get_all_children(database: str = None):
     """
     db = connect(database) if database else connect(current_database())
     with closing(db) as d:
-        sql = 'SELECT entry_id FROM dates WHERE entry_id=(SELECT child FROM relations) ORDER BY string'
-        ids = [x[0] for x in d.execute(sql).fetchall()]
-        return ids
+        return [x[0] for x in d.execute('SELECT child from relations').fetchall()]
 
 
 def get_all_parents(database: str = None):
@@ -80,9 +88,7 @@ def get_all_parents(database: str = None):
     """
     db = connect(database) if database else connect(current_database())
     with closing(db) as d:
-        sql = 'SELECT entry_id FROM dates WHERE entry_id=(SELECT parent FROM relations) ORDER BY string'
-        ids = [x[0] for x in d.execute(sql).fetchall()]
-    return ids
+        return [x[0] for x in d.execute('SELECT parent from relations').fetchall()]
 
 
 def get_all_relations(database: str = None):
