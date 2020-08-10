@@ -19,6 +19,11 @@ class Reader:
     def database_location(self):
         return self._path
 
+    @database_location.setter
+    def database_location(self, v: str):
+        self.id_ = None
+        self._path = v
+
     @property
     def id_(self):
         return self._id_

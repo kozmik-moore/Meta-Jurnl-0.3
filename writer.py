@@ -31,6 +31,12 @@ class Writer:
     def database_location(self):
         return self._path
 
+    @database_location.setter
+    def database_location(self, v: str):
+        self.id_ = None
+        self._path = v
+        self._reader.database_location = v
+
     @property
     def id_(self):
         return self._id

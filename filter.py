@@ -312,3 +312,7 @@ class Filter:
 class FilteredReader(Filter, Reader):
     def __init__(self, path_to_db: str = None):
         super(FilteredReader, self).__init__(path_to_db)
+
+    @property
+    def all_tags(self):
+        return get_all_tags(self.database_location)
