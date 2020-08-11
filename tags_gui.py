@@ -252,7 +252,6 @@ class TagIntVar(IntVar):
 
 
 class TagsFrameV2(Frame):
-    # TODO finish
     def __init__(self, reader: FilteredReader, **kwargs):
         super(TagsFrameV2, self).__init__(**kwargs)
 
@@ -270,6 +269,9 @@ class TagsFrameV2(Frame):
         self.inner = {'side': 'left', 'fill': 'x', 'expand': True}
         self.outer = {'side': 'top', 'fill': 'x'}
 
+        self._popup_button = Button(master=self, text='Tags', command=self.popup)
+        self._popup_button.pack(fill='x', expand=True)
+
         self._button_holder = Frame(master=self)
         self._none = Button(master=self._button_holder, text='None', command=self.select_none)
         self._invert = Button(master=self._button_holder, text='Invert', command=self.select_invert)
@@ -279,22 +281,29 @@ class TagsFrameV2(Frame):
         self._all.pack(**self.inner)
         self._button_holder.pack(**self.outer)
 
-        self._popup_button = Button(master=self, text='Tags', command=self.popup)
-        self._filter = Entry(master=self, textvariable=self._filter_var)
+        self._filter_holder = Frame(master=self)
+        self._filter = Entry(master=self._filter_holder, textvariable=self._filter_var, style='clear.TEntry')
+        self._filter.bind('<Return>', self.add)
+        self._filter_clear = Button(master=self._filter_holder, text='Clear', style='clear.TButton')
+        self._filter_clear.configure(command=lambda s='': self._filter_var.set(s))
+        self._filter.pack(side='left', fill='x', expand=True)
+        self._filter_clear.pack(side='right')
+        self._filter_holder.pack(fill='x', expand=True, ipady=1)
+
         self._buttons = Frame(master=self, width=self.winfo_width() - 15, height=self.winfo_height() - 47)
 
-        self._popup_button.pack(fill='x', expand=True)
-        self._filter.pack(fill='x', expand=True)
         self._buttons.pack(fill='both', expand=True)
 
-        self._options_frame = Frame(master=self)
-        self._sort = Checkbutton(master=self._options_frame, variable=self._sort_var, text='autosort',
+        self._options_holder = Frame(master=self)
+        self._sort = Checkbutton(master=self._options_holder, variable=self._sort_var, text='autosort',
                                  command=self.repack)
         self._sort.pack(side='right')
-        self._options_frame.pack(side='bottom', fill='x', expand=True)
+        self._options_holder.pack(side='bottom', fill='x', expand=True)
 
         self.style = Style()
         self.style.configure('selected.TCheckbutton', background='dark gray')
+        self.style.configure('clear.TButton', padding=0)
+        self.style.configure('clear.TEntry', padding=3)
 
         self.bind('<Configure>', self.repack)
 
@@ -336,11 +345,20 @@ class TagsFrameV2(Frame):
         else:
             all_ = [var for var in self._tag_vars if self._filter_var.get().lower() in var.tag.lower()]
         for var in all_:
-            button = Checkbutton(master=frame, text=var.tag, variable=var, command=self.swap, style='selected.TCheckbutton' if var.get() == 1 else '')
+            button = Checkbutton(master=frame, text=var.tag, variable=var, command=self.swap,
+                                 style='selected.TCheckbutton' if var.get() == 1 else '')
             button.pack(fill='x', expand=True)
         self._buttons = frame
         self._buttons.pack(fill='both', expand=True)
         temp.destroy()
+
+    def add(self, *args):
+        tag = self._filter_var.get()
+        if tag:
+            tags = self._selected_tags
+            tags.append(tag)
+            self.selected_tags = tags
+            self._filter_var.set('')
 
     def swap(self):
         tags = [x.tag for x in self._tag_vars if x.get() == 1]
