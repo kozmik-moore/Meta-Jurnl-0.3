@@ -1,11 +1,24 @@
 """Contains widget templates"""
 from tkinter import Widget
 from tkinter.ttk import Frame, Button
+from typing import Any
+
+
+def edit_class_tags(w: Any):
+    bindtags = list(w.bindtags())
+    bindtags.append('JournalWidget')
+    w.bindtags(tuple(bindtags))
 
 
 class JournalWidget(Widget):
     """A class for identifying and accessing widgets with shared methods"""
-    pass
+
+    def __init__(self, **kwargs):
+        super(JournalWidget, self).__init__(**kwargs)
+        bindtags = list(self.bindtags())
+        index = bindtags.index('Widget')
+        bindtags.insert(index, 'JournalWidget')
+        self.bindtags(tuple(bindtags))
 
 
 class ButtonsFrame(Frame):

@@ -11,9 +11,10 @@ from database_info import get_all_entry_ids
 class Reader:
     """Stores the id of the currently selected entry and reports its attributes from the database"""
 
+    _id = None
+
     def __init__(self, path_to_db: str = None):
         self._path = path_to_db if path_to_db else current_database()
-        self._id_ = None
 
     @property
     def database_location(self):
@@ -26,7 +27,7 @@ class Reader:
 
     @property
     def id_(self):
-        return self._id_
+        return self._id
 
     @id_.setter
     def id_(self, entry_id: Union[int, None]):
@@ -34,7 +35,7 @@ class Reader:
 
         :param entry_id: an int representing an entry from the database or None if the entry is not set
         """
-        self._id_ = entry_id if entry_id in get_all_entry_ids(self.database_location) else None
+        self._id = entry_id if entry_id in get_all_entry_ids(self.database_location) else None
 
     @property
     def body(self):
@@ -43,8 +44,8 @@ class Reader:
         :return: a str representing the content of the entry or None if the entry is not set
         """
         body = ''
-        if self._id_:
-            body = get_body(database=self.database_location, entry_id=self._id_)
+        if self._id:
+            body = get_body(database=self.database_location, entry_id=self._id)
         return body
 
     @property
@@ -54,8 +55,8 @@ class Reader:
         :return: a tuple of str representing the tags of the entry or None if the entry is not set
         """
         tags = ()
-        if self._id_:
-            tags = get_tags(database=self.database_location, entry_id=self._id_)
+        if self._id:
+            tags = get_tags(database=self.database_location, entry_id=self._id)
         return tags
 
     @property
@@ -65,15 +66,15 @@ class Reader:
         :return: a datetime representing the date the entry was created or None if the entry is not set
         """
         date = None
-        if self._id_:
-            date = get_date(database=self.database_location, entry_id=self._id_)
+        if self._id:
+            date = get_date(database=self.database_location, entry_id=self._id)
         return date
 
     @property
     def date_last_edited(self):
         date = None
-        if self._id_:
-            date = get_date_last_edited(self._id_, self.database_location)
+        if self._id:
+            date = get_date_last_edited(self._id, self.database_location)
         return date
 
     @property
@@ -83,8 +84,8 @@ class Reader:
         :return: a tuple of int representing the attachments of the entry or None if the entry is not set
         """
         attachments = ()
-        if self._id_:
-            attachments = get_attachment_ids(database=self.database_location, entry_id=self._id_)
+        if self._id:
+            attachments = get_attachment_ids(database=self.database_location, entry_id=self._id)
         return attachments
 
     @property
@@ -94,8 +95,8 @@ class Reader:
         :return: an int representing the parent or None if there is no parent or the entry is not set
         """
         parent = None
-        if self._id_:
-            parent = get_parent(database=self.database_location, child_id=self._id_)
+        if self._id:
+            parent = get_parent(database=self.database_location, child_id=self._id)
         return parent
 
     @property
@@ -105,8 +106,8 @@ class Reader:
         :return: a list of ints representing the children of the entry
         """
         children = None
-        if self._id_:
-            return tuple(get_children(database=self.database_location, parent_id=self._id_))
+        if self._id:
+            return tuple(get_children(database=self.database_location, parent_id=self._id))
         return children
 
     @property
@@ -116,8 +117,8 @@ class Reader:
         :return: a bool indicating whether an entry has children or None indicating that the entry id field is not set
         """
         h = None
-        if self._id_:
-            h = True if get_children(self._id_, self.database_location) else False
+        if self._id:
+            h = True if get_children(self._id, self.database_location) else False
         return h
 
     @property
@@ -127,8 +128,8 @@ class Reader:
         :return: a bool indicating whether an entry has attachments or None indicating that the entry is not set
         """
         h = None
-        if self._id_:
-            h = True if get_attachment_ids(self._id_, self.database_location) else False
+        if self._id:
+            h = True if get_attachment_ids(self._id, self.database_location) else False
         return h
 
     @property
@@ -138,8 +139,8 @@ class Reader:
         :return: a bool indicating whether an entry has a parent or None indicating that the entry id field is not set
         """
         h = None
-        if self._id_:
-            h = True if get_parent(self._id_, self.database_location) else False
+        if self._id:
+            h = True if get_parent(self._id, self.database_location) else False
         return h
 
 
@@ -150,6 +151,10 @@ class Reader:
 
 
 def get_date(entry_id: int, database: str = None):
+    """
+
+    :rtype: datetime
+    """
     types = PARSE_DECLTYPES | PARSE_COLNAMES
     db = connect(database, detect_types=types) if database else connect(current_database(), detect_types=types)
     with closing(db) as d:

@@ -1,9 +1,9 @@
 from tkinter import StringVar, Toplevel, IntVar
 from tkinter.ttk import Frame, Button, Entry, Label, Checkbutton, Style
-from typing import List, TypeVar
+from typing import List, TypeVar, Tuple
 
-from base_widgets import JournalWidget
-from filter import FilteredReader
+from base_widgets import JournalWidget, edit_class_tags
+from modules import ReaderModule
 from scrolled_frame import VScrolledFrame
 
 T = TypeVar('T')
@@ -21,7 +21,7 @@ class TagButton(Button):
 
 
 class TagsFrame(Frame, JournalWidget):
-    def __init__(self, reader: FilteredReader = None, **kwargs):
+    def __init__(self, reader: ReaderModule = None, **kwargs):
         super(TagsFrame, self).__init__(**kwargs)
 
         # self.grid_columnconfigure(index=0, weight=1)
@@ -59,7 +59,7 @@ class TagsFrame(Frame, JournalWidget):
         self._all_tags = list(set(self._all_tags).union(tags).union(self._reader.all_tags))
         self._selected_tags = tags
         self._unselected_tags = list(set(self._all_tags).difference(self._selected_tags))
-        self._reader.tags_has = tuple(tags)
+        self._reader.tags = tuple(tags)
         self.repack()
 
     @property
@@ -159,9 +159,6 @@ class TagsPopup(Toplevel):
         return self._unselected_tags
 
     def resize(self, event=None):
-        # TODO finish
-        # self._frame_holder.config(width=self.winfo_width(), height=self.winfo_height())
-        # print([x.winfo_width() for x in self._unselected_frame.outer.pack_slaves()])
         pass
 
     def swap(self, button: TagButton):
@@ -252,19 +249,21 @@ class TagIntVar(IntVar):
 
 
 class TagsFrameV2(Frame):
-    def __init__(self, reader: FilteredReader, **kwargs):
+    def __init__(self, reader: ReaderModule, **kwargs):
         super(TagsFrameV2, self).__init__(**kwargs)
+
+        edit_class_tags(self)
 
         self._reader = reader
 
-        self._all_tags = []
-        self._selected_tags = []
-        self._unselected_tags = []
+        self._all_tags = ()
+        self._selected_tags = ()
+        self._unselected_tags = ()
 
         self._filter_var = StringVar(master=self, value='', name='tags_filter')
         self._trace = self._filter_var.trace_add('write', self.repack)
         self._tag_vars: List[TagIntVar] = []
-        self._sort_var = IntVar(master=self, value=1, name='sort')
+        self._sort_var = IntVar(master=self, value=self._reader.tags_autosort, name='sort')
 
         self.inner = {'side': 'left', 'fill': 'x', 'expand': True}
         self.outer = {'side': 'top', 'fill': 'x'}
@@ -296,7 +295,7 @@ class TagsFrameV2(Frame):
 
         self._options_holder = Frame(master=self)
         self._sort = Checkbutton(master=self._options_holder, variable=self._sort_var, text='autosort',
-                                 command=self.repack)
+                                 command=self.toggle_autosort)
         self._sort.pack(side='right')
         self._options_holder.pack(side='bottom', fill='x', expand=True)
 
@@ -307,6 +306,12 @@ class TagsFrameV2(Frame):
 
         self.bind('<Configure>', self.repack)
 
+        tags = self._reader.tags
+        if tags:
+            self.selected_tags = list(tags)
+        else:
+            self.selected_tags = self.selected_tags
+
     @property
     def all_tags(self):
         return self._all_tags
@@ -316,14 +321,15 @@ class TagsFrameV2(Frame):
         return self._selected_tags
 
     @selected_tags.setter
-    def selected_tags(self, tags: List[str]):
+    def selected_tags(self, tags: Tuple[str]):
         self._all_tags = list(set(self._all_tags).union(tags).union(self._reader.all_tags))
         self._tag_vars = [TagIntVar(tag=tag, value=1 if tag in tags else 0) for tag in self._all_tags]
         self._tag_vars.sort(key=lambda x: x.tag)
         self._selected_tags = tags
-        self._unselected_tags = list(set(self._all_tags).difference(self._selected_tags))
-        self._reader.tags_has = tuple(tags)
+        self._unselected_tags = tuple(set(self._all_tags).difference(self._selected_tags))
+        self._reader.tags = tuple(tags)
         self.repack()
+        self.event_generate('<<ids>>')
 
     @property
     def unselected_tags(self):
@@ -355,13 +361,13 @@ class TagsFrameV2(Frame):
     def add(self, *args):
         tag = self._filter_var.get()
         if tag:
-            tags = self._selected_tags
+            tags = list(self._selected_tags)
             tags.append(tag)
-            self.selected_tags = tags
+            self.selected_tags = tuple(tags)
             self._filter_var.set('')
 
     def swap(self):
-        tags = [x.tag for x in self._tag_vars if x.get() == 1]
+        tags = tuple([x.tag for x in self._tag_vars if x.get() == 1])
         self.selected_tags = tags
 
     def select_all(self):
@@ -378,6 +384,11 @@ class TagsFrameV2(Frame):
         self._filter_var.set('')
         self.selected_tags = temp
 
+    def toggle_autosort(self):
+        setting = self._sort_var.get()
+        self._reader.tags_autosort = setting
+        self.repack()
+
     def popup(self):
         # TODO create popup for grid representation of tags
         pass
@@ -385,15 +396,13 @@ class TagsFrameV2(Frame):
 
 def _test():
     from tkinter import Tk
-    reader = FilteredReader()
     root = Tk()
     root.geometry('400x500')
-    # for i in range(6):
-    #     root.grid_columnconfigure(index=i, weight=1)
     root.grid_rowconfigure(index=0, weight=1)
+    reader = ReaderModule(None, '.tempfiles/Reader/000')
     tags = TagsFrameV2(master=root, reader=reader)
     tags.pack(fill='both', expand=True)
-    tags.selected_tags = ['Purple', 'Green', 'Blue', '1', '2', '3']
+    # tags.selected_tags = ['Purple', 'Green', 'Blue', '1', '2', '3']
     root.mainloop()
 
 

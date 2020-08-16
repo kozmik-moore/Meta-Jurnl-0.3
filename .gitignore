@@ -136,3 +136,4 @@ Pipfile*
 Test-Resources/
 /jurnl.sqlite
 /settings.config
+/.tempfiles/

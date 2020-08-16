@@ -27,7 +27,6 @@ def create_file(database: str = None):
             'backup interval': '72',
             'number of backups': '3'
         }
-        # TODO add option for obscuring system files (read and write in bytes instead of str)
         parser['Filesystem'] = {
             'current database': database,
             'backup location': join(getcwd(), 'Backup')
@@ -35,6 +34,12 @@ def create_file(database: str = None):
         parser['Databases'] = {
             name.replace('.sqlite', ''): database
         }
+        parser['Runtime'] = {
+            'tags autosort': '1',
+            'dates by intervals': '0'
+        }
+        # TODO add option for obscuring system files (read and write in bytes instead of str)
+        # TODO add option for auto-sorting tags
         with open('settings.config', 'w') as f:
             parser.write(f)
             f.close()
@@ -224,6 +229,34 @@ def databases(added: List[str] = None, removed: List[str] = None):
         if removed:
             for r in removed:
                 p.remove_option('Databases', basename(r).replace('.sqlite', ''))
+        with open('settings.config', 'w') as f:
+            p.write(f)
+            f.close()
+
+
+def tags_autosort(var: int = None):
+    if not exists('settings.config'):
+        create_file()
+    p = ConfigParser()
+    p.read('settings.config')
+    if var is None:
+        return p.getint('Runtime', 'tags autosort')
+    else:
+        p.set('Runtime', 'tags autosort', str(var))
+        with open('settings.config', 'w') as f:
+            p.write(f)
+            f.close()
+
+
+def dates_sort(var: int = None):
+    if not exists('settings.config'):
+        create_file()
+    p = ConfigParser()
+    p.read('settings.config')
+    if var is None:
+        return p.getint('Runtime', 'dates by intervals')
+    else:
+        p.set('Runtime', 'dates by intervals', str(var))
         with open('settings.config', 'w') as f:
             p.write(f)
             f.close()
