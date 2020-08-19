@@ -8,6 +8,7 @@ from os import makedirs, remove, scandir
 from os.path import exists, join, isfile
 from typing import Tuple, Dict
 
+from database import create_database
 from database_info import get_oldest_date, get_newest_date
 
 
@@ -65,7 +66,7 @@ class _TempFileManager:
             makedirs(self._tempdir_path)
         self._type = module
         self._file_path = file_path
-        self._parser = ConfigParser(
+        self.parser = ConfigParser(
             converters={'date': _parse_datestring,
                         'tuple': literal_eval,
                         'literal': literal_eval
@@ -79,7 +80,7 @@ class _TempFileManager:
     def type_(self, v: str):
         if v in ['Reader', 'Writer']:
             self._type = v
-            self._parser['Meta']['type'] = v
+            self.parser['Meta']['type'] = v
             self.write_file()
         else:
             raise KeyError('Allowed arguments include \'Reader\' and \'Writer\'.')
@@ -94,28 +95,41 @@ class _TempFileManager:
             self._file_path = v
 
     @property
+    def database(self):
+        return self.parser.get('Databases', 'current')
+
+    @database.setter
+    def database(self, v: str):
+        if type(v) == str and exists(v):
+            self.parser.set('Databases', 'current', v)
+            self.write_file()
+
+    @property
     def id_(self):
-        return self._parser.getliteral('Attributes', 'id')
+        return self.parser.getliteral('Attributes', 'id')
 
     @id_.setter
     def id_(self, v: int = None):
         if type(v) == int or v is None:
-            self._parser['Attributes']['id'] = str(v)
+            self.parser['Attributes']['id'] = str(v)
             self.write_file()
         else:
             raise TypeError('Argument is not of type int.')
 
     def create_parser(self):
-        self._parser['Meta'] = {
+        self.parser['Meta'] = {
             'type': self._type
         }
-        self._parser['Attributes'] = {
+        self.parser['Databases'] = {
+            'current': ''
+        }
+        self.parser['Attributes'] = {
             'id': 'None'
         }
 
     def load_parser(self):
         if self._file_path and exists(self._file_path):
-            self._parser.read(self._file_path)
+            self.parser.read(self._file_path)
         else:
             self.create_parser()
             self.write_file()
@@ -126,7 +140,7 @@ class _TempFileManager:
 
     def write_file(self):
         with open(self._file_path, 'w') as file:
-            self._parser.write(file)
+            self.parser.write(file)
             file.close()
 
 
@@ -140,78 +154,113 @@ class ReaderFileManager(_TempFileManager):
 
     @property
     def body(self):
-        return self._parser.get('Strings', 'body')
+        return self.parser.get('Strings', 'body')
 
     @body.setter
     def body(self, v: str):
-        self._parser['Strings']['body'] = str(v)
+        self.parser['Strings']['body'] = str(v)
         self.write_file()
 
     @property
     def tags(self):
-        return self._parser.gettuple('Strings', 'tags')
+        return self.parser.gettuple('Strings', 'tags')
 
     @tags.setter
     def tags(self, v: Tuple[str]):
         if type(v) == tuple and all([isinstance(x, str) for x in v]):
-            self._parser['Strings']['tags'] = str(v)
+            self.parser['Strings']['tags'] = str(v)
             self.write_file()
 
     @property
     def dates(self):
         d = dict()
-        for key in self._parser.options('Dates'):
-            d[key] = self._parser.getint('Dates', key)
+        for key in self.parser.options('Dates'):
+            d[key] = self.parser.getint('Dates', key)
         return d
 
     @dates.setter
     def dates(self, v: Dict[str, int]):
         for key in v:
-            self._parser.set('Dates', key, str(v[key]))
+            self.parser.set('Dates', key, str(v[key]))
         self.write_file()
 
     @property
     def has_children(self):
-        return self._parser.getboolean('Booleans', 'has children')
+        return self.parser.getboolean('Booleans', 'has children')
 
     @has_children.setter
     def has_children(self, v: bool):
         if type(v) == bool:
-            self._parser['Booleans']['has children'] = str(v)
+            self.parser['Booleans']['has children'] = str(v)
             self.write_file()
 
     @property
     def has_parent(self):
-        return self._parser.getboolean('Booleans', 'has parent')
+        return self.parser.getboolean('Booleans', 'has parent')
 
     @has_parent.setter
     def has_parent(self, v: bool):
         if type(v) == bool:
-            self._parser['Booleans']['has parent'] = str(v)
+            self.parser['Booleans']['has parent'] = str(v)
             self.write_file()
 
     @property
     def has_attachments(self):
-        return self._parser.getboolean('Booleans', 'has attachments')
+        return self.parser.getboolean('Booleans', 'has attachments')
 
     @has_attachments.setter
     def has_attachments(self, v: bool):
         if type(v) == bool:
-            self._parser['Booleans']['has attachments'] = str(v)
+            self.parser['Booleans']['has attachments'] = str(v)
+            self.write_file()
+
+    @property
+    def date_filter(self):
+        return self.parser.getint('Settings', 'date filter')
+
+    @date_filter.setter
+    def date_filter(self, v: int):
+        if type(v) == int:
+            self.parser.set('Settings', 'date filter', str(v))
+            self.write_file()
+
+    @property
+    def tag_filter(self):
+        return self.parser.getint('Settings', 'tag filter')
+
+    @tag_filter.setter
+    def tag_filter(self, v: int):
+        if type(v) == int:
+            self.parser.set('Settings', 'tag filter', str(v))
+            self.write_file()
+
+    @property
+    def tags_sort(self):
+        return self.parser.getint('Settings', 'tags sort')
+
+    @tags_sort.setter
+    def tags_sort(self, v: int):
+        if type(v) == int:
+            self.parser.set('Settings', 'tags sort', str(v))
             self.write_file()
 
     def create_parser(self):
         super(ReaderFileManager, self).create_parser()
-        self._parser['Booleans'] = {
+        self.parser['Settings'] = {
+            'date filter': '0',
+            'tags sort': '0',
+            'tag filter': '0'
+        }
+        self.parser['Booleans'] = {
             'has children': 'False',
             'has parent': 'False',
             'has attachments': 'False'
         }
-        self._parser['Strings'] = {
+        self.parser['Strings'] = {
             'tags': '()',
             'body': ''
         }
-        self._parser['Dates'] = {
+        self.parser['Dates'] = {
             'low year': str(get_oldest_date().year),
             'high year': str(get_newest_date().year),
             'low month': '1',
@@ -225,10 +274,15 @@ class ReaderFileManager(_TempFileManager):
             'low weekday': '0',
             'high weekday': '6'
         }
+        if not self.database:
+            db = 'jurnl.sqlite'
+            if not exists(db):
+                create_database(db)
+            self.database = db
 
     def load_parser(self):
         if self._file_path and exists(self._file_path):
-            self._parser.read(self._file_path)
+            self.parser.read(self._file_path)
         else:
             self._file_path = join(self._tempdir_path, _get_file_id(self._type))
             self.create_parser()
@@ -249,77 +303,77 @@ class WriterFileManager(_TempFileManager):
 
     @property
     def body(self):
-        return self._parser.get('Attributes', 'body')
+        return self.parser.get('Attributes', 'body')
 
     @body.setter
     def body(self, v: str):
         if type(v) == str:
-            self._parser['Attributes']['body'] = v
+            self.parser['Attributes']['body'] = v
             self.write_file()
         else:
             raise TypeError('Argument is not of type str.')
 
     @property
     def date(self):
-        return self._parser.getdate('Attributes', 'date')
+        return self.parser.getdate('Attributes', 'date')
 
     @date.setter
     def date(self, v: datetime):
         if type(v) == datetime:
-            self._parser['Attributes']['date'] = str(v)
+            self.parser['Attributes']['date'] = str(v)
             self.write_file()
         else:
             raise TypeError('Argument is not of type datetime.')
 
     @property
     def tags(self):
-        return self._parser.gettuple('Attributes', 'tags')
+        return self.parser.gettuple('Attributes', 'tags')
 
     @tags.setter
     def tags(self, v: Tuple[str]):
         if type(v) == tuple and all(isinstance(x, str) for x in v):
-            self._parser['Attributes']['tags'] = str(v)
+            self.parser['Attributes']['tags'] = str(v)
             self.write_file()
         else:
             raise TypeError('Argument should be a tuple of str.')
 
     @property
     def attachments(self):
-        return self._parser.gettuple('Attributes', 'attachments')
+        return self.parser.gettuple('Attributes', 'attachments')
 
     @attachments.setter
     def attachments(self, v: Tuple[str]):
         if type(v) == tuple and all(isinstance(x, str) for x in v):
             v = _check_attachments(v)
             t = (k for k in v.keys() if v[k] == 'good')
-            self._parser['Attributes']['attachments'] = str(t)
+            self.parser['Attributes']['attachments'] = str(t)
             self.write_file()
         else:
             raise TypeError('Argument should be a tuple of str.')
 
     @property
     def parent(self):
-        return self._parser.getliteral('Attributes', 'parent')
+        return self.parser.getliteral('Attributes', 'parent')
 
     @parent.setter
     def parent(self, v: int):
         if type(v) == int:
-            self._parser['Attributes']['parent'] = str(v)
+            self.parser['Attributes']['parent'] = str(v)
             self.write_file()
         else:
             raise TypeError('Argument is not of type int.')
 
     def create_parser(self):
         super(WriterFileManager, self).create_parser()
-        self._parser.set('Attributes', 'body', '')
-        self._parser.set('Attributes', 'date', 'None')
-        self._parser.set('Attributes', 'tags', '()')
-        self._parser.set('Attributes', 'attachments', '()')
-        self._parser.set('Attributes', 'parent', 'None')
+        self.parser.set('Attributes', 'body', '')
+        self.parser.set('Attributes', 'date', 'None')
+        self.parser.set('Attributes', 'tags', '()')
+        self.parser.set('Attributes', 'attachments', '()')
+        self.parser.set('Attributes', 'parent', 'None')
 
     def load_parser(self):
         if self._file_path:
-            self._parser.read(self._file_path)
+            self.parser.read(self._file_path)
         else:
             self._file_path = join(self._tempdir_path, _get_file_id(self._type))
             self.create_parser()

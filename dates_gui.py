@@ -41,9 +41,7 @@ class DatesFrame(Frame):
 
         self._buttons = VScrolledFrame(master=self)
         self._buttons.pack(side='top', fill='both', expand=True)
-
-        self.event_add('<<ids>>', '<Control-KeyPress-r>')
-        self.bind_class('JournalWidget', '<<ids>>', self.update_ids)
+        self.bind_class('JournalWidget', '<<Update Ids>>', self.update_ids)
 
         self.update_ids()
 
@@ -70,7 +68,6 @@ class DatesFrame(Frame):
         for i in self._ids:
             button = DateRadiobutton(master=new, id_=i, text=self._reader.get_date(i).strftime('%a, %b %d, %Y %H:%M'),
                                      value=i, variable=self.current, style='justified.TRadiobutton')
-            button.configure(command=lambda id_=i: self.id_event(id_))
             button.pack(fill='x', anchor='e', expand=True)
         new.pack(fill='both', expand=True)
         self._buttons = new
@@ -83,9 +80,12 @@ class DatesFrame(Frame):
         popup.grab_set()
         popup.focus()
 
-    def id_event(self, id_: Union[int, None], *args):
+    def id_event(self, id_: Union[int, str, None], *args):
         # TODO create event to call other widgets (could be done via IntVar change?)
+        if type(id_) == str:
+            id_ = self.getvar(id_)
         self.reader.id_ = id_
+        self.event_generate('<<Selected Entry>>')
 
     def update_ids(self, *args):
         self.ids = self.reader.filtered_ids
@@ -110,6 +110,7 @@ def weekday_str(value: int, fmt: str = 'long'):
     return s
 
 
+# TODO subclass Widget to take advantage of getting variables directly
 class DateVars:
     def __init__(self, reader: ReaderModule):
         self._reader = reader
@@ -246,6 +247,7 @@ class DatesPopup(Toplevel):
     def __init__(self, current_var: IntVar, date_vars: DateVars, old: int, new: int, **kwargs):
         super(DatesPopup, self).__init__(**kwargs)
         edit_class_tags(self)
+        self.bind('<Escape>', lambda e: self.exit())
 
         self.protocol('WM_DELETE_WINDOW', self.exit)
         width = 58
@@ -361,15 +363,6 @@ class DatesPopup(Toplevel):
         # self.bind('<Configure>', self.reconfigure)
         self.set_scales_frame()
 
-    def reconfigure(self, event):
-        # for i in range(len(self._scales_c.pack_slaves())):
-        #     self._scales_c.columnconfigure(index=i, weight=1)
-        # for i in range(len(self._scales_c.pack_slaves())):
-        #     self._scales_i.columnconfigure(index=i, weight=1)
-        # for i in range(len(self._scales_c.pack_slaves())):
-        #     self._labels_i.columnconfigure(index=i, weight=1)
-        i_width = self.winfo_width() / 6
-
     def set_scales_frame(self):
         if self.sort_var.get() == 0:
             self._c_frame.pack(fill='both', expand=True)
@@ -382,7 +375,7 @@ class DatesPopup(Toplevel):
         if self._initial != self.sort_var.get():
             self._current.set(0)
         self.set_filters()
-        self.event_generate('<<ids>>')
+        self.event_generate('<<Update Ids>>')
         self.destroy()
 
 

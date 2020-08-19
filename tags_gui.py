@@ -1,240 +1,12 @@
-from tkinter import StringVar, Toplevel, IntVar
-from tkinter.ttk import Frame, Button, Entry, Label, Checkbutton, Style
+from tkinter import StringVar, IntVar
+from tkinter.ttk import Frame, Button, Entry, Checkbutton, Style, Radiobutton, Label
 from typing import List, TypeVar, Tuple
 
-from base_widgets import JournalWidget, edit_class_tags
+from base_widgets import edit_class_tags
 from modules import ReaderModule
 from scrolled_frame import VScrolledFrame
 
 T = TypeVar('T')
-
-
-class TagButton(Button):
-    def __init__(self, tag: str, **kwargs):
-        super(TagButton, self).__init__(**kwargs)
-
-        self._tag = tag
-
-    @property
-    def tag(self):
-        return self._tag
-
-
-class TagsFrame(Frame, JournalWidget):
-    def __init__(self, reader: ReaderModule = None, **kwargs):
-        super(TagsFrame, self).__init__(**kwargs)
-
-        # self.grid_columnconfigure(index=0, weight=1)
-        self._reader = reader
-
-        self._all_tags = []
-        self._selected_tags = []
-        self._unselected_tags = []
-
-        self._filter_var = StringVar(master=self, value='', name='tags_filter')
-        self._trace = self._filter_var.trace_add('write', self.repack)
-
-        self._popup_button = Button(master=self, text='Tags', command=self.popup)
-        self._filter = Entry(master=self, textvariable=self._filter_var)
-        self._buttons_frame = Frame(master=self)
-        self._buttons_inner = Frame(self._buttons_frame, width=self.winfo_width() - 15, height=self.winfo_height() - 47)
-
-        self._popup_button.pack(fill='x', expand=True)
-        self._filter.pack(fill='x', expand=True)
-        self._buttons_inner.pack(fill='both', expand=True)
-        self._buttons_frame.pack(fill='both', expand=True)
-
-        self.bind('<Configure>', self.repack)
-
-    @property
-    def all_tags(self):
-        return self._all_tags
-
-    @property
-    def selected_tags(self):
-        return self._selected_tags
-
-    @selected_tags.setter
-    def selected_tags(self, tags: List[str]):
-        self._all_tags = list(set(self._all_tags).union(tags).union(self._reader.all_tags))
-        self._selected_tags = tags
-        self._unselected_tags = list(set(self._all_tags).difference(self._selected_tags))
-        self._reader.tags = tuple(tags)
-        self.repack()
-
-    @property
-    def unselected_tags(self):
-        return self._unselected_tags
-
-    def refresh(self):
-        """Refreshes tags information from the reader"""
-        pass
-
-    def repack(self, *args):
-        frame = VScrolledFrame(master=self._buttons_frame, width=self.winfo_width() - 15,
-                               height=self.winfo_height() - 47)
-        temp = self._buttons_inner
-        for tag in self._selected_tags:
-            if self._filter_var.get().lower() in tag.lower():
-                button = TagButton(master=frame, text=tag, tag=tag)
-                button.configure(command=lambda b=button: self.remove(b))
-                button.pack(fill='x', expand=True)
-        temp.destroy()
-        self._buttons_inner = frame
-        self._buttons_inner.pack(fill='both', expand=True)
-
-    def remove(self, button: TagButton):
-        button.destroy()
-        tag = button.tag
-        self._selected_tags.remove(tag)
-        self._unselected_tags.append(tag)
-        self._unselected_tags.sort()
-        # TODO figure out how to fix scrollbar bug without this
-        # self.repack()
-
-    def popup(self):
-        popup = TagsPopup(self, self._selected_tags, self._unselected_tags)
-        popup.grab_set()
-        popup.focus()
-
-
-class TagsPopup(Toplevel):
-
-    def __init__(self, parent: TagsFrame, selected: List[str], unselected: List[str], **kwargs):
-        super(TagsPopup, self).__init__(**kwargs)
-
-        self.geometry('330x400')
-        self.resizable(width=False, height=False)
-        for i in range(6):
-            self.grid_columnconfigure(index=i, weight=1)
-        self.protocol('WM_DELETE_WINDOW', self.exit)
-
-        self.inner = {'side': 'left', 'fill': 'x', 'expand': True}
-        self.outer = {'side': 'top', 'fill': 'x'}
-
-        self._parent = parent
-        self._selected_tags = selected
-        self._selected_buttons: List[TagButton] = []
-        self._unselected_tags = unselected
-        self._unselected_buttons: List[TagButton] = []
-
-        self._filter_var = StringVar()
-        self._trace = self._filter_var.trace_add('write', self.regrid)
-
-        self._button_holder = Frame(master=self)
-        self._none = Button(master=self._button_holder, text='None', command=self.select_none)
-        self._invert = Button(master=self._button_holder, text='Invert', command=self.select_invert)
-        self._all = Button(master=self._button_holder, text='All', command=self.select_all)
-        self._none.pack(**self.inner)
-        self._invert.pack(**self.inner)
-        self._all.pack(**self.inner)
-        self._button_holder.pack(**self.outer)
-
-        self._filter = Entry(master=self, textvariable=self._filter_var)
-        self._filter.pack(side='top', fill='x')
-
-        self._label_holder = Frame(master=self)
-        self._unselected_label = Label(master=self._label_holder, text='Out', anchor='c')
-        self._selected_label = Label(master=self._label_holder, text='In', anchor='c')
-        self._unselected_label.pack(**self.inner)
-        self._selected_label.pack(**self.inner)
-        self._label_holder.pack(**self.outer)
-
-        self._frame_holder = Frame(master=self)
-        self._unselected_frame = VScrolledFrame(master=self._frame_holder)
-        self._selected_frame = VScrolledFrame(master=self._frame_holder)
-        self._unselected_frame.pack()
-        self._selected_frame.pack()
-        self._frame_holder.pack(side='top')
-        self.bind('<Configure>', self.resize)
-
-        self.regrid()
-
-    @property
-    def selected_tags(self):
-        return self._selected_tags
-
-    @property
-    def unselected_tags(self):
-        return self._unselected_tags
-
-    def resize(self, event=None):
-        pass
-
-    def swap(self, button: TagButton):
-        tag = button.tag
-        found = False
-        for b in self._selected_buttons:
-            if found:
-                break
-            if tag == b.tag:
-                self._selected_tags.remove(tag)
-                self._unselected_tags.append(tag)
-                found = True
-        if not found:
-            self._unselected_tags.remove(tag)
-            self._selected_tags.append(tag)
-        # self._filter_var.set('')
-        self._filter.focus()
-        self.regrid()
-
-    def select_all(self):
-        self._selected_tags += self._unselected_tags
-        self._unselected_tags.clear()
-        self.regrid()
-
-    def select_none(self):
-        self._unselected_tags += self._selected_tags
-        self._selected_tags.clear()
-        self.regrid()
-
-    def select_invert(self):
-        temp = self._unselected_tags
-        self._unselected_tags = self._selected_tags
-        self._selected_tags = temp
-        self.regrid()
-
-    def regrid(self, *args):
-        unselected_frame = VScrolledFrame(master=self._frame_holder, width=150, height=332, background='dark gray')
-        selected_frame = VScrolledFrame(master=self._frame_holder, width=150, height=332, background='dark gray')
-
-        self._unselected_buttons.clear()
-        self._selected_buttons.clear()
-        self._selected_tags.sort()
-        self._unselected_tags.sort()
-        for tag in self._unselected_tags:
-            if self._filter_var.get().lower() in tag.lower():
-                button = TagButton(tag=tag, text=tag, master=unselected_frame, takefocus=True)
-                button.configure(command=lambda b=button: self.swap(b))
-                self._unselected_buttons.append(button)
-        for tag in self._selected_tags:
-            if self._filter_var.get().lower() in tag.lower():
-                button = TagButton(tag=tag, text=tag, master=selected_frame, takefocus=True)
-                button.configure(command=lambda b=button: self.swap(b))
-                self._selected_buttons.append(button)
-
-        for i in range(len(self._unselected_buttons)):
-            self._unselected_buttons[i].pack(fill='x', expand=True)
-
-        for i in range(len(self._selected_buttons)):
-            self._selected_buttons[i].pack(fill='x', expand=True)
-
-        temp1 = self._unselected_frame
-        temp2 = self._selected_frame
-        self._unselected_frame = unselected_frame
-        self._selected_frame = selected_frame
-        self._unselected_frame.pack(side='left')
-        self._selected_frame.pack(side='left')
-
-        temp1.destroy()
-        temp2.destroy()
-
-    def exit(self):
-        self._selected_tags.sort()
-        self._parent.selected_tags = self.selected_tags
-        self._filter_var.trace_remove('unset', self._trace)
-        self.unbind('<Configure>')
-        self.destroy()
 
 
 class TagIntVar(IntVar):
@@ -264,6 +36,10 @@ class TagsFrameV2(Frame):
         self._trace = self._filter_var.trace_add('write', self.repack)
         self._tag_vars: List[TagIntVar] = []
         self._sort_var = IntVar(master=self, value=self._reader.tags_autosort, name='sort')
+        self._type_int = IntVar(master=self, name='type_var_int')
+        self._type_str = StringVar(master=self, name='type_var_str')
+
+        self._type_int.trace_add('write', self.set_filter_type)
 
         self.inner = {'side': 'left', 'fill': 'x', 'expand': True}
         self.outer = {'side': 'top', 'fill': 'x'}
@@ -294,8 +70,18 @@ class TagsFrameV2(Frame):
         self._buttons.pack(fill='both', expand=True)
 
         self._options_holder = Frame(master=self)
+        self._type_holder = Frame(master=self._options_holder)
+        self._type_0 = Radiobutton(master=self._type_holder, value=0, text='', variable=self._type_int)
+        self._type_1 = Radiobutton(master=self._type_holder, value=1, text='', variable=self._type_int)
+        self._type_2 = Radiobutton(master=self._type_holder, value=2, text='', variable=self._type_int)
+        self._type_label = Label(master=self._type_holder, textvariable=self._type_str)
         self._sort = Checkbutton(master=self._options_holder, variable=self._sort_var, text='autosort',
                                  command=self.toggle_autosort)
+        self._type_0.pack(side='left')
+        self._type_1.pack(side='left')
+        self._type_2.pack(side='left')
+        self._type_label.pack(side='right', fill='x')
+        self._type_holder.pack(side='left')
         self._sort.pack(side='right')
         self._options_holder.pack(side='bottom', fill='x', expand=True)
 
@@ -305,6 +91,8 @@ class TagsFrameV2(Frame):
         self.style.configure('clear.TEntry', padding=3)
 
         self.bind('<Configure>', self.repack)
+
+        self._type_int.set(self._reader.tag_filter)
 
         tags = self._reader.tags
         if tags:
@@ -388,6 +176,13 @@ class TagsFrameV2(Frame):
         setting = self._sort_var.get()
         self._reader.tags_autosort = setting
         self.repack()
+
+    def set_filter_type(self, *args):
+        num = self.getvar(args[0])
+        self._reader.tag_filter = num
+        type_ = ['Contains At Least One Of...', 'Contains At Least...', 'Contains Only...'][num]
+        self._type_str.set(type_)
+        self.event_generate('<<ids>>')
 
     def popup(self):
         # TODO create popup for grid representation of tags

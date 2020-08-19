@@ -87,20 +87,19 @@ def from_intervals(intervals: Dict[str, int], database: str = None):
         return [x[0] for x in c]
 
 
-def from_tags(tags: tuple, database: str = None,
-              op_type: str = 'Contains One Of...'):
-    """
+def from_tags(tags: tuple, database: str = None, op_type: int = 0):
+    """Given a set of tags and a filter type, returns the ids of entries that satisfy the criteria
 
-    :rtype: list
+    :rtype: tuple
     :param database: a Connection or str representing the database that is being queried
     :param tags: a tuple of strings representing the tags to be used for filtering entries from the database
-    :param op_type: a str representing the type of filter to apply
-    :return: a list of ints representing the filtered entries
+    :param op_type: an int: '0' for 'Contains One Of', '1' for 'Contains At Least, '2' for 'Contains Only'
+    :return: a tuple of ints representing the filtered entries
     """
     db = connect(database) if database else connect(current_database())
     with closing(db) as d:
         ids = []
-        if op_type == 'Contains At Least...':
+        if op_type == 1:
             tags = list(tags)
             tag = tags.pop(0)
             sql = 'SELECT entry_id FROM tags WHERE tag=?'
@@ -108,12 +107,12 @@ def from_tags(tags: tuple, database: str = None,
             for tag in tags:
                 temp = temp.intersection(d.execute(sql, (tag,)).fetchall())
             ids = [i[0] for i in temp]
-        if op_type == 'Contains Only...':
+        if op_type == 2:
             for entry in get_all_entry_ids(database):
                 if len(get_tags(entry, database)) == len(tags):
                     if set(get_tags(entry, database)).intersection(tags) == set(tags):
                         ids.append(entry)
-        if op_type == 'Contains One Of...':
+        if op_type == 0:
             sql = 'SELECT entry_id FROM tags WHERE tag IN ({})'.format(','.join(['?'] * len(tags)))
             ids = list({x[0] for x in d.execute(sql, tags).fetchall()})
         if op_type == 'Untagged':
@@ -163,7 +162,7 @@ class Filter:
         self._date_type = 0  # 0 for Continuous, 1 for Intervals
         self._by_tags = tuple()
         self._by_is_untagged = False
-        self._tags_type = 'Contains One Of...'
+        self._tags_type = 0
         self._filtered = tuple()
         self._filter()
 
@@ -293,12 +292,12 @@ class Filter:
         return self._tags_type
 
     @tag_filter.setter
-    def tag_filter(self, v: str):
-        if v in [
-            'Contains One Of...',
-            'Contains At Least...',
-            'Contains Only...'
-        ]:
+    def tag_filter(self, v: int):
+        """Sets tags filter to one of three modes
+
+        :param v: an int, '0' for 'Contains One Of', '1' for 'Contains At Least, '2' for 'Contains Only'
+        """
+        if v in [0, 1, 2]:
             self._tags_type = v
             self._filter()
 
@@ -340,7 +339,7 @@ class Filter:
         self._date_type = 0
         self._by_tags = tuple()
         self._by_is_untagged = False
-        self._tags_type = 'Contains One Of...'
+        self._tags_type = 0
         self._filtered = tuple()
 
     def refresh_ids(self):

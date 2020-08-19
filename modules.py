@@ -1,77 +1,99 @@
 from typing import Dict, Tuple
 
-from configurations import tags_autosort, dates_sort
 from database_info import get_oldest_date, get_all_dates, get_all_tags, get_newest_date
 from filter import Filter
-from reader import Reader, get_date
+from reader import get_date, get_body, get_parent, get_children, get_attachment_ids, get_tags
 from tempfiles import ReaderFileManager
 
 
 class ReaderModule:
-    def __init__(self, path_to_db: str = None, path_to_tempfile: str = None):
-        self._filter = Filter(path_to_db)
-        self._reader = Reader(path_to_db)
+    def __init__(self, path_to_tempfile: str = None):
         self._temp = ReaderFileManager(path_to_tempfile)
-
-        self._database = path_to_db
+        self._filter = Filter(self._temp.database)
 
         self._filter.dates = self._temp.dates
-        self._filter.date_filter = dates_sort()
+        self._filter.date_filter = self._temp.date_filter
 
     @property
     def id_(self):
-        return self._reader.id_
+        return self._temp.id_
 
     @id_.setter
     def id_(self, v: int):
-        self._reader.id_ = v
-        self._temp.id_ = self._reader.id_
+        self._temp.id_ = v
+
+    @property
+    def database(self):
+        return self._temp.database
 
     @property
     def entry_body(self):
-        body = self._reader.body
-        return body
+        return get_body(self.database)
 
     @property
     def entry_date(self):
-        return self._reader.date
+        if self.id_:
+            return get_date(self.id_, self.database)
+        else:
+            return None
 
     @property
     def entry_parent(self):
-        return self._reader.parent
+        if self.id_:
+            return get_parent(self.id_, self.database)
+        else:
+            return None
 
     @property
     def entry_children(self):
-        return self._reader.children
+        if self.id_:
+            return get_children(self.id_, self.database)
+        else:
+            return None
 
     @property
     def entry_attachments(self):
-        return self._reader.attachments
+        if self.id_:
+            return get_attachment_ids(self.id_, self.database)
+        else:
+            return None
 
     @property
     def entry_tags(self):
-        return self._reader.tags
+        if self.id_:
+            return get_tags(self.id_, self.database)
+        else:
+            return None
 
     @property
     def entry_has_children(self):
-        return self._reader.has_children
+        if self.entry_children:
+            return True
+        else:
+            return False
 
     @property
     def entry_has_parent(self):
-        return self._reader.has_parent
+        if self.entry_parent:
+            return True
+        else:
+            return False
 
     @property
     def entry_has_attachments(self):
-        return self._reader.has_attachments
+        if self.entry_attachments:
+            return True
+        else:
+            return False
 
     @property
     def body(self):
-        return self._filter.body
+        return self._temp.body
 
     @body.setter
     def body(self, t: Tuple[str]):
-        self._filter.tags = t
-        self._temp.tags = t
+        self._filter.body = t
+        self._temp.body = t
 
     @property
     def tags(self):
@@ -120,20 +142,22 @@ class ReaderModule:
         
     @property
     def date_filter(self):
-        return dates_sort()
+        return self._temp.date_filter
     
     @date_filter.setter
     def date_filter(self, v: int):
         self._filter.date_filter = v
-        dates_sort(v)
-        
+        self._temp.date_filter = v
+
+    # TODO missing from GUI
     @property
     def tag_filter(self):
-        return self._filter.tag_filter
+        return self._temp.tag_filter
     
     @tag_filter.setter
-    def tag_filter(self, s: str):
-        self._filter.tag_filter = s
+    def tag_filter(self, v: int):
+        self._temp.tag_filter = v
+        self._filter.tag_filter = v
         
     @property
     def untagged(self):
@@ -145,19 +169,20 @@ class ReaderModule:
 
     @property
     def tags_autosort(self):
-        return tags_autosort()
+        return self._temp.tags_sort
 
     @tags_autosort.setter
-    def tags_autosort(self, b: int):
-        tags_autosort(b)
+    def tags_autosort(self, v: int):
+        if type(v) == int:
+            self._temp.tags_sort = v
 
     @property
     def oldest_date(self):
-        return get_oldest_date(self._database)
+        return get_oldest_date(self._temp.database)
 
     @property
     def newest_date(self):
-        return get_newest_date(self._database)
+        return get_newest_date(self._temp.database)
 
     @property
     def oldest_year(self):
@@ -169,18 +194,18 @@ class ReaderModule:
 
     @property
     def all_dates(self):
-        return get_all_dates(self._database)
+        return get_all_dates(self._temp.database)
 
     @property
     def all_tags(self):
-        return get_all_tags(self._database)
+        return get_all_tags(self._temp.database)
 
     @property
     def filtered_ids(self):
         return self._filter.filtered_ids
 
     def get_date(self, id_: int):
-        return get_date(id_, self._database)
+        return get_date(id_, self._temp.database)
 
 
 def _test():
