@@ -85,7 +85,7 @@ class DatesFrame(Frame):
         if type(id_) == str:
             id_ = self.getvar(id_)
         self.reader.id_ = id_
-        self.event_generate('<<Selected Entry>>')
+        self.event_generate('<<Selected Id>>')
 
     def update_ids(self, *args):
         self.ids = self.reader.filtered_ids

@@ -1,5 +1,5 @@
 from tkinter import Toplevel, StringVar, END
-from tkinter.ttk import Frame, Entry, Button
+from tkinter.ttk import Entry, Button
 
 from base_widgets import edit_class_tags
 from modules import ReaderModule
@@ -31,26 +31,24 @@ class BodyPopup(Toplevel):
 
         self.body_var = StringVar(value=self.reader.body)
 
-        self.options_holder = Frame(master=self, width=300)
-        self.options_holder.pack(fill='x')
-
-        self.search_field = Entry(master=self, textvariable=self.body_var)
-        self.search_field.pack(fill='x')
+        self.search_field = Entry(master=self, width=50, textvariable=self.body_var)
+        self.search_field.pack(side='left', fill='x')
 
         self.search_field.bind('<Return>', self.save_and_close)
         self.search_field.bind('<KP_Enter>', self.save_and_close)
 
-        self.close_buttons = Frame(master=self)
-        cancel = Button(master=self.close_buttons, text='Cancel', command=self.destroy)
-        confirm = Button(master=self.close_buttons, text='Okay', command=self.save_and_close)
-        cancel.pack(side='left')
-        confirm.pack(side='right')
-        self.close_buttons.pack(fill='x')
+        clear = Button(master=self, text='Clear', command=self.clear)
+        clear.pack(side='right')
 
     def save_and_close(self, *args):
         self.reader.body = self.body_var.get()
         self.event_generate('<<Update Ids>>')
         self.destroy()
+
+    def clear(self, *args):
+        self.body_var.set('')
+        self.reader.body = ''
+        self.event_generate('<<Update Ids>>')
 
     def select_all(self, *args):
         self.search_field.select_range(0, END)

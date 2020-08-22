@@ -2,7 +2,8 @@ from typing import Dict, Tuple
 
 from database_info import get_oldest_date, get_all_dates, get_all_tags, get_newest_date
 from filter import Filter
-from reader import get_date, get_body, get_parent, get_children, get_attachment_ids, get_tags
+from reader import get_date, get_body, get_parent, get_children, get_attachment_ids, get_tags, get_attachment_name, \
+    get_attachment_file
 from tempfiles import ReaderFileManager
 
 
@@ -115,30 +116,30 @@ class ReaderModule:
 
     @property
     def has_parent(self):
-        return self._filter.has_parent
+        return self._temp.has_parent
 
     @has_parent.setter
-    def has_parent(self, d: Dict[str, int]):
-        self._temp.has_parent = d
-        self._filter.has_parent = d
+    def has_parent(self, v: int):
+        self._temp.has_parent = v
+        self._filter.has_parent = v
 
     @property
     def has_children(self):
-        return self._filter.has_children
+        return self._temp.has_children
 
     @has_children.setter
-    def has_children(self, d: Dict[str, int]):
-        self._temp.has_children = d
-        self._filter.has_children = d
+    def has_children(self, v: int):
+        self._temp.has_children = v
+        self._filter.has_children = v
 
     @property
     def has_attachments(self):
-        return self._filter.has_attachments
+        return self._temp.has_attachments
 
     @has_attachments.setter
-    def has_attachments(self, d: Dict[str, int]):
-        self._temp.has_attachments = d
-        self._filter.has_attachments = d
+    def has_attachments(self, v: int):
+        self._temp.has_attachments = v
+        self._filter.has_attachments = v
         
     @property
     def date_filter(self):
@@ -206,6 +207,12 @@ class ReaderModule:
 
     def get_date(self, id_: int):
         return get_date(id_, self._temp.database)
+
+    def get_attachment_name(self, id_: int):
+        return get_attachment_name(id_, self._temp.database)
+
+    def get_attachment_file(self, id_: int):
+        return get_attachment_file(id_, self._temp.database)
 
 
 def _test():

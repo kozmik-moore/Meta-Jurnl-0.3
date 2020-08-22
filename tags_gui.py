@@ -182,7 +182,7 @@ class TagsFrameV2(Frame):
         self._reader.tag_filter = num
         type_ = ['Contains At Least One Of...', 'Contains At Least...', 'Contains Only...'][num]
         self._type_str.set(type_)
-        self.event_generate('<<ids>>')
+        self.event_generate('<<Update Ids>>')
 
     def popup(self):
         # TODO create popup for grid representation of tags
@@ -194,7 +194,7 @@ def _test():
     root = Tk()
     root.geometry('400x500')
     root.grid_rowconfigure(index=0, weight=1)
-    reader = ReaderModule(None, '.tempfiles/Reader/000')
+    reader = ReaderModule('.tempfiles/Reader/000')
     tags = TagsFrameV2(master=root, reader=reader)
     tags.pack(fill='both', expand=True)
     # tags.selected_tags = ['Purple', 'Green', 'Blue', '1', '2', '3']

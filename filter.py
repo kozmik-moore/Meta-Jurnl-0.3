@@ -154,9 +154,9 @@ class Filter:
 
     def __init__(self, path_to_db: str = None):
         self._path = abspath(path_to_db) if path_to_db else current_database()
-        self._by_attachments = False
-        self._by_child = False
-        self._by_parent = False
+        self._by_attachments = 0
+        self._by_child = 0
+        self._by_parent = 0
         self._by_body = ''
         self._by_date = None
         self._date_type = 0  # 0 for Continuous, 1 for Intervals
@@ -184,13 +184,13 @@ class Filter:
         return self._by_attachments
 
     @has_attachments.setter
-    def has_attachments(self, v: bool):
+    def has_attachments(self, v: int):
         """Sets the attachments flag for the filter and calls the filter
 
-        :param v: a bool indicating whether the entries are partitioned by having attachments
+        :param v: a int indicating whether the entries are partitioned by having attachments
         """
-        if type(v) == bool:
-            self._by_attachments = bool
+        if type(v) == int:
+            self._by_attachments = int
             self._filter()
 
     @property
@@ -198,13 +198,13 @@ class Filter:
         return self._by_parent
 
     @has_parent.setter
-    def has_parent(self, v: bool):
+    def has_parent(self, v: int):
         """Sets the parent flag for the filter and calls the filter
 
-        :param v: a bool indicating whether the entries are partitioned by having attachments
+        :param v: a int indicating whether the entries are partitioned by having attachments
         """
-        if type(v) == bool:
-            self._by_parent = bool
+        if type(v) == int:
+            self._by_parent = int
             self._filter()
 
     @property
@@ -212,9 +212,9 @@ class Filter:
         return self._by_child
 
     @has_children.setter
-    def has_children(self, v: bool):
-        if type(v) == bool:
-            self._by_child = bool
+    def has_children(self, v: int):
+        if type(v) == int:
+            self._by_child = int
             self._filter()
 
     @property

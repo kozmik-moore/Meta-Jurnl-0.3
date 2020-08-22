@@ -186,32 +186,32 @@ class ReaderFileManager(_TempFileManager):
 
     @property
     def has_children(self):
-        return self.parser.getboolean('Booleans', 'has children')
+        return self.parser.getint('Flags', 'has children')
 
     @has_children.setter
-    def has_children(self, v: bool):
-        if type(v) == bool:
-            self.parser['Booleans']['has children'] = str(v)
+    def has_children(self, v: int):
+        if type(v) == int:
+            self.parser['Flags']['has children'] = str(v)
             self.write_file()
 
     @property
     def has_parent(self):
-        return self.parser.getboolean('Booleans', 'has parent')
+        return self.parser.getint('Flags', 'has parent')
 
     @has_parent.setter
-    def has_parent(self, v: bool):
-        if type(v) == bool:
-            self.parser['Booleans']['has parent'] = str(v)
+    def has_parent(self, v: int):
+        if type(v) == int:
+            self.parser['Flags']['has parent'] = str(v)
             self.write_file()
 
     @property
     def has_attachments(self):
-        return self.parser.getboolean('Booleans', 'has attachments')
+        return self.parser.getint('Flags', 'has attachments')
 
     @has_attachments.setter
-    def has_attachments(self, v: bool):
-        if type(v) == bool:
-            self.parser['Booleans']['has attachments'] = str(v)
+    def has_attachments(self, v: int):
+        if type(v) == int:
+            self.parser['Flags']['has attachments'] = str(v)
             self.write_file()
 
     @property
@@ -251,10 +251,10 @@ class ReaderFileManager(_TempFileManager):
             'tags sort': '0',
             'tag filter': '0'
         }
-        self.parser['Booleans'] = {
-            'has children': 'False',
-            'has parent': 'False',
-            'has attachments': 'False'
+        self.parser['Flags'] = {
+            'has attachments': '0',
+            'has parent': '0',
+            'has children': '0'
         }
         self.parser['Strings'] = {
             'tags': '()',
