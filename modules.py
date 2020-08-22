@@ -29,7 +29,10 @@ class ReaderModule:
 
     @property
     def entry_body(self):
-        return get_body(self.database)
+        if self.id_:
+            return get_body(self.id_, self.database)
+        else:
+            return ''
 
     @property
     def entry_date(self):
@@ -50,21 +53,21 @@ class ReaderModule:
         if self.id_:
             return get_children(self.id_, self.database)
         else:
-            return None
+            return ()
 
     @property
     def entry_attachments(self):
         if self.id_:
             return get_attachment_ids(self.id_, self.database)
         else:
-            return None
+            return ()
 
     @property
     def entry_tags(self):
         if self.id_:
             return get_tags(self.id_, self.database)
         else:
-            return None
+            return ()
 
     @property
     def entry_has_children(self):

@@ -87,10 +87,13 @@ class TagsFrameV2(Frame):
 
         self.style = Style()
         self.style.configure('selected.TCheckbutton', background='dark gray')
+        self.style.configure('entry_has.TCheckbutton', foreground='purple')
+        self.style.configure('entry_has.selected.TCheckbutton', foreground='purple')
         self.style.configure('clear.TButton', padding=0)
         self.style.configure('clear.TEntry', padding=3)
 
         self.bind('<Configure>', self.repack)
+        self.bind_class('JournalWidget', '<<Selected Id>>', self.repack)
 
         self._type_int.set(self._reader.tag_filter)
 
@@ -117,7 +120,7 @@ class TagsFrameV2(Frame):
         self._unselected_tags = tuple(set(self._all_tags).difference(self._selected_tags))
         self._reader.tags = tuple(tags)
         self.repack()
-        self.event_generate('<<ids>>')
+        self.event_generate('<<Update Ids>>')
 
     @property
     def unselected_tags(self):
@@ -130,17 +133,45 @@ class TagsFrameV2(Frame):
     def repack(self, *args):
         frame = VScrolledFrame(master=self, width=self.winfo_width() - 15, height=self.winfo_height() - 47)
         temp = self._buttons
+        tags = self._reader.entry_tags
         if self._sort_var.get() == 1:
-            selected = [var for var in self._tag_vars if
-                        self._filter_var.get().lower() in var.tag.lower() and var.get() == 1]
-            unselected = [var for var in self._tag_vars if
-                          all([var not in selected, self._filter_var.get().lower() in var.tag.lower(), var.get() == 0])]
-            all_ = selected + unselected
+            selected_entry = []
+            selected = []
+            unselected_entry = []
+            unselected = []
+            for var in self._tag_vars:
+                if all([var.tag in tags,
+                        self._filter_var.get().lower() in var.tag.lower(),
+                        var.get() == 1]):
+                    selected_entry.append(var)
+                elif all([var.tag not in tags,
+                          self._filter_var.get().lower() in var.tag.lower(),
+                          var.get() == 1]):
+                    selected.append(var)
+                elif all([var not in selected,
+                          self._filter_var.get().lower() in var.tag.lower(),
+                          var.get() == 0,
+                          var.tag in tags]):
+                    unselected_entry.append(var)
+                elif all([var not in selected,
+                          self._filter_var.get().lower() in var.tag.lower(),
+                          var.get() == 0,
+                          var.tag not in tags]):
+                    unselected.append(var)
+            all_ = selected_entry + selected + unselected_entry + unselected
         else:
             all_ = [var for var in self._tag_vars if self._filter_var.get().lower() in var.tag.lower()]
         for var in all_:
-            button = Checkbutton(master=frame, text=var.tag, variable=var, command=self.swap,
-                                 style='selected.TCheckbutton' if var.get() == 1 else '')
+            button = Checkbutton(master=frame, text=var.tag, variable=var, command=self.swap)
+            style = ''
+            if var.get() == 1 or var.tag in tags:
+                if var.tag in tags and var.get() == 1:
+                    style = 'entry_has.selected.TCheckbutton'
+                elif var.get() == 1:
+                    style = 'selected.TCheckbutton'
+                elif var.tag in tags:
+                    style = 'entry_has.TCheckbutton'
+            button.configure(style=style)
             button.pack(fill='x', expand=True)
         self._buttons = frame
         self._buttons.pack(fill='both', expand=True)

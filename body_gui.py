@@ -1,5 +1,5 @@
-from tkinter import Toplevel, StringVar, END
-from tkinter.ttk import Entry, Button
+from tkinter import Toplevel, StringVar, END, Text
+from tkinter.ttk import Entry, Button, Frame, Scrollbar
 
 from base_widgets import edit_class_tags
 from modules import ReaderModule
@@ -54,13 +54,41 @@ class BodyPopup(Toplevel):
         self.search_field.select_range(0, END)
 
 
+class BodyText(Frame):
+    def __init__(self, reader: ReaderModule, **kwargs):
+        super(BodyText, self).__init__(**kwargs)
+
+        self.reader = reader
+
+        scrollbar = Scrollbar(master=self)
+        self.text = Text(master=self, yscrollcommand=scrollbar.set)
+        scrollbar.configure(command=self.text.yview)
+        self.text.pack(side='left', fill='both', expand=True)
+        scrollbar.pack(side='left', fill='y', expand=True)
+
+        self.bind_class('JournalWidget', '<<Selected Id>>', self.update_text)
+        self.update_text()
+
+    def update_text(self):
+        self.text.configure(state='normal')
+        self.text.replace('0.0', 'end', self.reader.entry_body)
+        self.text.configure(state='disabled')
+
+
+class BodyFrame(Frame):
+    def __init__(self, reader: ReaderModule, **kwargs):
+        super(BodyFrame, self).__init__(**kwargs)
+
+        BodyButton(master=self, reader=reader).pack()
+        BodyText(master=self, reader=reader).pack()
+
+
 def _test():
     reader = ReaderModule('.tempfiles/Reader/000')
 
     from tkinter import Tk
     root = Tk()
-    button = BodyButton(master=root, text='Search Contents', reader=reader)
-    button.pack()
+    BodyFrame(master=root, reader=reader).pack()
     root.mainloop()
 
 
