@@ -14,6 +14,10 @@ class ReaderModule:
 
         self._filter.dates = self._temp.dates
         self._filter.date_filter = self._temp.date_filter
+        self._filter.has_parent = self._temp.has_parent
+        self._filter.has_attachments = self._temp.has_attachments
+        self._filter.has_children = self._temp.has_children
+        self._filter.body = self._temp.body
 
     @property
     def id_(self):

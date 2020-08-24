@@ -1,7 +1,8 @@
 from tkinter import Toplevel, StringVar, END, Text
-from tkinter.ttk import Entry, Button, Frame, Scrollbar
+from tkinter.font import Font
+from tkinter.ttk import Entry, Button, Frame, Scrollbar, Style
 
-from base_widgets import edit_class_tags
+from base_widgets import add_child_class_to_bindtags
 from modules import ReaderModule
 
 
@@ -11,7 +12,12 @@ class BodyButton(Button):
 
         self.reader = reader
 
-        self.configure(text='Search Contents', command=self.popup)
+        font = Font(font='TkDefaultFont')
+        font.configure(slant='italic')
+        style = Style()
+        style.configure('this.TButton', font=font)
+
+        self.configure(text='Content Filters', command=self.popup, style='this.TButton')
 
     def popup(self):
         popup = BodyPopup(self.reader)
@@ -23,7 +29,9 @@ class BodyPopup(Toplevel):
     def __init__(self, reader: ReaderModule, **kwargs):
         super(BodyPopup, self).__init__(**kwargs)
 
-        edit_class_tags(self)
+        self.protocol('WM_DELETE_WINDOW', self.save_and_close)
+
+        add_child_class_to_bindtags(self)
 
         self.title('Search Contents For...')
         self.bind('<Escape>', lambda e: self.destroy())
@@ -39,6 +47,9 @@ class BodyPopup(Toplevel):
 
         clear = Button(master=self, text='Clear', command=self.clear)
         clear.pack(side='right')
+        self.search_field.focus()
+        self.select_all()
+        self.search_field.icursor(END)
 
     def save_and_close(self, *args):
         self.reader.body = self.body_var.get()
@@ -48,7 +59,6 @@ class BodyPopup(Toplevel):
     def clear(self, *args):
         self.body_var.set('')
         self.reader.body = ''
-        self.event_generate('<<Update Ids>>')
 
     def select_all(self, *args):
         self.search_field.select_range(0, END)
@@ -57,7 +67,6 @@ class BodyPopup(Toplevel):
 class BodyText(Frame):
     def __init__(self, reader: ReaderModule, **kwargs):
         super(BodyText, self).__init__(**kwargs)
-
         self.reader = reader
 
         scrollbar = Scrollbar(master=self)
@@ -66,10 +75,11 @@ class BodyText(Frame):
         self.text.pack(side='left', fill='both', expand=True)
         scrollbar.pack(side='left', fill='y', expand=True)
 
-        self.bind_class('JournalWidget', '<<Selected Id>>', self.update_text)
+        self.bind_class('Parent', '<<Selected Id>>', self.update_text, add=True)
+
         self.update_text()
 
-    def update_text(self):
+    def update_text(self, *args):
         self.text.configure(state='normal')
         self.text.replace('0.0', 'end', self.reader.entry_body)
         self.text.configure(state='disabled')

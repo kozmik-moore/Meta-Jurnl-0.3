@@ -1,9 +1,10 @@
 from datetime import datetime
 from tkinter import Toplevel, StringVar, IntVar
+from tkinter.font import Font
 from tkinter.ttk import Frame, Checkbutton, Button, Scale, Label, Style, Radiobutton, Separator, Labelframe
-from typing import Tuple, Union
+from typing import Tuple
 
-from base_widgets import edit_class_tags
+from base_widgets import add_parent_class_to_bindtags, add_child_class_to_bindtags
 from filter import check_day_against_month
 from modules import ReaderModule
 from scrolled_frame import VScrolledFrame
@@ -30,20 +31,24 @@ class DatesFrame(Frame):
 
         self._ids: Tuple = ()
 
-        self.style = Style()
-        self.style.configure('justified.TRadiobutton', anchor='e')
+        font = Font(font='TkDefaultFont')
+        font.configure(slant='italic')
+        style = Style()
+        style.configure('justified.TRadiobutton', anchor='e')
+        style.configure('popup.TButton', font=font)
 
-        self.current = IntVar(value=0 if not self.reader.id_ else self.reader.id_)
-        self.current.trace_add('write', self.id_event)
+        self.current = IntVar()
 
-        self._popup = Button(master=self, text='Dates', command=self.call_popup)
-        self._popup.pack(side='top', fill='x')
+        self._popup = Button(master=self, text='Date Filters', command=self.call_popup, style='popup.TButton')
+        self._popup.pack(side='top')
 
         self._buttons = VScrolledFrame(master=self)
         self._buttons.pack(side='top', fill='both', expand=True)
-        self.bind_class('JournalWidget', '<<Update Ids>>', self.update_ids)
 
-        self.update_ids()
+        add_parent_class_to_bindtags(self)
+
+        self.bind_class('Child', '<<Update Ids>>', self.update_ids, add=True)
+        self.bind_class('Child', '<<Selected Id>>', self.set_id_from_child, add=True)
 
     @property
     def reader(self):
@@ -55,7 +60,7 @@ class DatesFrame(Frame):
 
     @property
     def ids(self):
-        return self._reader.filtered_ids
+        return self._ids
 
     @ids.setter
     def ids(self, v: Tuple[int]):
@@ -66,8 +71,10 @@ class DatesFrame(Frame):
         temp = self._buttons
         new = VScrolledFrame(master=self)
         for i in self._ids:
-            button = DateRadiobutton(master=new, id_=i, text=self._reader.get_date(i).strftime('%a, %b %d, %Y %H:%M'),
-                                     value=i, variable=self.current, style='justified.TRadiobutton')
+            button = DateRadiobutton(master=new, id_=i,
+                                     text=self._reader.get_date(i).strftime('%a, %b %d, %Y %H:%M') + ' ({})'.format(i),
+                                     value=i, variable=self.current, style='justified.TRadiobutton',
+                                     command=self.set_id_from_self)
             button.pack(fill='x', anchor='e', expand=True)
         new.pack(fill='both', expand=True)
         self._buttons = new
@@ -80,15 +87,24 @@ class DatesFrame(Frame):
         popup.grab_set()
         popup.focus()
 
-    def id_event(self, id_: Union[int, str, None], *args):
-        # TODO create event to call other widgets (could be done via IntVar change?)
-        if type(id_) == str:
-            id_ = self.getvar(id_)
-        self.reader.id_ = id_
+    def set_id_from_self(self, *args):
+        self.reader.id_ = self.current.get()
+        self.event_generate('<<Selected Id>>')
+        if args and args[0]:
+            print(args[0])
+
+    def set_id_from_child(self, *args):
+        self.current.set(self.reader.id_ if self.reader.id_ else 0)
         self.event_generate('<<Selected Id>>')
 
     def update_ids(self, *args):
         self.ids = self.reader.filtered_ids
+        if self.reader.id_ in self._ids:
+            self.current.set(self.reader.id_)
+        else:
+            self.current.set(0)
+            self.reader.id_ = 0
+        self.event_generate('<<Selected Id>>')
 
     def refresh(self):
         """Refreshes dates information from the reader"""
@@ -246,7 +262,10 @@ class DateVars:
 class DatesPopup(Toplevel):
     def __init__(self, current_var: IntVar, date_vars: DateVars, old: int, new: int, **kwargs):
         super(DatesPopup, self).__init__(**kwargs)
-        edit_class_tags(self)
+        self.title('Filters')
+
+        add_child_class_to_bindtags(self)
+
         self.bind('<Escape>', lambda e: self.exit())
 
         self.protocol('WM_DELETE_WINDOW', self.exit)

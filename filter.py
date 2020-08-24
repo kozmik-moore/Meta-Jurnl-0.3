@@ -100,13 +100,14 @@ def from_tags(tags: tuple, database: str = None, op_type: int = 0):
     with closing(db) as d:
         ids = []
         if op_type == 1:
-            tags = list(tags)
-            tag = tags.pop(0)
-            sql = 'SELECT entry_id FROM tags WHERE tag=?'
-            temp = set(d.execute(sql, (tag,)).fetchall())
-            for tag in tags:
-                temp = temp.intersection(d.execute(sql, (tag,)).fetchall())
-            ids = [i[0] for i in temp]
+            if tags:
+                tags = list(tags)
+                tag = tags.pop(0)
+                sql = 'SELECT entry_id FROM tags WHERE tag=?'
+                temp = set(d.execute(sql, (tag,)).fetchall())
+                for tag in tags:
+                    temp = temp.intersection(d.execute(sql, (tag,)).fetchall())
+                ids = [i[0] for i in temp]
         if op_type == 2:
             for entry in get_all_entry_ids(database):
                 if len(get_tags(entry, database)) == len(tags):
@@ -190,7 +191,7 @@ class Filter:
         :param v: a int indicating whether the entries are partitioned by having attachments
         """
         if type(v) == int:
-            self._by_attachments = int
+            self._by_attachments = v
             self._filter()
 
     @property
@@ -204,7 +205,7 @@ class Filter:
         :param v: a int indicating whether the entries are partitioned by having attachments
         """
         if type(v) == int:
-            self._by_parent = int
+            self._by_parent = v
             self._filter()
 
     @property
@@ -214,7 +215,7 @@ class Filter:
     @has_children.setter
     def has_children(self, v: int):
         if type(v) == int:
-            self._by_child = int
+            self._by_child = v
             self._filter()
 
     @property
@@ -303,29 +304,32 @@ class Filter:
 
     def _filter(self):
         filtered = set(get_all_entry_ids(self.database_location))
+        l_ = ()
+
+        if self._by_tags:
+            l_ = list(self._by_tags)
+        if self._by_is_untagged:
+            l_ += ['(UNTAGGED)']
+        filtered = filtered.intersection(from_tags(tuple(l_), self.database_location, self._tags_type))
+
         if self._by_attachments:
             filtered = filtered.intersection(from_attachments(self.database_location))
         if self._by_body:
             filtered = filtered.intersection(from_body(self._by_body, self.database_location))
-        if any([self._by_tags, self._by_is_untagged]):
-            l_ = ()
-            if self._by_tags and self._by_is_untagged:
-                l_ = tuple(list(self._by_tags) + ['(UNTAGGED)'])
-            elif not self._by_tags and self._by_is_untagged:
-                l_ = ('(UNTAGGED)',)
-            elif self._by_tags and not self._by_is_untagged:
-                l_ = self._by_tags
-            filtered = filtered.intersection(from_tags(l_, self.database_location, self._tags_type))
+
         if self._by_date:
             if self._date_type == 0:
                 l_ = tuple(from_continuous_range(self._by_date, self.database_location))
             else:
                 l_ = tuple(from_intervals(self._by_date, self.database_location))
             filtered = filtered.intersection(l_)
+
         if self._by_child:
             filtered = filtered.intersection(get_all_parents(self.database_location))
+
         if self._by_parent:
             filtered = filtered.intersection(get_all_children(self.database_location))
+
         filtered = list(filtered)
         filtered.sort(key=lambda i: get_date(entry_id=i, database=self.database_location))
         self._filtered = tuple(filtered)

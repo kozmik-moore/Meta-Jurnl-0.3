@@ -1,10 +1,12 @@
 from tkinter import StringVar, IntVar
+from tkinter.font import Font
 from tkinter.ttk import Frame, Button, Entry, Checkbutton, Style, Radiobutton, Label
 from typing import List, TypeVar, Tuple
 
-from base_widgets import edit_class_tags
+from PIL import Image, ImageTk
+
+from base_widgets import ScrollingFrame, add_child_class_to_bindtags
 from modules import ReaderModule
-from scrolled_frame import VScrolledFrame
 
 T = TypeVar('T')
 
@@ -20,17 +22,33 @@ class TagIntVar(IntVar):
         return self._tag
 
 
-class TagsFrameV2(Frame):
+class TagsFrame(Frame):
     def __init__(self, reader: ReaderModule, **kwargs):
-        super(TagsFrameV2, self).__init__(**kwargs)
+        super(TagsFrame, self).__init__(**kwargs)
 
-        edit_class_tags(self)
+        img = Image.open('check.png')
+        img = img.resize((12, 12))
+        self._check_image = ImageTk.PhotoImage(image=img)
 
         self._reader = reader
 
         self._all_tags = ()
         self._selected_tags = ()
         self._unselected_tags = ()
+
+        self.style = Style()
+        font = Font(font='TkDefaultFont')
+        font.configure(slant='italic')
+        self.style.configure('selected.TCheckbutton', background='dark gray')
+        self.style.configure('unselected.TCheckbutton', background='light gray')
+        self.style.configure('selected.TFrame', background='dark gray')
+        self.style.configure('unselected.TFrame', background='light gray')
+        self.style.configure('selected.TLabel', background='dark gray')
+        self.style.configure('entry.selected.TLabel', font=font, foreground='blue')
+        self.style.configure('unselected.TLabel', background='light gray')
+        self.style.configure('entry.unselected.TLabel', font=font, foreground='blue')
+        self.style.configure('clear.TButton', padding=0)
+        self.style.configure('clear.TEntry', padding=3)
 
         self._filter_var = StringVar(master=self, value='', name='tags_filter')
         self._trace = self._filter_var.trace_add('write', self.repack)
@@ -39,13 +57,14 @@ class TagsFrameV2(Frame):
         self._type_int = IntVar(master=self, name='type_var_int')
         self._type_str = StringVar(master=self, name='type_var_str')
 
-        self._type_int.trace_add('write', self.set_filter_type)
-
         self.inner = {'side': 'left', 'fill': 'x', 'expand': True}
         self.outer = {'side': 'top', 'fill': 'x'}
 
-        self._popup_button = Button(master=self, text='Tags', command=self.popup)
-        self._popup_button.pack(fill='x', expand=True)
+        # self._popup_button = Button(master=self, text='Tags', command=self.popup)
+        # self._popup_button.pack(fill='x')
+
+        label = Label(master=self, text='Tag Filters', anchor='c', padding=5, font=font)
+        label.pack(fill='x')
 
         self._button_holder = Frame(master=self)
         self._none = Button(master=self._button_holder, text='None', command=self.select_none)
@@ -63,7 +82,7 @@ class TagsFrameV2(Frame):
         self._filter_clear.configure(command=lambda s='': self._filter_var.set(s))
         self._filter.pack(side='left', fill='x', expand=True)
         self._filter_clear.pack(side='right')
-        self._filter_holder.pack(fill='x', expand=True, ipady=1)
+        self._filter_holder.pack(fill='x', ipady=1)
 
         self._buttons = Frame(master=self, width=self.winfo_width() - 15, height=self.winfo_height() - 47)
 
@@ -74,7 +93,7 @@ class TagsFrameV2(Frame):
         self._type_0 = Radiobutton(master=self._type_holder, value=0, text='', variable=self._type_int)
         self._type_1 = Radiobutton(master=self._type_holder, value=1, text='', variable=self._type_int)
         self._type_2 = Radiobutton(master=self._type_holder, value=2, text='', variable=self._type_int)
-        self._type_label = Label(master=self._type_holder, textvariable=self._type_str)
+        self._type_label = Label(master=self._type_holder, textvariable=self._type_str, width=30)
         self._sort = Checkbutton(master=self._options_holder, variable=self._sort_var, text='autosort',
                                  command=self.toggle_autosort)
         self._type_0.pack(side='left')
@@ -83,17 +102,9 @@ class TagsFrameV2(Frame):
         self._type_label.pack(side='right', fill='x')
         self._type_holder.pack(side='left')
         self._sort.pack(side='right')
-        self._options_holder.pack(side='bottom', fill='x', expand=True)
+        self._options_holder.pack(side='bottom', fill='x')
 
-        self.style = Style()
-        self.style.configure('selected.TCheckbutton', background='dark gray')
-        self.style.configure('entry_has.TCheckbutton', foreground='purple')
-        self.style.configure('entry_has.selected.TCheckbutton', foreground='purple')
-        self.style.configure('clear.TButton', padding=0)
-        self.style.configure('clear.TEntry', padding=3)
-
-        self.bind('<Configure>', self.repack)
-        self.bind_class('JournalWidget', '<<Selected Id>>', self.repack)
+        self._type_int.trace_add('write', self.set_filter_type)
 
         self._type_int.set(self._reader.tag_filter)
 
@@ -101,7 +112,10 @@ class TagsFrameV2(Frame):
         if tags:
             self.selected_tags = list(tags)
         else:
-            self.selected_tags = self.selected_tags
+            self.selected_tags = []
+
+        self.bind_class('Parent', '<<Selected Id>>', self.repack, add=True)
+        add_child_class_to_bindtags(self)
 
     @property
     def all_tags(self):
@@ -120,7 +134,6 @@ class TagsFrameV2(Frame):
         self._unselected_tags = tuple(set(self._all_tags).difference(self._selected_tags))
         self._reader.tags = tuple(tags)
         self.repack()
-        self.event_generate('<<Update Ids>>')
 
     @property
     def unselected_tags(self):
@@ -131,7 +144,7 @@ class TagsFrameV2(Frame):
         pass
 
     def repack(self, *args):
-        frame = VScrolledFrame(master=self, width=self.winfo_width() - 15, height=self.winfo_height() - 47)
+        frame = ScrollingFrame(master=self)
         temp = self._buttons
         tags = self._reader.entry_tags
         if self._sort_var.get() == 1:
@@ -162,46 +175,64 @@ class TagsFrameV2(Frame):
         else:
             all_ = [var for var in self._tag_vars if self._filter_var.get().lower() in var.tag.lower()]
         for var in all_:
-            button = Checkbutton(master=frame, text=var.tag, variable=var, command=self.swap)
-            style = ''
+            inner = Frame(master=frame.inner)
+            button = Checkbutton(master=inner, text=var.tag, variable=var, command=self.swap)
+            label = Label(master=inner, image=self._check_image, padding=(0, 0, 5))
+            f_style = 'unselected.TFrame'
+            l_style = 'unselected.TLabel'
+            b_style = 'unselected.TCheckbutton'
             if var.get() == 1 or var.tag in tags:
                 if var.tag in tags and var.get() == 1:
-                    style = 'entry_has.selected.TCheckbutton'
+                    f_style = 'selected.TFrame'
+                    l_style = 'entry.selected.TLabel'
+                    b_style = 'selected.TCheckbutton'
+                    label.pack(side='right')
                 elif var.get() == 1:
-                    style = 'selected.TCheckbutton'
+                    f_style = 'selected.TFrame'
+                    b_style = 'selected.TCheckbutton'
+                    l_style = 'selected.TLabel'
                 elif var.tag in tags:
-                    style = 'entry_has.TCheckbutton'
-            button.configure(style=style)
-            button.pack(fill='x', expand=True)
+                    l_style = 'entry.unselected.TLabel'
+                    label.pack(side='right')
+            inner.configure(style=f_style)
+            label.configure(style=l_style)
+            button.configure(style=b_style)
+            button.pack(side='left', fill='x', expand=True)
+            inner.pack(fill='x', expand=True)
         self._buttons = frame
         self._buttons.pack(fill='both', expand=True)
         temp.destroy()
 
     def add(self, *args):
         tag = self._filter_var.get()
-        if tag:
+        if tag and tag in self._reader.all_tags:
             tags = list(self._selected_tags)
             tags.append(tag)
             self.selected_tags = tuple(tags)
-            self._filter_var.set('')
+        self._filter_var.set('')
+        self.event_generate('<<Update Ids>>')
 
     def swap(self):
         tags = tuple([x.tag for x in self._tag_vars if x.get() == 1])
         self.selected_tags = tags
+        self.event_generate('<<Update Ids>>')
 
     def select_all(self):
         self._filter_var.set('')
         self.selected_tags = self.all_tags
+        self.event_generate('<<Update Ids>>')
 
     def select_none(self):
         self._filter_var.set('')
         self.selected_tags = []
+        self.event_generate('<<Update Ids>>')
 
     def select_invert(self):
         temp = self._unselected_tags
         self._unselected_tags = self._selected_tags
         self._filter_var.set('')
         self.selected_tags = temp
+        self.event_generate('<<Update Ids>>')
 
     def toggle_autosort(self):
         setting = self._sort_var.get()
@@ -226,7 +257,7 @@ def _test():
     root.geometry('400x500')
     root.grid_rowconfigure(index=0, weight=1)
     reader = ReaderModule('.tempfiles/Reader/000')
-    tags = TagsFrameV2(master=root, reader=reader)
+    tags = TagsFrame(master=root, reader=reader)
     tags.pack(fill='both', expand=True)
     # tags.selected_tags = ['Purple', 'Green', 'Blue', '1', '2', '3']
     root.mainloop()

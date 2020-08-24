@@ -1,12 +1,24 @@
 """Contains widget templates"""
-from tkinter import Widget
-from tkinter.ttk import Frame, Button
+from tkinter import Widget, Canvas
+from tkinter.ttk import Frame, Button, Scrollbar, Style
 from typing import Any
 
 
-def edit_class_tags(w: Any):
+def add_filter_class_to_bindtags(w: Any):
     bindtags = list(w.bindtags())
-    bindtags.append('JournalWidget')
+    bindtags.insert(2, 'FilterSetter')
+    w.bindtags(tuple(bindtags))
+
+
+def add_child_class_to_bindtags(w: Any):
+    bindtags = list(w.bindtags())
+    bindtags.insert(2, 'Child')
+    w.bindtags(tuple(bindtags))
+
+
+def add_parent_class_to_bindtags(w: Any):
+    bindtags = list(w.bindtags())
+    bindtags.insert(2, 'Parent')
     w.bindtags(tuple(bindtags))
 
 
@@ -66,3 +78,72 @@ class ButtonsFrame(Frame):
         button = Button(master=frame, text=v[0], command=v[1])
         button.pack()
         buttons.append(button)
+
+
+class ScrollingFrame(Frame):
+    def __init__(self, **kwargs):
+        super(ScrollingFrame, self).__init__(**kwargs)
+
+        style = Style()
+
+        canvas = Canvas(master=self)
+        scrollbar = Scrollbar(master=self, command=canvas.yview)
+        canvas.configure(yscrollcommand=scrollbar.set)
+        self.inner = inner = Frame(master=canvas)
+
+        self.inner.bind('<Configure>', lambda e: canvas.configure(scrollregion=canvas.bbox('all')))
+
+        inner_id = canvas.create_window((0, 0), window=self.inner, anchor='nw')
+        canvas.pack(side='left', fill='both', expand=True)
+        scrollbar.pack(side='right', fill='y')
+
+        def _bind_mouse(event=None):
+            canvas.bind_all("<4>", _on_mousewheel)
+            canvas.bind_all("<5>", _on_mousewheel)
+            canvas.bind_all("<MouseWheel>", _on_mousewheel)
+
+        def _unbind_mouse(event=None):
+            canvas.unbind_all("<4>")
+            canvas.unbind_all("<5>")
+            canvas.unbind_all("<MouseWheel>")
+
+        def _on_mousewheel(event):
+            """Linux uses event.num; Windows / Mac uses event.delta"""
+            if event.num == 4 or event.delta > 0:
+                canvas.yview_scroll(-1, "units")
+            elif event.num == 5 or event.delta < 0:
+                canvas.yview_scroll(1, "units")
+
+        def _configure_inner(event):
+            # update the scrollbars to match the size of the inner frame
+            size = (inner.winfo_reqwidth(), inner.winfo_reqheight())
+            canvas.config(scrollregion="0 0 %s %s" % size)
+            if inner.winfo_reqwidth() != canvas.winfo_width():
+                # update the canvas's width to fit the inner frame
+                canvas.config(width=inner.winfo_reqwidth())
+
+        inner.bind('<Configure>', _configure_inner)
+
+        def _configure_canvas(event):
+            if inner.winfo_reqwidth() != canvas.winfo_width():
+                # update the inner frame's width to fill the canvas
+                canvas.itemconfigure(inner_id, width=canvas.winfo_width())
+
+        canvas.bind('<Configure>', _configure_canvas)
+
+        canvas.bind("<Enter>", _bind_mouse)
+        canvas.bind("<Leave>", _unbind_mouse)
+
+
+if __name__ == '__main__':
+    from tkinter import Tk
+
+    root = Tk()
+    f = ScrollingFrame(master=root)
+    for i in range(20):
+        frame = Frame(master=f.inner)
+        for j in range(3):
+            Button(master=frame, text='{}-{}'.format(i, j)).pack(side='left')
+        frame.pack()
+    f.pack()
+    root.mainloop()
