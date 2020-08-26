@@ -4,7 +4,7 @@ from ast import literal_eval
 from configparser import ConfigParser
 from datetime import datetime
 
-from os import makedirs, remove, scandir
+from os import makedirs, remove, scandir, getcwd
 from os.path import exists, join, isfile
 from typing import Tuple, Dict
 
@@ -67,10 +67,12 @@ class _TempFileManager:
         self._type = module
         self._file_path = file_path
         self.parser = ConfigParser(
-            converters={'date': _parse_datestring,
-                        'tuple': literal_eval,
-                        'literal': literal_eval
-                        })
+            converters={
+                'date': _parse_datestring,
+                'tuple': literal_eval,
+                'literal': literal_eval
+            }
+        )
 
     @property
     def type_(self):
@@ -114,7 +116,7 @@ class _TempFileManager:
             self.parser['Attributes']['id'] = str(v)
             self.write_file()
         else:
-            raise TypeError('Argument is not of type int.')
+            raise TypeError('Argument is not of type int/is not None.')
 
     def create_parser(self):
         self.parser['Meta'] = {
@@ -275,7 +277,7 @@ class ReaderFileManager(_TempFileManager):
             'high weekday': '6'
         }
         if not self.database:
-            db = 'jurnl.sqlite'
+            db = join(getcwd(), 'jurnl.sqlite')
             if not exists(db):
                 create_database(db)
             self.database = db
@@ -357,11 +359,11 @@ class WriterFileManager(_TempFileManager):
 
     @parent.setter
     def parent(self, v: int):
-        if type(v) == int:
+        if type(v) == int or v is None:
             self.parser['Attributes']['parent'] = str(v)
             self.write_file()
         else:
-            raise TypeError('Argument is not of type int.')
+            raise TypeError('Argument is not of type int/is not None.')
 
     def create_parser(self):
         super(WriterFileManager, self).create_parser()
@@ -370,6 +372,11 @@ class WriterFileManager(_TempFileManager):
         self.parser.set('Attributes', 'tags', '()')
         self.parser.set('Attributes', 'attachments', '()')
         self.parser.set('Attributes', 'parent', 'None')
+        if not self.database:
+            db = join(getcwd(), 'jurnl.sqlite')
+            if not exists(db):
+                create_database(db)
+            self.database = db
 
     def load_parser(self):
         if self._file_path:

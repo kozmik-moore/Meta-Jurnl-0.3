@@ -2,9 +2,10 @@ from typing import Dict, Tuple
 
 from database_info import get_oldest_date, get_all_dates, get_all_tags, get_newest_date
 from filter import Filter
-from reader import get_date, get_body, get_parent, get_children, get_attachment_ids, get_tags, get_attachment_name, \
+from reader_functions import get_date, get_body, get_parent, get_children, get_attachment_ids, get_tags, get_attachment_name, \
     get_attachment_file
-from tempfiles import ReaderFileManager
+from tempfiles import ReaderFileManager, WriterFileManager
+from writer import create_entry, set_body, modify_body, modify_date, set_tags, set_attachments
 
 
 class ReaderModule:
@@ -147,11 +148,11 @@ class ReaderModule:
     def has_attachments(self, v: int):
         self._temp.has_attachments = v
         self._filter.has_attachments = v
-        
+
     @property
     def date_filter(self):
         return self._temp.date_filter
-    
+
     @date_filter.setter
     def date_filter(self, v: int):
         self._filter.date_filter = v
@@ -161,16 +162,16 @@ class ReaderModule:
     @property
     def tag_filter(self):
         return self._temp.tag_filter
-    
+
     @tag_filter.setter
     def tag_filter(self, v: int):
         self._temp.tag_filter = v
         self._filter.tag_filter = v
-        
+
     @property
     def untagged(self):
         return self._filter.is_untagged
-    
+
     @untagged.setter
     def untagged(self, b: bool):
         self._filter.is_untagged = b
@@ -212,6 +213,10 @@ class ReaderModule:
     def filtered_ids(self):
         return self._filter.filtered_ids
 
+    @property
+    def path(self):
+        return self._temp.path
+
     def get_date(self, id_: int):
         return get_date(id_, self._temp.database)
 
@@ -220,6 +225,37 @@ class ReaderModule:
 
     def get_attachment_file(self, id_: int):
         return get_attachment_file(id_, self._temp.database)
+
+
+class WriterModule(WriterFileManager):
+    def __init__(self, tempfile: str = None):
+        super(WriterModule, self).__init__(file_path=tempfile)
+
+    def save(self):
+        if not self.id_:
+            self.id_ = create_entry(database=self.database, body=self.body, date=self.date, tags=self.tags,
+                                    attachments=self.attachments, parent=self.parent)
+        else:
+            kwargs = {
+                'entry_id': self.id_,
+                'database': self.database,
+                'body': self.body,
+                'date': self.date,
+                'tags': self.tags,
+                'attachments': self.attachments
+            }
+            modify_body(**kwargs)
+            modify_date(**kwargs)
+            set_tags(**kwargs)
+            set_attachments(**kwargs)
+
+    def clear(self):
+        self.id_ = 0
+        self.body = ''
+        self.date = None
+        self.tags = ()
+        self.attachments = ()
+        self.parent = 0
 
 
 def _test():

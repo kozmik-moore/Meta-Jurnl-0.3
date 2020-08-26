@@ -23,12 +23,14 @@ class TagIntVar(IntVar):
 
 
 class TagsFrame(Frame):
-    def __init__(self, reader: ReaderModule, **kwargs):
+    def __init__(self, reader: ReaderModule, bind_name: str = None, **kwargs):
         super(TagsFrame, self).__init__(**kwargs)
 
         img = Image.open('check.png')
         img = img.resize((12, 12))
         self._check_image = ImageTk.PhotoImage(image=img)
+
+        self._bind_name = bind_name
 
         self._reader = reader
 
@@ -36,26 +38,27 @@ class TagsFrame(Frame):
         self._selected_tags = ()
         self._unselected_tags = ()
 
-        self.style = Style()
+        style = Style()
         font = Font(font='TkDefaultFont')
         font.configure(slant='italic')
-        self.style.configure('selected.TCheckbutton', background='dark gray')
-        self.style.configure('unselected.TCheckbutton', background='light gray')
-        self.style.configure('selected.TFrame', background='dark gray')
-        self.style.configure('unselected.TFrame', background='light gray')
-        self.style.configure('selected.TLabel', background='dark gray')
-        self.style.configure('entry.selected.TLabel', font=font, foreground='blue')
-        self.style.configure('unselected.TLabel', background='light gray')
-        self.style.configure('entry.unselected.TLabel', font=font, foreground='blue')
-        self.style.configure('clear.TButton', padding=0)
-        self.style.configure('clear.TEntry', padding=3)
+        style.configure('selected.TCheckbutton', background='dark gray')
+        style.configure('unselected.TCheckbutton', background='light gray')
+        style.configure('selected.TFrame', background='dark gray')
+        style.configure('unselected.TFrame', background='light gray')
+        style.configure('selected.TLabel', background='dark gray')
+        style.configure('entry.selected.TLabel', font=font, foreground='blue')
+        style.configure('unselected.TLabel', background='light gray')
+        style.configure('entry.unselected.TLabel', font=font, foreground='blue')
+        style.configure('header.TLabel', font=font, foreground='blue')
+        style.configure('clear.TButton', padding=0)
+        style.configure('clear.TEntry', padding=3)
 
-        self._filter_var = StringVar(master=self, value='', name='tags_filter')
+        self._filter_var = StringVar(master=self, value='', name='{}tags_filter'.format(bind_name))
         self._trace = self._filter_var.trace_add('write', self.repack)
         self._tag_vars: List[TagIntVar] = []
-        self._sort_var = IntVar(master=self, value=self._reader.tags_autosort, name='sort')
-        self._type_int = IntVar(master=self, name='type_var_int')
-        self._type_str = StringVar(master=self, name='type_var_str')
+        self._sort_var = IntVar(master=self, value=self._reader.tags_autosort, name='{}sort'.format(bind_name))
+        self._type_int = IntVar(master=self, name='{}type_var_int'.format(bind_name))
+        self._type_str = StringVar(master=self, name='{}type_var_str'.format(bind_name))
 
         self.inner = {'side': 'left', 'fill': 'x', 'expand': True}
         self.outer = {'side': 'top', 'fill': 'x'}
@@ -63,7 +66,7 @@ class TagsFrame(Frame):
         # self._popup_button = Button(master=self, text='Tags', command=self.popup)
         # self._popup_button.pack(fill='x')
 
-        label = Label(master=self, text='Tag Filters', anchor='c', padding=5, font=font)
+        label = Label(master=self, text='Tag Filters', anchor='c', padding=5, style='header.TLabel')
         label.pack(fill='x')
 
         self._button_holder = Frame(master=self)
@@ -101,7 +104,7 @@ class TagsFrame(Frame):
         self._type_2.pack(side='left')
         self._type_label.pack(side='right', fill='x')
         self._type_holder.pack(side='left')
-        self._sort.pack(side='right')
+        self._sort.pack(side='right', fill='x')
         self._options_holder.pack(side='bottom', fill='x')
 
         self._type_int.trace_add('write', self.set_filter_type)
@@ -114,8 +117,12 @@ class TagsFrame(Frame):
         else:
             self.selected_tags = []
 
-        self.bind_class('Parent', '<<Selected Id>>', self.repack, add=True)
+        self.bind_class('Parent.{}'.format(self._bind_name), '<<Selected Id>>', self.repack, add=True)
         add_child_class_to_bindtags(self)
+
+    @property
+    def bind_name(self):
+        return self._bind_name
 
     @property
     def all_tags(self):
@@ -199,6 +206,7 @@ class TagsFrame(Frame):
             button.configure(style=b_style)
             button.pack(side='left', fill='x', expand=True)
             inner.pack(fill='x', expand=True)
+        frame.update()
         self._buttons = frame
         self._buttons.pack(fill='both', expand=True)
         temp.destroy()

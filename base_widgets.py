@@ -12,13 +12,15 @@ def add_filter_class_to_bindtags(w: Any):
 
 def add_child_class_to_bindtags(w: Any):
     bindtags = list(w.bindtags())
-    bindtags.insert(2, 'Child')
+    id_ = w.bind_name
+    bindtags.insert(2, 'Child.{}'.format(id_))
     w.bindtags(tuple(bindtags))
 
 
 def add_parent_class_to_bindtags(w: Any):
     bindtags = list(w.bindtags())
-    bindtags.insert(2, 'Parent')
+    id_ = w.bind_name
+    bindtags.insert(2, 'Parent.{}'.format(id_))
     w.bindtags(tuple(bindtags))
 
 

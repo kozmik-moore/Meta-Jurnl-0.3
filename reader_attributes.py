@@ -8,15 +8,24 @@ from modules import ReaderModule
 from scrolled_frame import VScrolledFrame
 
 
+class ChildToplevel(Toplevel):
+    def __init__(self, bind_name: str, **kwargs):
+        super(ChildToplevel, self).__init__(**kwargs)
+
+        self._bind_name = bind_name
+
+
 class AttributesFrame(Frame):
-    def __init__(self, reader: ReaderModule, **kwargs):
+    def __init__(self, reader: ReaderModule, bind_name: str = None, **kwargs):
         super(AttributesFrame, self).__init__(**kwargs)
+
+        self._bind_name = bind_name
 
         self.reader = reader
 
-        self.attachments_chk_var = IntVar(value=0, name='attachments_chk')
-        self.parent_chk_var = IntVar(value=0, name='parent_chk')
-        self.children_chk_var = IntVar(value=0, name='children_chk')
+        self.attachments_chk_var = IntVar(value=0, name='{}attachments_chk'.format(bind_name))
+        self.parent_chk_var = IntVar(value=0, name='{}parent_chk'.format(bind_name))
+        self.children_chk_var = IntVar(value=0, name='{}children_chk'.format(bind_name))
 
         self.attachments_frame = Frame(master=self)
         self.attachments_chk = Checkbutton(master=self.attachments_frame, variable=self.attachments_chk_var)
@@ -52,7 +61,11 @@ class AttributesFrame(Frame):
 
         add_child_class_to_bindtags(self)
 
-        self.bind_class('Parent', '<<Selected Id>>', self.set_buttons, add=True)
+        self.bind_class('Parent.{}'.format(self._bind_name), '<<Selected Id>>', self.set_buttons, add=True)
+
+    @property
+    def bind_name(self):
+        return self._bind_name
 
     def set_buttons(self, *args):
         self.attachments_btn.state(['!disabled' if self.reader.entry_has_attachments else 'disabled'])
@@ -99,7 +112,10 @@ class AttributesFrame(Frame):
     def children_popup(self):
         t = Toplevel()
         t.title('Children: {}'.format(self.reader.get_date(self.reader.id_).strftime('%a, %b %d, %Y %H:%M')))
-        add_child_class_to_bindtags(t)
+        b = list(t.bindtags())
+        b.insert(2, 'Child.{}'.format(self._bind_name))
+        t.bindtags(b)
+
         t.bind('<Escape>', lambda x: t.destroy())
 
         def set_id(id_: int):

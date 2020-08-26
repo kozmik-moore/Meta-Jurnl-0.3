@@ -24,8 +24,10 @@ class DateRadiobutton(Radiobutton):
 
 
 class DatesFrame(Frame):
-    def __init__(self, reader: ReaderModule, **kwargs):
+    def __init__(self, reader: ReaderModule, bind_name: str = None, **kwargs):
         super(DatesFrame, self).__init__(**kwargs)
+
+        self._bind_name = bind_name
 
         self._reader = reader
 
@@ -47,8 +49,12 @@ class DatesFrame(Frame):
 
         add_parent_class_to_bindtags(self)
 
-        self.bind_class('Child', '<<Update Ids>>', self.update_ids, add=True)
-        self.bind_class('Child', '<<Selected Id>>', self.set_id_from_child, add=True)
+        self.bind_class('Child.{}'.format(self._bind_name), '<<Update Ids>>', self.update_ids, add=True)
+        self.bind_class('Child.{}'.format(self._bind_name), '<<Selected Id>>', self.set_id_from_child, add=True)
+
+    @property
+    def bind_name(self):
+        return self._bind_name
 
     @property
     def reader(self):
@@ -83,7 +89,7 @@ class DatesFrame(Frame):
 
     def call_popup(self):
         popup = DatesPopup(self.current, DateVars(self.reader), old=self.reader.oldest_year,
-                           new=self.reader.newest_year)
+                           new=self.reader.newest_year, bind_name=self._bind_name)
         popup.grab_set()
         popup.focus()
 
@@ -260,9 +266,11 @@ class DateVars:
 
 
 class DatesPopup(Toplevel):
-    def __init__(self, current_var: IntVar, date_vars: DateVars, old: int, new: int, **kwargs):
+    def __init__(self, current_var: IntVar, date_vars: DateVars, old: int, new: int, bind_name: str, **kwargs):
         super(DatesPopup, self).__init__(**kwargs)
         self.title('Filters')
+
+        self._bind_name = bind_name
 
         add_child_class_to_bindtags(self)
 
@@ -381,6 +389,10 @@ class DatesPopup(Toplevel):
 
         # self.bind('<Configure>', self.reconfigure)
         self.set_scales_frame()
+
+    @property
+    def bind_name(self):
+        return self._bind_name
 
     def set_scales_frame(self):
         if self.sort_var.get() == 0:

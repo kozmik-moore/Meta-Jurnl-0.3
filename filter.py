@@ -8,7 +8,7 @@ from typing import Union, Tuple, Dict
 from configurations import current_database
 from database_info import get_all_entry_ids, get_oldest_date, get_newest_date, get_all_tags, \
     get_all_children, get_all_parents
-from reader import get_tags, get_date
+from reader_functions import get_tags, get_date
 
 
 def _leap_year(year: int):

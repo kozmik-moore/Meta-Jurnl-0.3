@@ -6,7 +6,7 @@ from sqlite3 import connect
 from typing import Union, Tuple
 
 from configurations import current_database
-from reader import Reader, get_tags, get_attachment_ids
+from reader_functions import Reader, get_tags, get_attachment_ids
 
 
 class Writer:
