@@ -33,12 +33,12 @@ class BodyPopup(Toplevel):
 
         self.protocol('WM_DELETE_WINDOW', self.save_and_close)
 
+        self._bind_name = bind_name
+
         add_child_class_to_bindtags(self)
 
         self.title('Search Contents For...')
         self.bind('<Escape>', lambda e: self.destroy())
-
-        self._bind_name = bind_name
 
         self.reader = reader
 
