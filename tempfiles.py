@@ -316,13 +316,16 @@ class WriterFileManager(_TempFileManager):
             raise TypeError('Argument is not of type str.')
 
     @property
-    def date(self):
+    def date(self) -> datetime:
         return self.parser.getdate('Attributes', 'date')
 
     @date.setter
     def date(self, v: datetime):
         if type(v) == datetime:
-            self.parser['Attributes']['date'] = str(v)
+            self.parser['Attributes']['date'] = v.strftime('%Y-%m-%d %H:%M:%S.%f')
+            self.write_file()
+        elif v is None:
+            self.parser['Attributes']['date'] = 'None'
             self.write_file()
         else:
             raise TypeError('Argument is not of type datetime.')

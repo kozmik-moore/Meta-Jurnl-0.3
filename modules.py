@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Dict, Tuple
 
 from database_info import get_oldest_date, get_all_dates, get_all_tags, get_newest_date
@@ -230,6 +231,33 @@ class ReaderModule:
 class WriterModule(WriterFileManager):
     def __init__(self, tempfile: str = None):
         super(WriterModule, self).__init__(file_path=tempfile)
+
+    @property
+    def current_year(self):
+        return datetime.now().year
+
+    @property
+    def current_month(self):
+        return datetime.now().month
+
+    @property
+    def current_day(self):
+        return datetime.now().day
+
+    @property
+    def current_hour(self):
+        return datetime.now().hour
+
+    @property
+    def current_minute(self):
+        return datetime.now().minute
+
+    @property
+    def all_tags(self):
+        return get_all_tags(self.database)
+
+    def check_saved(self):
+        pass
 
     def save(self):
         if not self.id_:

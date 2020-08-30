@@ -88,8 +88,8 @@ def _test():
         for tab in journal.tabs():
             print(tab)
 
-    button = Button(master=root, text='Tabs', command=_print_tabs)
-    button.pack()
+    # button = Button(master=root, text='Tabs', command=_print_tabs)
+    # button.pack()
     journal.pack(fill='both', expand=True)
     journal.update_idletasks()
     root.mainloop()

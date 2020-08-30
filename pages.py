@@ -1,10 +1,13 @@
 from tkinter.ttk import Frame, PanedWindow, Style
 
 from reader_attributes import AttributesFrame
-from reader_body import BodyFrame
-from reader_dates import DatesFrame
+from reader_body import BodyFrame as ReaderBodyFrame
+from reader_dates import DatesFrame as ReaderDatesFrame
 from modules import ReaderModule, WriterModule
-from reader_tags import TagsFrame
+from reader_tags import TagsFrame as ReaderTagsFrame
+from writer_body import BodyFrame as WriterBodyFrame
+from writer_dates import DateFrame
+from writer_tags import TagsFrame as WriterTagsFrame
 
 
 class ReaderPage(Frame):
@@ -19,13 +22,13 @@ class ReaderPage(Frame):
 
         self._reader = ReaderModule(tempfile)
 
-        left = DatesFrame(reader=self._reader, bind_name=bind_name, relief='ridge', borderwidth=1, padding=3)
+        left = ReaderDatesFrame(reader=self._reader, bind_name=bind_name, relief='ridge', borderwidth=1, padding=3)
 
-        middle = BodyFrame(reader=self._reader, relief='ridge', borderwidth=1, padding=3, bind_name=bind_name)
+        middle = ReaderBodyFrame(reader=self._reader, relief='ridge', borderwidth=1, padding=3, bind_name=bind_name)
 
         right = Frame(relief='ridge', borderwidth=1, padding=3)
         AttributesFrame(master=right, reader=self._reader, bind_name=bind_name).pack(fill='x')
-        TagsFrame(master=right, reader=self._reader, bind_name=bind_name).pack(fill='both', expand=True)
+        ReaderTagsFrame(master=right, reader=self._reader, bind_name=bind_name).pack(fill='both', expand=True)
 
         window = PanedWindow(master=self, orient='horizontal')
         window.add(left, weight=1)
@@ -81,7 +84,27 @@ class WriterPage(Frame):
 
         self._class_ = 'Writer'
 
-        self.writer = WriterModule(tempfile)
+        self._writer = WriterModule(tempfile)
+
+        top_left = Frame(relief='ridge', borderwidth=1, padding=3)
+        top_left.pack(fill='both', expand=True)
+
+        date = DateFrame(master=top_left, writer=self._writer, bind_name=self._bind_name)
+        date.pack(fill='x', anchor='c')
+
+        body = WriterBodyFrame(master=top_left, writer=self._writer, bind_name=self._bind_name)
+        body.pack(fill='both', expand=True)
+
+        top_right = Frame(relief='ridge', borderwidth=1, padding=3)
+        top_right.pack(fill='both', expand=True)
+
+        tags = WriterTagsFrame(master=top_right, writer=self._writer, bind_name=self._bind_name)
+        tags.pack(fill='both', expand=True)
+
+        window = PanedWindow(master=self, orient='horizontal')
+        window.add(top_left, weight=2)
+        window.add(top_right, weight=1)
+        window.pack(fill='x', expand=True)
 
     @property
     def bind_name(self):
@@ -95,11 +118,28 @@ class WriterPage(Frame):
     def class_(self):
         return self._class_
 
+    @property
+    def path(self):
+        return self._writer.path
 
-if __name__ == '__main__':
+
+def _test_reader():
     r = '.tempfiles/Reader/000'
     from tkinter import Tk
 
     root = Tk()
     ReaderPage(master=root, tempfile=r).pack(fill='both', expand=True)
     root.mainloop()
+
+
+def _test_writer():
+    r = '.tempfiles/Writer/000'
+    from tkinter import Tk
+
+    root = Tk()
+    WriterPage(master=root, tempfile=r).pack(fill='both', expand=True)
+    root.mainloop()
+
+
+if __name__ == '__main__':
+    _test_writer()

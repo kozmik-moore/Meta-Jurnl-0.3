@@ -130,6 +130,7 @@ dmypy.json
 # Project
 *.svgz
 *.odg*
+.~lock*
 settings.json
 rsync.conf
 Pipfile*
