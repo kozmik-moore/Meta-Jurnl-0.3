@@ -1,6 +1,8 @@
 from tkinter import Toplevel, StringVar, END, Text
 from tkinter.font import Font
-from tkinter.ttk import Entry, Button, Frame, Scrollbar, Style
+from tkinter.ttk import Entry, Button, Frame, Scrollbar, Style, Label
+
+from PIL import Image, ImageTk
 
 from base_widgets import add_child_class_to_bindtags
 from modules import ReaderModule
@@ -10,16 +12,20 @@ class BodyButton(Button):
     def __init__(self, reader: ReaderModule, bind_name: str, **kwargs):
         super(BodyButton, self).__init__(**kwargs)
 
+        img = Image.open('.resources/filter_icon.png')
+        img = img.resize((16, 16))
+        self.filters_icon = ImageTk.PhotoImage(image=img)
+
         self._bind_name = bind_name
 
         self.reader = reader
 
-        font = Font(font='TkDefaultFont')
-        font.configure(slant='italic')
-        style = Style()
-        style.configure('this.TButton', font=font)
+        # font = Font(font='TkDefaultFont')
+        # font.configure(slant='italic')
+        # style = Style()
+        # style.configure('popup.TButton', font=font, foreground='blue')
 
-        self.configure(text='Content Filters', command=self.popup, style='this.TButton')
+        self.configure(text='Filter', image=self.filters_icon, command=self.popup)
 
     def popup(self):
         popup = BodyPopup(reader=self.reader, bind_name=self._bind_name)
@@ -101,8 +107,11 @@ class BodyFrame(Frame):
     def __init__(self, reader: ReaderModule, bind_name: str, **kwargs):
         super(BodyFrame, self).__init__(**kwargs)
 
-        BodyButton(master=self, reader=reader, bind_name=bind_name).pack()
-        BodyText(master=self, reader=reader, bind_name=bind_name).pack(fill='both', expand=True)
+        header = Frame(master=self, relief='ridge', borderwidth=1, padding=5)
+        header.pack(side='top', fill='x')
+        Label(master=header, text='Contents').pack(side='left')
+        BodyButton(master=header, reader=reader, bind_name=bind_name).pack(side='right')
+        BodyText(master=self, reader=reader, bind_name=bind_name).pack(side='top', fill='both', expand=True)
 
 
 def _test():

@@ -75,9 +75,13 @@ class ReaderPage(Frame):
     def id_(self, v: int):
         self._id = v
 
+    @property
+    def name(self):
+        return self._name
+
 
 class WriterPage(Frame):
-    def __init__(self, tempfile: str, bind_name: str = None, **kwargs):
+    def __init__(self, tempfile: str = None, bind_name: str = None, **kwargs):
         super(WriterPage, self).__init__(**kwargs)
 
         self._bind_name = bind_name if bind_name else 'Writer0'
@@ -104,7 +108,7 @@ class WriterPage(Frame):
         window = PanedWindow(master=self, orient='horizontal')
         window.add(top_left, weight=2)
         window.add(top_right, weight=1)
-        window.pack(fill='x', expand=True)
+        window.pack(fill='both', expand=True)
 
     @property
     def bind_name(self):
@@ -119,8 +123,20 @@ class WriterPage(Frame):
         return self._class_
 
     @property
+    def writer(self):
+        return self._writer
+
+    @property
     def path(self):
         return self._writer.path
+
+    @property
+    def name(self):
+        return self._name
+
+    def check_saved(self, event):
+        self._writer.check_saved(event)
+        self.event_generate('<<Check Save Button>>')
 
 
 def _test_reader():

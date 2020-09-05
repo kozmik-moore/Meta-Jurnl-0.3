@@ -1,10 +1,11 @@
 from datetime import datetime
+from tkinter import Event
 from typing import Dict, Tuple
 
 from database_info import get_oldest_date, get_all_dates, get_all_tags, get_newest_date
 from filter import Filter
-from reader_functions import get_date, get_body, get_parent, get_children, get_attachment_ids, get_tags, get_attachment_name, \
-    get_attachment_file
+from reader_functions import get_date, get_body, get_parent, get_children, get_attachment_ids, get_tags, \
+    get_attachment_name, get_attachment_file
 from tempfiles import ReaderFileManager, WriterFileManager
 from writer import create_entry, set_body, modify_body, modify_date, set_tags, set_attachments
 
@@ -232,6 +233,8 @@ class WriterModule(WriterFileManager):
     def __init__(self, tempfile: str = None):
         super(WriterModule, self).__init__(file_path=tempfile)
 
+        self._saved = True
+
     @property
     def current_year(self):
         return datetime.now().year
@@ -256,8 +259,19 @@ class WriterModule(WriterFileManager):
     def all_tags(self):
         return get_all_tags(self.database)
 
-    def check_saved(self):
-        pass
+    @property
+    def is_saved(self):
+        return self._saved
+
+    def check_saved(self, event: Event):
+        if self.id_:
+            saved = all([self.body == get_body(self.id_, self.database),
+                         self.tags == get_tags(self.id_, self.database),
+                         self.date == get_date(self.id_, self.database),
+                         self.attachments == get_attachment_ids(self.id_, self.database)])
+        else:
+            saved = False
+        return saved
 
     def save(self):
         if not self.id_:
@@ -284,6 +298,14 @@ class WriterModule(WriterFileManager):
         self.tags = ()
         self.attachments = ()
         self.parent = 0
+
+    def set_body(self, v: str):
+        if type(v) == str:
+            self.body = v
+        unchanged = True
+        if self.id_:
+            unchanged = get_body(self.id_, self.database) == self.body
+        return unchanged
 
 
 def _test():

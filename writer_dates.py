@@ -35,6 +35,7 @@ class DateFrame(Frame):
         ds = d.strftime('%a, %b %d, %Y %H:%M')
         self._writer.date = d
         self._label_var.set(ds)
+        self.event_generate('<<Check Save Button>>')
 
     def clear(self):
         self._label_var.set('')
@@ -138,6 +139,7 @@ class DateFrame(Frame):
             date = datetime(**v)
             self._label_var.set(date.strftime('%a, %b %d, %Y %H:%M'))
             self._writer.date = date
+            self.event_generate('<<Check Save Button>>')
             self.unbind('<Configure>')
             t.destroy()
 

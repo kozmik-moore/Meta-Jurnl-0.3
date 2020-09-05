@@ -146,6 +146,7 @@ class TagsFrame(Frame):
         self._buttons = frame
         self._buttons.pack(fill='both', expand=True)
         temp.destroy()
+        self.event_generate('<<Check Save Button>>')
 
     def add(self, *args):
         tag = self._filter_var.get()

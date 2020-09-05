@@ -1,7 +1,7 @@
 from os import makedirs
 from os.path import exists, join
 from tkinter import IntVar, Toplevel
-from tkinter.ttk import Frame, Checkbutton, Button, Label
+from tkinter.ttk import Frame, Checkbutton, Button, Label, Style
 
 from base_widgets import add_child_class_to_bindtags
 from modules import ReaderModule
@@ -19,9 +19,17 @@ class AttributesFrame(Frame):
     def __init__(self, reader: ReaderModule, bind_name: str = None, **kwargs):
         super(AttributesFrame, self).__init__(**kwargs)
 
+        style = Style()
+        style.configure('recessed.TCheckbutton', relief='ridge', borderwidth=1)
+
         self._bind_name = bind_name
 
         self.reader = reader
+
+        frame = Frame(master=self, padding=5)
+        frame.pack(fill='x')
+
+        Label(master=frame, text='Attributes').pack()
 
         self.attachments_chk_var = IntVar(value=0, name='{}attachments_chk'.format(bind_name))
         self.parent_chk_var = IntVar(value=0, name='{}parent_chk'.format(bind_name))

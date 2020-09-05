@@ -5,7 +5,7 @@ from os.path import abspath
 from sqlite3 import connect
 from typing import Union, Tuple, Dict
 
-from configurations import current_database
+from configurations import default_database
 from database_info import get_all_entry_ids, get_oldest_date, get_newest_date, get_all_tags, \
     get_all_children, get_all_parents
 from reader_functions import get_tags, get_date
@@ -36,7 +36,7 @@ def from_continuous_range(intervals: Dict[str, int], database: str = None):
     :return: a list of ints representing the filtered entries
     :rtype: list
     """
-    db = connect(database) if database else connect(current_database())
+    db = connect(database) if database else connect(default_database())
     with closing(db) as d:
         l_year = intervals.get('low year', get_oldest_date(database))
         h_year = intervals.get('high year', get_newest_date(database))
@@ -59,7 +59,7 @@ def from_continuous_range(intervals: Dict[str, int], database: str = None):
 
 
 def from_intervals(intervals: Dict[str, int], database: str = None):
-    db = connect(database) if database else connect(current_database())
+    db = connect(database) if database else connect(default_database())
     with closing(db) as d:
         l_year = intervals.get('low year', get_oldest_date(database).year)
         h_year = intervals.get('high year', get_newest_date(database).year)
@@ -96,7 +96,7 @@ def from_tags(tags: tuple, database: str = None, op_type: int = 0):
     :param op_type: an int: '0' for 'Contains One Of', '1' for 'Contains At Least, '2' for 'Contains Only'
     :return: a tuple of ints representing the filtered entries
     """
-    db = connect(database) if database else connect(current_database())
+    db = connect(database) if database else connect(default_database())
     with closing(db) as d:
         ids = []
         if op_type == 1:
@@ -129,7 +129,7 @@ def from_attachments(database: str = None):
     :param database: a Connection or str representing the database that is being queried
     :return: a list of ints representing the filtered entries
     """
-    db = connect(database) if database else connect(current_database())
+    db = connect(database) if database else connect(default_database())
     with closing(db) as d:
         ids = [x[0] for x in d.execute('SELECT entry_id FROM attachments').fetchall()]
         return ids
@@ -144,7 +144,7 @@ def from_body(search_string: str, database: str = None):
     :return: a list of ints representing the filtered entries
     """
     # TODO allow regex for more useful searches
-    db = connect(database) if database else connect(current_database())
+    db = connect(database) if database else connect(default_database())
     with closing(db) as d:
         c = d.execute('SELECT entry_id FROM bodies WHERE body LIKE ?', ('%' + search_string.lower() + '%',)).fetchall()
         return [x[0] for x in c]
@@ -154,7 +154,7 @@ class Filter:
     """Provides methods for filtering entries in based on their attributes"""
 
     def __init__(self, path_to_db: str = None):
-        self._path = abspath(path_to_db) if path_to_db else current_database()
+        self._path = abspath(path_to_db) if path_to_db else default_database()
         self._by_attachments = 0
         self._by_child = 0
         self._by_parent = 0

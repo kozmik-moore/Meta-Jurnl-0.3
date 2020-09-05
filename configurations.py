@@ -39,6 +39,10 @@ def create_file(database: str = None):
             'pages': '[]',
             'current': ''
         }
+        parser['Visual'] = {
+            'theme': '',
+            'dimensions': ''
+        }
         # TODO add option for obscuring system files (read and write in bytes instead of str)
         # TODO add option for auto-sorting tags
         with open('settings.config', 'w') as f:
@@ -65,7 +69,7 @@ def config(**options):
         if 'number of backups' in keys:
             number_of_backups(options['number of backups'])
         if 'current database' in keys:
-            current_database(options['current database'])
+            default_database(options['current database'])
         if 'backup location' in keys:
             backup_location(options['backup location'])
     else:
@@ -159,8 +163,8 @@ def number_of_backups(number: int = None):
         return v
 
 
-def current_database(path: str = None):
-    """If path is supplied, edits the 'current database' field in the config file. Otherwise, returns the field
+def default_database(path: str = None):
+    """If path is supplied, edits the 'default database' field in the config file. Otherwise, returns the field
 
     :param path: a str indicating the location of the database
     :return: a str indicating the location of the database
@@ -170,12 +174,12 @@ def current_database(path: str = None):
     p = ConfigParser()
     p.read('settings.config')
     if path is None:
-        v = p['Filesystem']['current database']
+        v = p['Filesystem']['default database']
         return abspath(v)
     elif exists(path):
         databases([path])
         p.read('settings.config')
-        p['Filesystem']['current database'] = abspath(path)
+        p['Filesystem']['default database'] = abspath(path)
         with open('settings.config', 'w') as f:
             p.write(f)
             f.close()
@@ -287,6 +291,24 @@ def current_page(page: str = None):
         return p.get('Notebook', 'current')
     else:
         p.set('Notebook', 'current', page)
+        with open('settings.config', 'w') as f:
+            p.write(f)
+            f.close()
+
+
+def dimensions(dims: tuple = None):
+    if not exists('settings.config'):
+        create_file()
+    p = ConfigParser()
+    p.read('settings.config')
+    if not dims:
+        try:
+            d = literal_eval(p.get('Visual', 'dimensions'))
+        except SyntaxError:
+            d = ()
+        return d
+    else:
+        p.set('Visual', 'dimensions', str(dims))
         with open('settings.config', 'w') as f:
             p.write(f)
             f.close()

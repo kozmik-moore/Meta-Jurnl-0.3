@@ -138,3 +138,5 @@ Test-Resources/
 /jurnl.sqlite
 /settings.config
 /.tempfiles/
+/Icons/
+/.resources/original_icons/*

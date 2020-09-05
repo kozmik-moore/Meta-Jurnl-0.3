@@ -13,11 +13,11 @@ def move_database(new: str):
     :param new: a str representing the new directory
     """
     if exists(new) and isdir(new):
-        old = current_database()
+        old = default_database()
         name = basename(old)
         new = join(new, name)
         replace(old, new)
-        current_database(new)
+        default_database(new)
     else:
         raise IOError('Provided address is not a valid directory.')
 
@@ -60,13 +60,13 @@ def backup_database():
 
     """
     backup = backup_location()
-    name = basename(current_database()).replace('.sqlite', '')
+    name = basename(default_database()).replace('.sqlite', '')
     backups = [x.path for x in scandir(backup) if name in x.name]
     backups.sort()
     now = datetime.now()
     name += '_' + now.strftime('%Y.%m.%d.%H.%M.%S')
     path = join(backup, name)
-    copy(current_database(), path)
+    copy(default_database(), path)
     last_backup(now)
     num = number_of_backups()
     backups.append(path)
@@ -81,7 +81,7 @@ def switch_database(new: str):
     """
     d = databases()
     if new in d.keys():
-        current_database(d[new])
+        default_database(d[new])
         backup = backup_location()
         dates = [x.name.replace(new + '_', '') for x in scandir(backup) if new in x.name]
         dates.sort()

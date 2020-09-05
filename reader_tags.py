@@ -26,7 +26,7 @@ class TagsFrame(Frame):
     def __init__(self, reader: ReaderModule, bind_name: str = None, **kwargs):
         super(TagsFrame, self).__init__(**kwargs)
 
-        img = Image.open('check.png')
+        img = Image.open('.resources/blue_check.png')
         img = img.resize((12, 12))
         self._check_image = ImageTk.PhotoImage(image=img)
 
@@ -63,10 +63,10 @@ class TagsFrame(Frame):
         self.inner = {'side': 'left', 'fill': 'x', 'expand': True}
         self.outer = {'side': 'top', 'fill': 'x'}
 
-        # self._popup_button = Button(master=self, text='Tags', command=self.popup)
-        # self._popup_button.pack(fill='x')
+        header = Frame(master=self, padding=5)
+        header.pack(fill='x')
 
-        label = Label(master=self, text='Tag Filters', anchor='c', padding=5, style='header.TLabel')
+        label = Label(master=header, text='Tags', anchor='c')
         label.pack(fill='x')
 
         self._button_holder = Frame(master=self)

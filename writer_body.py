@@ -1,6 +1,7 @@
 from tkinter import StringVar, Text
 from tkinter.ttk import Frame, Scrollbar
 
+from base_widgets import add_child_class_to_bindtags
 from modules import WriterModule
 
 
@@ -9,6 +10,8 @@ class BodyFrame(Frame):
         super(BodyFrame, self).__init__(**kwargs)
 
         self._bind_name = bind_name if bind_name else ''
+
+        add_child_class_to_bindtags(self)
 
         self._writer = writer
 
@@ -23,8 +26,14 @@ class BodyFrame(Frame):
 
         self._body.bind('<KeyRelease>', lambda x: self.set_body(x))
 
+    @property
+    def bind_name(self):
+        return self._bind_name
+
     def set_body(self, event):
-        self._writer.body = self._body.get('1.0', 'end')
+        text = self._body.get('1.0', 'end')
+        self._writer.body = text.strip('\n')
+        self.event_generate('<<Check Save Button>>')
 
     def clear(self):
         self._writer.body = ''

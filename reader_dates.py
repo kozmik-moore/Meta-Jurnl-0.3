@@ -4,6 +4,8 @@ from tkinter.font import Font
 from tkinter.ttk import Frame, Checkbutton, Button, Scale, Label, Style, Radiobutton, Separator, Labelframe
 from typing import Tuple
 
+from PIL import Image, ImageTk
+
 from base_widgets import add_parent_class_to_bindtags, add_child_class_to_bindtags
 from filter import check_day_against_month
 from modules import ReaderModule
@@ -37,15 +39,23 @@ class DatesFrame(Frame):
         font.configure(slant='italic')
         style = Style()
         style.configure('justified.TRadiobutton', anchor='e')
-        style.configure('popup.TButton', font=font)
 
         self.current = IntVar()
 
-        self._popup = Button(master=self, text='Date Filters', command=self.call_popup, style='popup.TButton')
-        self._popup.pack(side='top')
+        header = Frame(master=self, relief='ridge', borderwidth=1, padding=5)
+        header.pack(fill='x')
 
-        self._buttons = VScrolledFrame(master=self)
-        self._buttons.pack(side='top', fill='both', expand=True)
+        img = Image.open('.resources/filter_icon.png')
+        img = img.resize((16, 16))
+        self.filters_icon = ImageTk.PhotoImage(image=img)
+
+        label = Label(master=header, text='Dates')
+        popup = Button(master=header, text='Filters', image=self.filters_icon, command=self.call_popup)
+        label.pack(side='left')
+        popup.pack(side='right')
+
+        self._buttons = VScrolledFrame(master=self, relief='ridge', borderwidth=1)
+        self._buttons.pack(fill='both', expand=True)
 
         add_parent_class_to_bindtags(self)
 
@@ -75,7 +85,7 @@ class DatesFrame(Frame):
 
     def repack(self):
         temp = self._buttons
-        new = VScrolledFrame(master=self)
+        new = VScrolledFrame(master=self, relief='ridge', borderwidth=1)
         for i in self._ids:
             button = DateRadiobutton(master=new, id_=i,
                                      text=self._reader.get_date(i).strftime('%a, %b %d, %Y %H:%M') + ' ({})'.format(i),
