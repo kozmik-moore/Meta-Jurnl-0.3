@@ -94,6 +94,7 @@ class BodyText(Frame):
         scrollbar.pack(side='left', fill='y')
 
         self.bind_class('Parent.{}'.format(self._bind_name), '<<Selected Id>>', self.update_text, add=True)
+        self.bind_class('TNotebook', '<<Refresh ReaderPages>>', self.update_text, add=True)
 
         self.update_text()
 
@@ -109,7 +110,7 @@ class BodyFrame(Frame):
 
         header = Frame(master=self, relief='ridge', borderwidth=1, padding=5)
         header.pack(side='top', fill='x')
-        Label(master=header, text='Contents').pack(side='left')
+        Label(master=header, text='CONTENTS').pack(side='left')
         BodyButton(master=header, reader=reader, bind_name=bind_name).pack(side='right')
         BodyText(master=self, reader=reader, bind_name=bind_name).pack(side='top', fill='both', expand=True)
 

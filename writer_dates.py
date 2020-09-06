@@ -2,6 +2,8 @@ from datetime import datetime
 from tkinter import StringVar, Toplevel
 from tkinter.ttk import Frame, Label, Button, Combobox
 
+from PIL import Image, ImageTk
+
 from modules import WriterModule
 
 
@@ -9,17 +11,21 @@ class DateFrame(Frame):
     def __init__(self, writer: WriterModule, bind_name: str = None, **kwargs):
         super(DateFrame, self).__init__(**kwargs)
 
+        img = Image.open('.resources/date_icon.png')
+        img = img.resize((16, 16))
+        self.date_icon = ImageTk.PhotoImage(image=img)
+
         self._bind_name = bind_name if bind_name is not None else ''
 
         self._label_var = StringVar(name='{}label_var'.format(self._bind_name))
 
         self._writer = writer
 
-        self._label = Label(master=self, textvariable=self._label_var, width=30, anchor='c')
-        self._label.pack(side='left', expand=True, fill='x')
+        self._label = Label(master=self, textvariable=self._label_var, anchor='c')
+        self._label.pack(side='left', fill='x')
 
-        self.button = Button(master=self, text='Set Date', command=self.popup)
-        self.button.pack(side='left')
+        self.button = Button(master=self, image=self.date_icon, command=self.popup)
+        self.button.pack(side='left', padx=(5, 5))
 
         if self._writer.date:
             d = self._writer.date.strftime('%a, %b %d, %Y %H:%M')
@@ -27,15 +33,20 @@ class DateFrame(Frame):
             d = 'Not Set'
         self._label_var.set(d)
 
-        self.button.bind('<Button-3>', self.set_date)
-        self.bind_class('Parent.{}'.format(self._bind_name), '<<Clear Contents>>', self.clear)
+        self.button.bind('<Button-3>', self.set_date_now)
+        self.bind_class('Parent.{}'.format(self._bind_name), '<<Clear Contents>>', self.clear, add=True)
+        self.bind_class('Parent.{}'.format(self._bind_name), '<<Refresh Widgets>>', self.refresh, add=True)
 
-    def set_date(self, event):
+    def set_date_now(self, event):
         d = datetime.now()
         ds = d.strftime('%a, %b %d, %Y %H:%M')
         self._writer.date = d
         self._label_var.set(ds)
         self.event_generate('<<Check Save Button>>')
+
+    def refresh(self, *args):
+        date = self._writer.date
+        self._label_var.set(self._writer.date.strftime('%a, %b %d, %Y %H:%M') if date else 'Not Set')
 
     def clear(self):
         self._label_var.set('')

@@ -29,7 +29,7 @@ class AttributesFrame(Frame):
         frame = Frame(master=self, padding=5)
         frame.pack(fill='x')
 
-        Label(master=frame, text='Attributes').pack()
+        Label(master=frame, text='ATTRIBUTES').pack()
 
         self.attachments_chk_var = IntVar(value=0, name='{}attachments_chk'.format(bind_name))
         self.parent_chk_var = IntVar(value=0, name='{}parent_chk'.format(bind_name))
@@ -70,6 +70,7 @@ class AttributesFrame(Frame):
         add_child_class_to_bindtags(self)
 
         self.bind_class('Parent.{}'.format(self._bind_name), '<<Selected Id>>', self.set_buttons, add=True)
+        self.bind_class('TNotebook', '<<Refresh ReaderPages>>', self.set_buttons, add=True)
 
     @property
     def bind_name(self):

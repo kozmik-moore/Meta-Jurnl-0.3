@@ -213,7 +213,7 @@ def get_attachment_ids(entry_id: int, database: str = None):
     db = connect(database) if database else connect(default_database())
     with closing(db) as d:
         c = d.execute('SELECT att_id FROM attachments WHERE entry_id=? ORDER BY added', (entry_id,)).fetchall()
-        return tuple(int(x[0]) for x in c)
+        return tuple([int(x[0]) for x in c])
 
 
 def get_attachment_file(att_id: int, database: str = None):

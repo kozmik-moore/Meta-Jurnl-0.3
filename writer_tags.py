@@ -85,6 +85,7 @@ class TagsFrame(Frame):
             self.selected_tags = []
 
         self.bind_class('Parent.{}'.format(self._bind_name), '<<Selected Id>>', self.repack, add=True)
+        self.bind_class('Parent.{}'.format(self._bind_name), '<<Refresh Widgets>>', self.refresh, add=True)
 
     @property
     def bind_name(self):
@@ -116,9 +117,9 @@ class TagsFrame(Frame):
     def unselected_tags(self):
         return self._unselected_tags
 
-    def refresh(self):
-        """Refreshes tags information from the reader"""
-        pass
+    def refresh(self, *args):
+        """Refreshes tags information from the writer"""
+        self.selected_tags = self._writer.tags
 
     def repack(self, *args):
         frame = ScrollingFrame(master=self)

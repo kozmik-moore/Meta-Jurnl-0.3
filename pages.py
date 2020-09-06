@@ -1,10 +1,12 @@
-from tkinter.ttk import Frame, PanedWindow, Style
+from tkinter.ttk import Frame, PanedWindow
 
+from base_widgets import add_parent_class_to_bindtags
 from reader_attributes import AttributesFrame
 from reader_body import BodyFrame as ReaderBodyFrame
 from reader_dates import DatesFrame as ReaderDatesFrame
 from modules import ReaderModule, WriterModule
 from reader_tags import TagsFrame as ReaderTagsFrame
+from writer_attachments import AttachmentsButton
 from writer_body import BodyFrame as WriterBodyFrame
 from writer_dates import DateFrame
 from writer_tags import TagsFrame as WriterTagsFrame
@@ -88,13 +90,27 @@ class WriterPage(Frame):
 
         self._class_ = 'Writer'
 
+        self._id = None
+
         self._writer = WriterModule(tempfile)
 
         top_left = Frame(relief='ridge', borderwidth=1, padding=3)
         top_left.pack(fill='both', expand=True)
 
-        date = DateFrame(master=top_left, writer=self._writer, bind_name=self._bind_name)
-        date.pack(fill='x', anchor='c')
+        left_header = Frame(master=top_left)
+        left_header.pack(fill='x')
+
+        attachments = Frame(master=left_header)
+        attachments.pack(fill='x', expand=True, side='left')
+
+        attachments_button = AttachmentsButton(master=attachments, writer=self._writer, bind_name=self._bind_name)
+        attachments_button.pack(side='left')
+
+        date = DateFrame(master=left_header, writer=self._writer, bind_name=self._bind_name)
+        date.pack(fill='x', expand=True, side='left', anchor='c')
+
+        # filler = Frame(master=left_header)
+        # filler.pack(fill='x', expand=True, side='left')
 
         body = WriterBodyFrame(master=top_left, writer=self._writer, bind_name=self._bind_name)
         body.pack(fill='both', expand=True)
@@ -109,6 +125,8 @@ class WriterPage(Frame):
         window.add(top_left, weight=2)
         window.add(top_right, weight=1)
         window.pack(fill='both', expand=True)
+
+        add_parent_class_to_bindtags(self)
 
     @property
     def bind_name(self):
@@ -131,12 +149,35 @@ class WriterPage(Frame):
         return self._writer.path
 
     @property
+    def entry_id(self):
+        return self._writer.id_
+
+    @property
     def name(self):
         return self._name
 
-    def check_saved(self, event):
-        self._writer.check_saved(event)
-        self.event_generate('<<Check Save Button>>')
+    @property
+    def id_(self):
+        return self._id
+
+    @id_.setter
+    def id_(self, v: int):
+        self._id = v
+
+    def save(self):
+        self._writer.save()
+        self.event_generate('<<Refresh Widgets>>')
+
+    def link_entry(self, entry_id: int):
+        self._writer.link_entry(entry_id)
+        self.event_generate('<<Refresh Widgets>>')
+
+    def edit_entry(self, entry_id: int):
+        self._writer.edit_entry(entry_id)
+        self.event_generate('<<Refresh Widgets>>')
+
+    def check_saved(self, event=None):
+        return self._writer.check_saved(event)
 
 
 def _test_reader():

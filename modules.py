@@ -233,8 +233,6 @@ class WriterModule(WriterFileManager):
     def __init__(self, tempfile: str = None):
         super(WriterModule, self).__init__(file_path=tempfile)
 
-        self._saved = True
-
     @property
     def current_year(self):
         return datetime.now().year
@@ -259,10 +257,6 @@ class WriterModule(WriterFileManager):
     def all_tags(self):
         return get_all_tags(self.database)
 
-    @property
-    def is_saved(self):
-        return self._saved
-
     def check_saved(self, event: Event):
         if self.id_:
             saved = all([self.body == get_body(self.id_, self.database),
@@ -275,6 +269,8 @@ class WriterModule(WriterFileManager):
 
     def save(self):
         if not self.id_:
+            if not self.date:
+                self.date = datetime.now()
             self.id_ = create_entry(database=self.database, body=self.body, date=self.date, tags=self.tags,
                                     attachments=self.attachments, parent=self.parent)
         else:
@@ -306,6 +302,17 @@ class WriterModule(WriterFileManager):
         if self.id_:
             unchanged = get_body(self.id_, self.database) == self.body
         return unchanged
+
+    def edit_entry(self, entry_id: int):
+        self.id_ = entry_id
+        self.body = get_body(entry_id, self.database)
+        self.tags = get_tags(entry_id, self. database)
+        self.attachments = get_attachment_ids(entry_id, self.database)
+        self.date = get_date(entry_id, self.database)
+
+    def link_entry(self, entry_id: int):
+        self.parent = entry_id
+        self.tags = get_tags(entry_id, self. database)
 
 
 def _test():

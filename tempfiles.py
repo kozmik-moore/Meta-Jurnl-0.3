@@ -348,9 +348,9 @@ class WriterFileManager(_TempFileManager):
 
     @attachments.setter
     def attachments(self, v: Tuple[str]):
-        if type(v) == tuple and all(isinstance(x, str) for x in v):
+        if type(v) == tuple and all(isinstance(x, int) for x in v):
             v = _check_attachments(v)
-            t = (k for k in v.keys() if v[k] == 'good')
+            t = tuple([k for k in v.keys() if v[k] == 'good'])
             self.parser['Attributes']['attachments'] = str(t)
             self.write_file()
         else:

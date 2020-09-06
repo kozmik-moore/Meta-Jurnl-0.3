@@ -25,6 +25,7 @@ class BodyFrame(Frame):
         self._body.configure(yscrollcommand=scrollbar.set)
 
         self._body.bind('<KeyRelease>', lambda x: self.set_body(x))
+        self.bind_class('Parent.{}'.format(self._bind_name), '<<Refresh Widgets>>', self.refresh, add=True)
 
     @property
     def bind_name(self):
@@ -34,6 +35,9 @@ class BodyFrame(Frame):
         text = self._body.get('1.0', 'end')
         self._writer.body = text.strip('\n')
         self.event_generate('<<Check Save Button>>')
+
+    def refresh(self, *args):
+        self._body.replace('1.0', 'end', self._writer.body)
 
     def clear(self):
         self._writer.body = ''

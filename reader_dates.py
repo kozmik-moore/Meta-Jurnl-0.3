@@ -49,7 +49,7 @@ class DatesFrame(Frame):
         img = img.resize((16, 16))
         self.filters_icon = ImageTk.PhotoImage(image=img)
 
-        label = Label(master=header, text='Dates')
+        label = Label(master=header, text='DATES')
         popup = Button(master=header, text='Filters', image=self.filters_icon, command=self.call_popup)
         label.pack(side='left')
         popup.pack(side='right')
@@ -61,6 +61,7 @@ class DatesFrame(Frame):
 
         self.bind_class('Child.{}'.format(self._bind_name), '<<Update Ids>>', self.update_ids, add=True)
         self.bind_class('Child.{}'.format(self._bind_name), '<<Selected Id>>', self.set_id_from_child, add=True)
+        self.bind_class('TNotebook', '<<Refresh ReaderPages>>', self.refresh, add=True)
 
     @property
     def bind_name(self):
@@ -122,9 +123,9 @@ class DatesFrame(Frame):
             self.reader.id_ = 0
         self.event_generate('<<Selected Id>>')
 
-    def refresh(self):
+    def refresh(self, *args):
         """Refreshes dates information from the reader"""
-        pass
+        self.update_ids()
 
 
 def month_str(value: int, fmt: str = 'long'):

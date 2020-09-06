@@ -66,7 +66,7 @@ class TagsFrame(Frame):
         header = Frame(master=self, padding=5)
         header.pack(fill='x')
 
-        label = Label(master=header, text='Tags', anchor='c')
+        label = Label(master=header, text='TAGS', anchor='c')
         label.pack(fill='x')
 
         self._button_holder = Frame(master=self)
@@ -118,6 +118,7 @@ class TagsFrame(Frame):
             self.selected_tags = []
 
         self.bind_class('Parent.{}'.format(self._bind_name), '<<Selected Id>>', self.repack, add=True)
+        self.bind_class('TNotebook', '<<Refresh ReaderPages>>', self.refresh, add=True)
         add_child_class_to_bindtags(self)
 
     @property
@@ -146,9 +147,9 @@ class TagsFrame(Frame):
     def unselected_tags(self):
         return self._unselected_tags
 
-    def refresh(self):
+    def refresh(self, *args):
         """Refreshes tags information from the reader"""
-        pass
+        self.selected_tags = self._reader.tags
 
     def repack(self, *args):
         frame = ScrollingFrame(master=self)
