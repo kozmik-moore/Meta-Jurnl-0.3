@@ -11,8 +11,6 @@ from filter import check_day_against_month
 from modules import ReaderModule
 from scrolled_frame import VScrolledFrame
 
-DateId = Tuple[datetime, int]
-
 
 class DateRadiobutton(Radiobutton):
     def __init__(self, id_: int, **kwargs):
@@ -58,6 +56,7 @@ class DatesFrame(Frame):
         self._buttons.pack(fill='both', expand=True)
 
         add_parent_class_to_bindtags(self)
+        print(list(self.bindtags()))
 
         self.bind_class('Child.{}'.format(self._bind_name), '<<Update Ids>>', self.update_ids, add=True)
         self.bind_class('Child.{}'.format(self._bind_name), '<<Selected Id>>', self.set_id_from_child, add=True)
@@ -113,6 +112,8 @@ class DatesFrame(Frame):
     def set_id_from_child(self, *args):
         self.current.set(self.reader.id_ if self.reader.id_ else 0)
         self.event_generate('<<Selected Id>>')
+        if args:
+            print(args[0].__dict__)
 
     def update_ids(self, *args):
         self.ids = self.reader.filtered_ids

@@ -28,7 +28,7 @@ class DateFrame(Frame):
         self.button.pack(side='left', padx=(5, 5))
 
         if self._writer.date:
-            d = self._writer.date.strftime('%a, %b %d, %Y %H:%M')
+            d = self._writer.date.strftime('%a, %B %d, %Y %H:%M')
         else:
             d = 'Not Set'
         self._label_var.set(d)
@@ -39,14 +39,14 @@ class DateFrame(Frame):
 
     def set_date_now(self, event):
         d = datetime.now()
-        ds = d.strftime('%a, %b %d, %Y %H:%M')
+        ds = d.strftime('%a, %B %d, %Y %H:%M')
         self._writer.date = d
         self._label_var.set(ds)
         self.event_generate('<<Check Save Button>>')
 
     def refresh(self, *args):
         date = self._writer.date
-        self._label_var.set(self._writer.date.strftime('%a, %b %d, %Y %H:%M') if date else 'Not Set')
+        self._label_var.set(self._writer.date.strftime('%a, %B %d, %Y %H:%M') if date else 'Not Set')
 
     def clear(self):
         self._label_var.set('')
@@ -148,7 +148,7 @@ class DateFrame(Frame):
                  'second': 0,
                  'microsecond': 0}
             date = datetime(**v)
-            self._label_var.set(date.strftime('%a, %b %d, %Y %H:%M'))
+            self._label_var.set(date.strftime('%a, %B %d, %Y %H:%M'))
             self._writer.date = date
             self.event_generate('<<Check Save Button>>')
             self.unbind('<Configure>')

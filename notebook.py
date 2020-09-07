@@ -72,7 +72,7 @@ class Journal(Notebook):
         return self._current_page().entry_id
 
     @property
-    def class_(self):
+    def mode_(self):
         return self._current_page().class_
 
     def _current_page(self) -> Union[ReaderPage, WriterPage]:
@@ -126,14 +126,14 @@ class Journal(Notebook):
             pass
 
     def check_saved(self, event=None):
-        try:
+        if self._current_page().class_ == 'Writer':
             return self._current_page().check_saved(event)
-        except AttributeError:
-            print('check')
-            return False
 
     def refresh_readers(self):
         self.event_generate('<<Refresh ReaderPages>>')
+
+    def clear(self):
+        self._current_page().reset_fields()
 
     def _get_tab_id(self, page_type: str):
         ids = [x.id_ for x in self._pages if page_type in x.class_]

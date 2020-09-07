@@ -81,6 +81,9 @@ class ReaderPage(Frame):
     def name(self):
         return self._name
 
+    def reset_fields(self):
+        self._reader.reset_fields()
+
 
 class WriterPage(Frame):
     def __init__(self, tempfile: str = None, bind_name: str = None, **kwargs):
@@ -108,9 +111,6 @@ class WriterPage(Frame):
 
         date = DateFrame(master=left_header, writer=self._writer, bind_name=self._bind_name)
         date.pack(fill='x', expand=True, side='left', anchor='c')
-
-        # filler = Frame(master=left_header)
-        # filler.pack(fill='x', expand=True, side='left')
 
         body = WriterBodyFrame(master=top_left, writer=self._writer, bind_name=self._bind_name)
         body.pack(fill='both', expand=True)
@@ -178,6 +178,10 @@ class WriterPage(Frame):
 
     def check_saved(self, event=None):
         return self._writer.check_saved(event)
+
+    def reset_fields(self):
+        self._writer.reset_all_fields()
+        self.event_generate('<<Refresh Widgets>>')
 
 
 def _test_reader():

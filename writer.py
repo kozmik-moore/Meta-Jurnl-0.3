@@ -3,7 +3,7 @@ from contextlib import closing
 from datetime import datetime
 from os.path import basename
 from sqlite3 import connect
-from typing import Union, Tuple
+from typing import Union, Tuple, Any
 
 from configurations import default_database
 from reader_functions import Reader, get_tags, get_attachment_ids
@@ -322,7 +322,7 @@ def set_tags(entry_id: int, tags: Tuple[str], database: str = None, **kwargs):
 """---------------------------------Attachments Methods----------------------------------"""
 
 
-def set_attachments(entry_id: int, attachments: Tuple[str], database: str = None, **kwargs):
+def set_attachments(entry_id: int, attachments: Tuple[Any], database: str = None, **kwargs):
     """Generates data for a given file and adds the data to the database for the given entry
 
     :param entry_id: an int representing the entry

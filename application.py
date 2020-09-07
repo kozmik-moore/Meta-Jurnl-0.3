@@ -1,6 +1,7 @@
 """Contains the classes and functions that form the underlying logic of the journal application"""
 from math import floor
 from tkinter import Tk
+from tkinter.messagebox import askquestion
 from tkinter.ttk import Button, Frame
 
 from PIL import Image, ImageTk
@@ -12,6 +13,9 @@ from notebook import Journal
 class App(Tk):
     def __init__(self, **kwargs):
         super(App, self).__init__(**kwargs)
+        tags = list(self.bindtags())
+        tags.insert(2, 'App')
+        self.bindtags(tags)
 
         img = Image.open('.resources/new_reader.png')
         img = img.resize((16, 16))
@@ -67,7 +71,7 @@ class App(Tk):
                              image=close_panel_icon,
                              compound='right',
                              command=self.journal.remove_page)
-        clear_button = Button(master=toolbar, image=clear_content_icon)
+        clear_button = Button(master=toolbar, image=clear_content_icon, command=self.clear_fields)
 
         self.save_button = Button(master=toolbar, image=save_icon, command=self.save_entry)
         self.edit_button = Button(master=toolbar, image=edit_icon, command=self.edit_entry)
@@ -107,7 +111,7 @@ class App(Tk):
         dimensions((self.winfo_width(), self.winfo_height()))
 
     def change_buttons(self, event=None):
-        if self.journal.class_ == 'Writer':
+        if self.journal.mode_ == 'Writer':
             self.save_button.pack_forget()
             self.edit_button.pack_forget()
             self.link_button.pack_forget()
@@ -149,6 +153,15 @@ class App(Tk):
 
     def delete_entry(self):
         pass
+
+    def clear_fields(self):
+        if self.journal.mode_ == 'Writer':
+            saved = self.journal.check_saved()
+            if not saved:
+                if askquestion('Clear Window Contents?',
+                               'There are unsaved edits in this tab.\nSave before continuing?'):
+                    self.save_entry()
+        self.journal.clear()
 
 
 def _test():

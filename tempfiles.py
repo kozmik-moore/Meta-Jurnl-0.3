@@ -290,6 +290,34 @@ class ReaderFileManager(_TempFileManager):
             self.create_parser()
             self.write_file()
 
+    def reset_all_fields(self):
+        self.id_ = 0
+        self.body = ''
+        self.tags = ()
+        self.has_attachments = 0
+        self.has_parent = 0
+        self.has_children = 0
+        self.date_filter = 0
+        self.tag_filter = 0
+        self.tags_sort = 0
+        self.reset_dates()
+
+    def reset_dates(self):
+        self.dates = {
+            'low year': str(get_oldest_date().year),
+            'high year': str(get_newest_date().year),
+            'low month': '1',
+            'high month': '12',
+            'low day': '01',
+            'high day': '31',
+            'low hour': '00',
+            'high hour': '23',
+            'low minute': '00',
+            'high minute': '59',
+            'low weekday': '0',
+            'high weekday': '6'
+        }
+
 
 class WriterFileManager(_TempFileManager):
     """Manages a single tempfile containing all fields of a writing module"""
@@ -348,9 +376,10 @@ class WriterFileManager(_TempFileManager):
 
     @attachments.setter
     def attachments(self, v: Tuple[str]):
-        if type(v) == tuple and all(isinstance(x, int) for x in v):
+        if type(v) == tuple:
+            d = [x for x in v if type(x) == int]
             v = _check_attachments(v)
-            t = tuple([k for k in v.keys() if v[k] == 'good'])
+            t = tuple([k for k in v.keys() if v[k] == 'good'] + d)
             self.parser['Attributes']['attachments'] = str(t)
             self.write_file()
         else:
@@ -388,6 +417,14 @@ class WriterFileManager(_TempFileManager):
             self._file_path = join(self._tempdir_path, _get_file_id(self._type))
             self.create_parser()
             self.write_file()
+
+    def reset_all_fields(self):
+        self.id_ = 0
+        self.body = ''
+        self.date = None
+        self.tags = ()
+        self.attachments = ()
+        self.parent = 0
 
 
 def _test_reader():

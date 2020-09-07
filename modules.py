@@ -1,6 +1,6 @@
 from datetime import datetime
 from tkinter import Event
-from typing import Dict, Tuple
+from typing import Dict, Tuple, List, Any
 
 from database_info import get_oldest_date, get_all_dates, get_all_tags, get_newest_date
 from filter import Filter
@@ -228,6 +228,9 @@ class ReaderModule:
     def get_attachment_file(self, id_: int):
         return get_attachment_file(id_, self._temp.database)
 
+    def reset_fields(self):
+        self._temp.reset_all_fields()
+
 
 class WriterModule(WriterFileManager):
     def __init__(self, tempfile: str = None):
@@ -256,6 +259,17 @@ class WriterModule(WriterFileManager):
     @property
     def all_tags(self):
         return get_all_tags(self.database)
+
+    def add_attachment(self, path: str):
+        old: List[Any] = list(self.attachments)
+        old.append(path)
+        self.attachments = tuple(old)
+
+    def attachment_name(self, id_: int):
+        return get_attachment_name(id_, self.database)
+
+    def attachment_file(self, id_: int):
+        return get_attachment_file(id_, self.database)
 
     def check_saved(self, event: Event):
         if self.id_:
@@ -286,14 +300,7 @@ class WriterModule(WriterFileManager):
             modify_date(**kwargs)
             set_tags(**kwargs)
             set_attachments(**kwargs)
-
-    def clear(self):
-        self.id_ = 0
-        self.body = ''
-        self.date = None
-        self.tags = ()
-        self.attachments = ()
-        self.parent = 0
+        self.attachments = get_attachment_ids(self.id_, self.database)
 
     def set_body(self, v: str):
         if type(v) == str:
