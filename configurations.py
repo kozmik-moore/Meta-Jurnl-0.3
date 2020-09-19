@@ -30,7 +30,10 @@ def create_file(database: str = None):
         }
         parser['Filesystem'] = {
             'default database': database,
-            'backup location': join(getcwd(), 'Backup')
+            'backup location': join(getcwd(), '.backup'),
+            'imports': join(getcwd(), 'Imports'),
+            'autodelete imports': 'False',
+            'exports': join(getcwd(), 'Exports')
         }
         parser['Databases'] = {
             name.replace('.sqlite', ''): database
@@ -41,10 +44,9 @@ def create_file(database: str = None):
         }
         parser['Visual'] = {
             'theme': '',
-            'dimensions': ''
+            'dimensions': '(1500, 600)'
         }
         # TODO add option for obscuring system files (read and write in bytes instead of str)
-        # TODO add option for auto-sorting tags
         with open('settings.config', 'w') as f:
             parser.write(f)
             f.close()
@@ -61,7 +63,7 @@ def config(**options):
     if options:
         keys = options.keys()
         if 'enabled' in keys:
-            enabled(options['enabled'])
+            backup_enabled(options['enabled'])
         if 'last backup' in keys:
             last_backup(options['last backup'])
         if 'backup interval' in keys:
@@ -80,7 +82,7 @@ def config(**options):
     return p
 
 
-def enabled(option: str = None):
+def backup_enabled(option: str = None):
     """If option is supplied, edits the 'backup enabled' switch in the config file. Otherwise, returns its status
 
     :param option: a str: 'yes' indicates that backups are enabled, 'no' indicates disabled
@@ -203,6 +205,73 @@ def backup_location(path: str = None):
         return abspath(v)
     elif exists(path) and isdir(path):
         p['Filesystem']['backup location'] = abspath(path)
+        with open('settings.config', 'w') as f:
+            p.write(f)
+            f.close()
+    else:
+        raise IOError('Not a valid path to a directory')
+
+
+def imports_location(path: str = None):
+    # TODO create dir if passed a bool indicating permission
+    """If path is supplied, edits the 'imports' field in the config file. Otherwise, returns the field
+
+    :param path: a str indicating the location of the database backups
+    :return: a str indicating the location of the database backups
+    """
+    if not exists('settings.config'):
+        create_file()
+    p = ConfigParser()
+    p.read('settings.config')
+    if path is None:
+        v = p['Filesystem']['imports']
+        return abspath(v)
+    elif exists(path) and isdir(path):
+        p['Filesystem']['imports'] = abspath(path)
+        with open('settings.config', 'w') as f:
+            p.write(f)
+            f.close()
+    else:
+        raise IOError('Not a valid path to a directory')
+
+
+def autodelete_imports(value: bool = None):
+    # TODO create dir if passed a bool indicating permission
+    """If path is supplied, edits the 'imports' field in the config file. Otherwise, returns the field
+
+    :param value: a str indicating the location of the database backups
+    :return: a str indicating the location of the database backups
+    """
+    if not exists('settings.config'):
+        create_file()
+    p = ConfigParser()
+    p.read('settings.config')
+    if value is None:
+        v = p.getboolean('Filesystem', 'autodelete imports')
+        return v
+    else:
+        p['Filesystem']['imports'] = str(value)
+        with open('settings.config', 'w') as f:
+            p.write(f)
+            f.close()
+
+
+def exports_location(path: str = None):
+    # TODO create dir if passed a bool indicating permission
+    """If path is supplied, edits the 'exports' field in the config file. Otherwise, returns the field
+
+    :param path: a str indicating the location of the database backups
+    :return: a str indicating the location of the database backups
+    """
+    if not exists('settings.config'):
+        create_file()
+    p = ConfigParser()
+    p.read('settings.config')
+    if path is None:
+        v = p['Filesystem']['exports']
+        return abspath(v)
+    elif exists(path) and isdir(path):
+        p['Filesystem']['exports'] = abspath(path)
         with open('settings.config', 'w') as f:
             p.write(f)
             f.close()

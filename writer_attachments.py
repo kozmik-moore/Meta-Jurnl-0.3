@@ -12,7 +12,7 @@ from scrolled_frame import VScrolledFrame
 
 
 class AttachmentsButton(Button):
-    def __init__(self, writer: WriterModule, bind_name: str = None, **kwargs):
+    def __init__(self, writer: WriterModule, bind_tag: str = None, **kwargs):
         super(AttachmentsButton, self).__init__(**kwargs)
 
         img = Image.open('.resources/attachments_icon.png')
@@ -27,7 +27,7 @@ class AttachmentsButton(Button):
         img = img.resize((16, 16))
         self.subtract_icon = ImageTk.PhotoImage(image=img)
 
-        self._bind_name = bind_name if bind_name is not None else ''
+        self._bind_tag = bind_tag if bind_tag is not None else ''
 
         self._writer = writer
 
@@ -93,6 +93,7 @@ class AttachmentsButton(Button):
         add.pack(side='left', padx=(5, 5))
         remove = Button(master=footer, text='Remove', image=self.subtract_icon, compound='right')
         remove.pack(side='left', padx=(0, 5))
+        remove.state(['disabled'])
 
         def close_window():
             t.event_generate('<<Check Save Button>>')

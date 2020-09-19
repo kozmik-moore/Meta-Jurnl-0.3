@@ -1,22 +1,25 @@
+from tkinter import Event
 from tkinter.ttk import Frame, PanedWindow
 
-from base_widgets import add_parent_class_to_bindtags
+from base_widgets import add_bind_tag_to_bindtags
 from reader_attributes import AttributesFrame
 from reader_body import BodyFrame as ReaderBodyFrame
 from reader_dates import DatesFrame as ReaderDatesFrame
 from modules import ReaderModule, WriterModule
+from reader_stats import ReaderStatsFrame
 from reader_tags import TagsFrame as ReaderTagsFrame
 from writer_attachments import AttachmentsButton
 from writer_body import BodyFrame as WriterBodyFrame
 from writer_dates import DateFrame
+from writer_stats import WriterStatsFrame
 from writer_tags import TagsFrame as WriterTagsFrame
 
 
 class ReaderPage(Frame):
-    def __init__(self, tempfile: str = None, bind_name: str = None, **kwargs):
+    def __init__(self, tempfile: str = None, bind_tag: str = None, **kwargs):
         super(ReaderPage, self).__init__(**kwargs)
 
-        self._bind_name = bind_name if bind_name else 'Reader0'
+        self._bind_tag = bind_tag if bind_tag else 'Reader0'
 
         self._class_ = 'Reader'
 
@@ -24,13 +27,13 @@ class ReaderPage(Frame):
 
         self._reader = ReaderModule(tempfile)
 
-        left = ReaderDatesFrame(reader=self._reader, bind_name=bind_name, relief='ridge', borderwidth=1, padding=3)
+        left = ReaderDatesFrame(reader=self._reader, bind_tag=bind_tag, relief='ridge', borderwidth=1, padding=3)
 
-        middle = ReaderBodyFrame(reader=self._reader, relief='ridge', borderwidth=1, padding=3, bind_name=bind_name)
+        middle = ReaderBodyFrame(reader=self._reader, relief='ridge', borderwidth=1, padding=3, bind_tag=bind_tag)
 
         right = Frame(relief='ridge', borderwidth=1, padding=3)
-        AttributesFrame(master=right, reader=self._reader, bind_name=bind_name).pack(fill='x')
-        ReaderTagsFrame(master=right, reader=self._reader, bind_name=bind_name).pack(fill='both', expand=True)
+        AttributesFrame(master=right, reader=self._reader, bind_tag=bind_tag).pack(fill='x')
+        ReaderTagsFrame(master=right, reader=self._reader, bind_tag=bind_tag).pack(fill='both', expand=True)
 
         window = PanedWindow(master=self, orient='horizontal')
         window.add(left, weight=1)
@@ -39,15 +42,22 @@ class ReaderPage(Frame):
         window.pack(fill='both', expand=True)
 
         left.update_ids()
-        left.set_id_from_child()
+        left.update_from_tempfile()
+
+        stats = ReaderStatsFrame(master=self, reader=self._reader, bind_tag=bind_tag)
+        stats.pack(fill='x')
+
+        add_bind_tag_to_bindtags(self)
+
+        self.bind_class('TNotebook', '<<Refresh ReaderPages>>', self.refresh_from_tempfile)
 
     @property
-    def bind_name(self):
-        return self._bind_name
+    def bind_tag(self):
+        return self._bind_tag
 
-    @bind_name.setter
-    def bind_name(self, v: str):
-        self._bind_name = v
+    @bind_tag.setter
+    def bind_tag(self, v: str):
+        self._bind_tag = v
 
     @property
     def class_(self):
@@ -83,13 +93,17 @@ class ReaderPage(Frame):
 
     def reset_fields(self):
         self._reader.reset_fields()
+        self.event_generate('<<Tempfile Updated>>')
+
+    def refresh_from_tempfile(self, event: Event = None):
+        self.event_generate('<<Tempfile Updated>>')
 
 
 class WriterPage(Frame):
-    def __init__(self, tempfile: str = None, bind_name: str = None, **kwargs):
+    def __init__(self, tempfile: str = None, bind_tag: str = None, **kwargs):
         super(WriterPage, self).__init__(**kwargs)
 
-        self._bind_name = bind_name if bind_name else 'Writer0'
+        self._bind_tag = bind_tag if bind_tag else 'Writer0'
 
         self._class_ = 'Writer'
 
@@ -106,19 +120,19 @@ class WriterPage(Frame):
         attachments = Frame(master=left_header)
         attachments.pack(fill='x', expand=True, side='left')
 
-        attachments_button = AttachmentsButton(master=attachments, writer=self._writer, bind_name=self._bind_name)
+        attachments_button = AttachmentsButton(master=attachments, writer=self._writer, bind_tag=self._bind_tag)
         attachments_button.pack(side='left')
 
-        date = DateFrame(master=left_header, writer=self._writer, bind_name=self._bind_name)
+        date = DateFrame(master=left_header, writer=self._writer, bind_tag=self._bind_tag)
         date.pack(fill='x', expand=True, side='left', anchor='c')
 
-        body = WriterBodyFrame(master=top_left, writer=self._writer, bind_name=self._bind_name)
+        body = WriterBodyFrame(master=top_left, writer=self._writer, bind_tag=self._bind_tag)
         body.pack(fill='both', expand=True)
 
         top_right = Frame(relief='ridge', borderwidth=1, padding=3)
         top_right.pack(fill='both', expand=True)
 
-        tags = WriterTagsFrame(master=top_right, writer=self._writer, bind_name=self._bind_name)
+        tags = WriterTagsFrame(master=top_right, writer=self._writer, bind_tag=self._bind_tag)
         tags.pack(fill='both', expand=True)
 
         window = PanedWindow(master=self, orient='horizontal')
@@ -126,15 +140,18 @@ class WriterPage(Frame):
         window.add(top_right, weight=1)
         window.pack(fill='both', expand=True)
 
-        add_parent_class_to_bindtags(self)
+        stats = WriterStatsFrame(master=self, writer=self._writer, bind_tag=bind_tag)
+        stats.pack(fill='x')
+
+        add_bind_tag_to_bindtags(self)
 
     @property
-    def bind_name(self):
-        return self._bind_name
+    def bind_tag(self):
+        return self._bind_tag
 
-    @bind_name.setter
-    def bind_name(self, v: str):
-        self._bind_name = v
+    @bind_tag.setter
+    def bind_tag(self, v: str):
+        self._bind_tag = v
 
     @property
     def class_(self):

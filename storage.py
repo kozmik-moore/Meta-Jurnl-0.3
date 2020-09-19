@@ -41,7 +41,7 @@ def backup_needed():
 
     :return: a bool indicating whether a backup is needed or None if it is not
     """
-    if enabled() == 'yes':
+    if backup_enabled() == 'yes':
         last = last_backup()
         if not last:
             return True

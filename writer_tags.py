@@ -23,10 +23,10 @@ class TagIntVar(IntVar):
 
 
 class TagsFrame(Frame):
-    def __init__(self, writer: WriterModule, bind_name: str = None, **kwargs):
+    def __init__(self, writer: WriterModule, bind_tag: str = None, **kwargs):
         super(TagsFrame, self).__init__(**kwargs)
 
-        self._bind_name = bind_name
+        self._bind_tag = bind_tag
 
         self._writer = writer
 
@@ -49,7 +49,7 @@ class TagsFrame(Frame):
         style.configure('clear.TButton', padding=0)
         style.configure('clear.TEntry', padding=3)
 
-        self._filter_var = StringVar(master=self, value='', name='{}tags_filter'.format(bind_name))
+        self._filter_var = StringVar(master=self, value='', name='{}tags_filter'.format(bind_tag))
         self._trace = self._filter_var.trace_add('write', self.repack)
         self._tag_vars: List[TagIntVar] = []
 
@@ -84,12 +84,12 @@ class TagsFrame(Frame):
         else:
             self.selected_tags = []
 
-        self.bind_class('Parent.{}'.format(self._bind_name), '<<Selected Id>>', self.repack, add=True)
-        self.bind_class('Parent.{}'.format(self._bind_name), '<<Refresh Widgets>>', self.refresh, add=True)
+        self.bind_class(self._bind_tag, '<<Selected Id>>', self.repack, add=True)
+        self.bind_class(self._bind_tag, '<<Refresh Widgets>>', self.refresh, add=True)
 
     @property
-    def bind_name(self):
-        return self._bind_name
+    def bind_tag(self):
+        return self._bind_tag
 
     @property
     def all_tags(self):

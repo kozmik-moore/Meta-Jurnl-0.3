@@ -1,7 +1,9 @@
 """Contains widget templates"""
 from tkinter import Widget, Canvas
-from tkinter.ttk import Frame, Button, Scrollbar, Style
+from tkinter.ttk import Frame, Button, Scrollbar, Style, Entry
 from typing import Any
+
+from modules import ReaderModule
 
 
 def add_filter_class_to_bindtags(w: Any):
@@ -12,15 +14,22 @@ def add_filter_class_to_bindtags(w: Any):
 
 def add_child_class_to_bindtags(w: Any):
     bindtags = list(w.bindtags())
-    id_ = w.bind_name
+    id_ = w.bind_tag
     bindtags.insert(2, 'Child.{}'.format(id_))
     w.bindtags(tuple(bindtags))
 
 
 def add_parent_class_to_bindtags(w: Any):
     bindtags = list(w.bindtags())
-    id_ = w.bind_name
+    id_ = w.bind_tag
     bindtags.insert(2, 'Parent.{}'.format(id_))
+    w.bindtags(tuple(bindtags))
+
+
+def add_bind_tag_to_bindtags(w: Any):
+    bindtags = list(w.bindtags())
+    id_ = w.bind_tag
+    bindtags.insert(2, id_)
     w.bindtags(tuple(bindtags))
 
 
@@ -80,6 +89,15 @@ class ButtonsFrame(Frame):
         button = Button(master=frame, text=v[0], command=v[1])
         button.pack()
         buttons.append(button)
+
+
+class TagEntry(Entry):
+    def __init__(self, reader: ReaderModule, bind_tag: str = None, **kwargs):
+        super(TagEntry, self).__init__(**kwargs)
+
+        self._bind_tag = bind_tag if bind_tag else ''
+
+        self._reader = reader
 
 
 class ScrollingFrame(Frame):

@@ -1,12 +1,12 @@
 from datetime import datetime
-from tkinter import Toplevel, StringVar, IntVar
+from tkinter import Toplevel, StringVar, IntVar, Event
 from tkinter.font import Font
 from tkinter.ttk import Frame, Checkbutton, Button, Scale, Label, Style, Radiobutton, Separator, Labelframe
 from typing import Tuple
 
 from PIL import Image, ImageTk
 
-from base_widgets import add_parent_class_to_bindtags, add_child_class_to_bindtags
+from base_widgets import add_bind_tag_to_bindtags
 from filter import check_day_against_month
 from modules import ReaderModule
 from scrolled_frame import VScrolledFrame
@@ -23,11 +23,16 @@ class DateRadiobutton(Radiobutton):
         return self._id
 
 
+# TODO add "sort by" methods (e.g. sort by recently accessed, most tags, length, cpw, other?)
 class DatesFrame(Frame):
-    def __init__(self, reader: ReaderModule, bind_name: str = None, **kwargs):
+    def __init__(self, reader: ReaderModule, bind_tag: str = None, **kwargs):
         super(DatesFrame, self).__init__(**kwargs)
 
-        self._bind_name = bind_name
+        img = Image.open('.resources/filter_icon.png')
+        img = img.resize((16, 16))
+        self.filters_icon = ImageTk.PhotoImage(image=img)
+
+        self._bind_tag = bind_tag
 
         self._reader = reader
 
@@ -38,14 +43,10 @@ class DatesFrame(Frame):
         style = Style()
         style.configure('justified.TRadiobutton', anchor='e')
 
-        self.current = IntVar()
+        self.current = IntVar(value=self._reader.id_)
 
         header = Frame(master=self, relief='ridge', borderwidth=1, padding=5)
         header.pack(fill='x')
-
-        img = Image.open('.resources/filter_icon.png')
-        img = img.resize((16, 16))
-        self.filters_icon = ImageTk.PhotoImage(image=img)
 
         label = Label(master=header, text='DATES')
         popup = Button(master=header, text='Filters', image=self.filters_icon, command=self.call_popup)
@@ -55,16 +56,15 @@ class DatesFrame(Frame):
         self._buttons = VScrolledFrame(master=self, relief='ridge', borderwidth=1)
         self._buttons.pack(fill='both', expand=True)
 
-        add_parent_class_to_bindtags(self)
-        print(list(self.bindtags()))
+        add_bind_tag_to_bindtags(self)
 
-        self.bind_class('Child.{}'.format(self._bind_name), '<<Update Ids>>', self.update_ids, add=True)
-        self.bind_class('Child.{}'.format(self._bind_name), '<<Selected Id>>', self.set_id_from_child, add=True)
-        self.bind_class('TNotebook', '<<Refresh ReaderPages>>', self.refresh, add=True)
+        self.bind_class('{}'.format(self._bind_tag), '<<Filter Attributes Changed>>', self.update_ids, add=True)
+        self.bind_class('{}'.format(self._bind_tag), '<<Id Selected>>', self.update_from_tempfile, add=True)
+        self.bind_class(self._bind_tag, '<<Tempfile Updated>>', self.update_ids, add=True)
 
     @property
-    def bind_name(self):
-        return self._bind_name
+    def bind_tag(self):
+        return self._bind_tag
 
     @property
     def reader(self):
@@ -90,7 +90,7 @@ class DatesFrame(Frame):
             button = DateRadiobutton(master=new, id_=i,
                                      text=self._reader.get_date(i).strftime('%a, %b %d, %Y %H:%M') + ' ({})'.format(i),
                                      value=i, variable=self.current, style='justified.TRadiobutton',
-                                     command=self.set_id_from_self)
+                                     command=self.set_id)
             button.pack(fill='x', anchor='e', expand=True)
         new.pack(fill='both', expand=True)
         self._buttons = new
@@ -99,34 +99,24 @@ class DatesFrame(Frame):
 
     def call_popup(self):
         popup = DatesPopup(self.current, DateVars(self.reader), old=self.reader.oldest_year,
-                           new=self.reader.newest_year, bind_name=self._bind_name)
+                           new=self.reader.newest_year, bind_tag=self._bind_tag)
         popup.grab_set()
         popup.focus()
 
-    def set_id_from_self(self, *args):
+    def set_id(self, *args):
         self.reader.id_ = self.current.get()
-        self.event_generate('<<Selected Id>>')
-        if args and args[0]:
-            print(args[0])
+        self.event_generate('<<Id Selected>>')
 
-    def set_id_from_child(self, *args):
-        self.current.set(self.reader.id_ if self.reader.id_ else 0)
-        self.event_generate('<<Selected Id>>')
-        if args:
-            print(args[0].__dict__)
+    def update_from_tempfile(self, event: Event = None):
+        if event:
+            self.current.set(self.reader.id_ if self.reader.id_ else 0)
 
-    def update_ids(self, *args):
+    def update_ids(self, event: Event = None):
         self.ids = self.reader.filtered_ids
-        if self.reader.id_ in self._ids:
-            self.current.set(self.reader.id_)
-        else:
+        if self.reader.id_ not in self._ids:
             self.current.set(0)
             self.reader.id_ = 0
-        self.event_generate('<<Selected Id>>')
-
-    def refresh(self, *args):
-        """Refreshes dates information from the reader"""
-        self.update_ids()
+            self.event_generate('<<Id Selected>>')
 
 
 def month_str(value: int, fmt: str = 'long'):
@@ -144,7 +134,6 @@ def weekday_str(value: int, fmt: str = 'long'):
     return s
 
 
-# TODO subclass Widget to take advantage of getting variables directly
 class DateVars:
     def __init__(self, reader: ReaderModule):
         self._reader = reader
@@ -278,13 +267,13 @@ class DateVars:
 
 
 class DatesPopup(Toplevel):
-    def __init__(self, current_var: IntVar, date_vars: DateVars, old: int, new: int, bind_name: str, **kwargs):
+    def __init__(self, current_var: IntVar, date_vars: DateVars, old: int, new: int, bind_tag: str, **kwargs):
         super(DatesPopup, self).__init__(**kwargs)
         self.title('Filters')
 
-        self._bind_name = bind_name
+        self._bind_tag = bind_tag
 
-        add_child_class_to_bindtags(self)
+        add_bind_tag_to_bindtags(self)
 
         self.bind('<Escape>', lambda e: self.exit())
 
@@ -403,8 +392,8 @@ class DatesPopup(Toplevel):
         self.set_scales_frame()
 
     @property
-    def bind_name(self):
-        return self._bind_name
+    def bind_tag(self):
+        return self._bind_tag
 
     def set_scales_frame(self):
         if self.sort_var.get() == 0:
@@ -418,7 +407,7 @@ class DatesPopup(Toplevel):
         if self._initial != self.sort_var.get():
             self._current.set(0)
         self.set_filters()
-        self.event_generate('<<Update Ids>>')
+        self.event_generate('<<Filter Attributes Changed>>')
         self.destroy()
 
 

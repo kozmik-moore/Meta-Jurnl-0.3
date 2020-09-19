@@ -1,28 +1,21 @@
 from os import makedirs
 from os.path import exists, join
-from tkinter import IntVar, Toplevel
+from tkinter import IntVar, Toplevel, Event
 from tkinter.ttk import Frame, Checkbutton, Button, Label, Style
 
-from base_widgets import add_child_class_to_bindtags
+from base_widgets import add_bind_tag_to_bindtags
 from modules import ReaderModule
 from scrolled_frame import VScrolledFrame
 
 
-class ChildToplevel(Toplevel):
-    def __init__(self, bind_name: str, **kwargs):
-        super(ChildToplevel, self).__init__(**kwargs)
-
-        self._bind_name = bind_name
-
-
 class AttributesFrame(Frame):
-    def __init__(self, reader: ReaderModule, bind_name: str = None, **kwargs):
+    def __init__(self, reader: ReaderModule, bind_tag: str = None, **kwargs):
         super(AttributesFrame, self).__init__(**kwargs)
 
         style = Style()
         style.configure('recessed.TCheckbutton', relief='ridge', borderwidth=1)
 
-        self._bind_name = bind_name
+        self._bind_tag = bind_tag
 
         self.reader = reader
 
@@ -31,9 +24,9 @@ class AttributesFrame(Frame):
 
         Label(master=frame, text='ATTRIBUTES').pack()
 
-        self.attachments_chk_var = IntVar(value=0, name='{}attachments_chk'.format(bind_name))
-        self.parent_chk_var = IntVar(value=0, name='{}parent_chk'.format(bind_name))
-        self.children_chk_var = IntVar(value=0, name='{}children_chk'.format(bind_name))
+        self.attachments_chk_var = IntVar(value=0, name='{}attachments_chk'.format(bind_tag))
+        self.parent_chk_var = IntVar(value=0, name='{}parent_chk'.format(bind_tag))
+        self.children_chk_var = IntVar(value=0, name='{}children_chk'.format(bind_tag))
 
         self.attachments_frame = Frame(master=self)
         self.attachments_chk = Checkbutton(master=self.attachments_frame, variable=self.attachments_chk_var)
@@ -61,25 +54,37 @@ class AttributesFrame(Frame):
         self.parent_chk_var.set(self.reader.has_parent)
         self.children_chk_var.set(self.reader.has_children)
 
-        self.attachments_chk_var.trace_add('write', self.set_flag)
-        self.parent_chk_var.trace_add('write', self.set_flag)
-        self.children_chk_var.trace_add('write', self.set_flag)
+        self.attachments_trace = self.attachments_chk_var.trace_add('write', self.set_flag)
+        self.parent_trace = self.parent_chk_var.trace_add('write', self.set_flag)
+        self.children_trace = self.children_chk_var.trace_add('write', self.set_flag)
 
         self.set_buttons()
 
-        add_child_class_to_bindtags(self)
+        add_bind_tag_to_bindtags(self)
 
-        self.bind_class('Parent.{}'.format(self._bind_name), '<<Selected Id>>', self.set_buttons, add=True)
-        self.bind_class('TNotebook', '<<Refresh ReaderPages>>', self.set_buttons, add=True)
+        self.bind_class('{}'.format(self._bind_tag), '<<Id Selected>>', self.set_buttons, add=True)
+        self.bind_class(self._bind_tag, '<<Tempfile Updated>>', self.update_from_tempfile, add=True)
 
     @property
-    def bind_name(self):
-        return self._bind_name
+    def bind_tag(self):
+        return self._bind_tag
 
-    def set_buttons(self, *args):
+    def set_buttons(self, event: Event = None):
         self.attachments_btn.state(['!disabled' if self.reader.entry_has_attachments else 'disabled'])
         self.parent_btn.state(['!disabled' if self.reader.entry_has_parent else 'disabled'])
         self.children_btn.state(['!disabled' if self.reader.entry_has_children else 'disabled'])
+
+    def update_from_tempfile(self, event: Event = None):
+        self.attachments_chk_var.trace_vdelete('w', self.attachments_trace)
+        self.parent_chk_var.trace_vdelete('w', self.parent_trace)
+        self.children_chk_var.trace_vdelete('w', self.children_trace)
+        self.attachments_chk_var.set(self.reader.has_attachments)
+        self.parent_chk_var.set(self.reader.has_parent)
+        self.children_chk_var.set(self.reader.has_children)
+        self.set_buttons()
+        self.attachments_trace = self.attachments_chk_var.trace_add('write', self.set_flag)
+        self.parent_trace = self.parent_chk_var.trace_add('write', self.set_flag)
+        self.children_trace = self.children_chk_var.trace_add('write', self.set_flag)
 
     def set_flag(self, *args):
         flag = args[0]
@@ -90,7 +95,7 @@ class AttributesFrame(Frame):
             self.reader.has_parent = num
         elif 'children' in flag:
             self.reader.has_children = num
-        self.event_generate('<<Update Ids>>')
+        self.event_generate('<<Filter Attributes Changed>>')
 
     def attachments_popup(self):
         t = Toplevel()
@@ -116,20 +121,20 @@ class AttributesFrame(Frame):
 
     def set_id_to_parent(self):
         self.reader.id_ = self.reader.entry_parent
-        self.event_generate('<<Selected Id>>')
+        self.event_generate('<<Id Selected>>')
 
     def children_popup(self):
         t = Toplevel()
         t.title('Children: {}'.format(self.reader.get_date(self.reader.id_).strftime('%a, %b %d, %Y %H:%M')))
         b = list(t.bindtags())
-        b.insert(2, 'Child.{}'.format(self._bind_name))
+        b.insert(2, '{}'.format(self._bind_tag))
         t.bindtags(b)
 
         t.bind('<Escape>', lambda x: t.destroy())
 
         def set_id(id_: int):
             self.reader.id_ = id_
-            t.event_generate('<<Selected Id>>')
+            t.event_generate('<<Id Selected>>')
             t.destroy()
 
         f = VScrolledFrame(master=t)

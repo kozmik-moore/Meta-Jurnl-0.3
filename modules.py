@@ -2,7 +2,7 @@ from datetime import datetime
 from tkinter import Event
 from typing import Dict, Tuple, List, Any
 
-from database_info import get_oldest_date, get_all_dates, get_all_tags, get_newest_date
+from database_info import get_oldest_date, get_all_dates, get_all_tags, get_newest_date, get_all_entry_ids
 from filter import Filter
 from reader_functions import get_date, get_body, get_parent, get_children, get_attachment_ids, get_tags, \
     get_attachment_name, get_attachment_file
@@ -160,7 +160,6 @@ class ReaderModule:
         self._filter.date_filter = v
         self._temp.date_filter = v
 
-    # TODO missing from GUI
     @property
     def tag_filter(self):
         return self._temp.tag_filter
@@ -214,6 +213,10 @@ class ReaderModule:
     @property
     def filtered_ids(self):
         return self._filter.filtered_ids
+
+    @property
+    def all_ids(self):
+        return get_all_entry_ids(self.database)
 
     @property
     def path(self):
@@ -272,7 +275,14 @@ class WriterModule(WriterFileManager):
         return get_attachment_file(id_, self.database)
 
     def check_saved(self, event: Event):
-        if self.id_:
+        # TODO Fix this
+        if not self.id_ and all([self.body == '',
+                                 self.tags == (),
+                                 self.attachments == (),
+                                 not self.date,
+                                 not self.parent]):
+            saved = True
+        elif self.id_:
             saved = all([self.body == get_body(self.id_, self.database),
                          self.tags == get_tags(self.id_, self.database),
                          self.date == get_date(self.id_, self.database),

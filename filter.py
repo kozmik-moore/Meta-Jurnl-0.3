@@ -178,6 +178,7 @@ class Filter:
         :rtype: Tuple[int]
         :return: a tuple of int representing the entry ids which have been filtered in
         """
+        self._filter()
         return self._filtered
 
     @property

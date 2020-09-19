@@ -8,6 +8,9 @@ from configurations import default_database
 from database_info import get_all_entry_ids
 
 
+# TODO move Reader class to new module
+
+
 class Reader:
     """Stores the id of the currently selected entry and reports its attributes from the database"""
 
@@ -142,9 +145,6 @@ class Reader:
         if self._id:
             h = True if get_parent(self._id, self.database_location) else False
         return h
-
-
-# TODO add exception catching to functions which need it
 
 
 """---------------------------------Date Methods----------------------------------"""

@@ -8,16 +8,16 @@ from modules import WriterModule
 
 
 class DateFrame(Frame):
-    def __init__(self, writer: WriterModule, bind_name: str = None, **kwargs):
+    def __init__(self, writer: WriterModule, bind_tag: str = None, **kwargs):
         super(DateFrame, self).__init__(**kwargs)
 
         img = Image.open('.resources/date_icon.png')
         img = img.resize((16, 16))
         self.date_icon = ImageTk.PhotoImage(image=img)
 
-        self._bind_name = bind_name if bind_name is not None else ''
+        self._bind_tag = bind_tag if bind_tag is not None else ''
 
-        self._label_var = StringVar(name='{}label_var'.format(self._bind_name))
+        self._label_var = StringVar(name='{}label_var'.format(self._bind_tag))
 
         self._writer = writer
 
@@ -34,8 +34,8 @@ class DateFrame(Frame):
         self._label_var.set(d)
 
         self.button.bind('<Button-3>', self.set_date_now)
-        self.bind_class('Parent.{}'.format(self._bind_name), '<<Clear Contents>>', self.clear, add=True)
-        self.bind_class('Parent.{}'.format(self._bind_name), '<<Refresh Widgets>>', self.refresh, add=True)
+        self.bind_class(self._bind_tag, '<<Clear Contents>>', self.clear, add=True)
+        self.bind_class(self._bind_tag, '<<Refresh Widgets>>', self.refresh, add=True)
 
     def set_date_now(self, event):
         d = datetime.now()
@@ -66,6 +66,7 @@ class DateFrame(Frame):
 
         t = Toplevel()
         t.title('Set Date')
+        # TODO create window header from scratch
         # t.overrideredirect(True)
 
         # TODO get this working
@@ -81,7 +82,7 @@ class DateFrame(Frame):
         # self.button.bind('<Configure>', _set_position)
 
         b = list(t.bindtags())
-        b.insert(2, 'Child.{}'.format(self._bind_name))
+        b.insert(2, 'Child.{}'.format(self._bind_tag))
         t.bindtags(b)
 
         if self._writer.date:
@@ -103,11 +104,11 @@ class DateFrame(Frame):
         hours = ['{:02d}'.format(x) for x in range(0, 24)]
         minutes = ['{:02d}'.format(x) for x in range(0, 60)]
 
-        year_var = StringVar(name='{}.year_var'.format(self._bind_name), value=str(year))
-        month_var = StringVar(name='{}.month_var'.format(self._bind_name), value=months[month - 1])
-        day_var = StringVar(name='{}.day_var'.format(self._bind_name), value=str(day))
-        hour_var = StringVar(name='{}.hour_var'.format(self._bind_name), value='{:02d}'.format(hour))
-        minute_var = StringVar(name='{}.minute_var'.format(self._bind_name), value='{:02d}'.format(minute))
+        year_var = StringVar(name='{}.year_var'.format(self._bind_tag), value=str(year))
+        month_var = StringVar(name='{}.month_var'.format(self._bind_tag), value=months[month - 1])
+        day_var = StringVar(name='{}.day_var'.format(self._bind_tag), value=str(day))
+        hour_var = StringVar(name='{}.hour_var'.format(self._bind_tag), value='{:02d}'.format(hour))
+        minute_var = StringVar(name='{}.minute_var'.format(self._bind_tag), value='{:02d}'.format(minute))
 
         frame = Frame(master=t)
 
@@ -176,4 +177,3 @@ def _test():
 
 if __name__ == '__main__':
     _test()
-    # TODO make comboboxes, link to IntVars, create commands to autoupdate for specific vars (trace_adds?)

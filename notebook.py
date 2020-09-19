@@ -1,4 +1,5 @@
-from os import scandir, remove
+from os import scandir, remove, makedirs
+from os.path import exists
 from tkinter import Event
 from tkinter.ttk import Notebook, Style
 from typing import Union
@@ -12,8 +13,6 @@ from pages import ReaderPage, WriterPage
 class Journal(Notebook):
     def __init__(self, **kwargs):
         super(Journal, self).__init__(**kwargs)
-
-        print(list(self.bindtags()))
 
         img = Image.open('.resources/purple_book.png')
         img = img.resize((16, 16))
@@ -30,6 +29,10 @@ class Journal(Notebook):
 
         tempfiles = pages()
 
+        for d in '.tempfiles/Reader', '.tempfiles/Writer':
+            if not exists(d):
+                makedirs(d)
+
         files = [x.path for x in scandir('.tempfiles/Reader')] + [x.path for x in scandir('.tempfiles/Writer')]
 
         for path in files:
@@ -43,19 +46,19 @@ class Journal(Notebook):
 
         for i in range(r_len + w_len):
             if 'Reader' in tempfiles[i]:
-                bind_name = 'Reader{}'.format(r_count)
+                bind_tag = 'Reader{}'.format(r_count)
                 r_count += 1
             else:
-                bind_name = 'Writer{}'.format(w_count)
+                bind_tag = 'Writer{}'.format(w_count)
                 w_count += 1
-            tempfiles[i] = (tempfiles[i], bind_name)
+            tempfiles[i] = (tempfiles[i], bind_tag)
 
         pgs = [
-            ReaderPage(tempfile=x[0], bind_name=x[1]) if 'Reader' in x[0] else WriterPage(tempfile=x[0], bind_name=x[1])
+            ReaderPage(tempfile=x[0], bind_tag=x[1]) if 'Reader' in x[0] else WriterPage(tempfile=x[0], bind_tag=x[1])
             for x in tempfiles]
 
         for page in pgs:
-            page.id_ = page.bind_name[-1]
+            page.id_ = page.bind_tag[-1]
             self.add(child=page,
                      image=self._book_image if page.class_ == 'Reader' else self._pencil_image,
                      text='{} {}'.format(page.class_, page.id_),
@@ -67,26 +70,43 @@ class Journal(Notebook):
 
         self.bind('<<NotebookTabChanged>>', self.update_settings)
 
+        self.enable_traversal()
+
     @property
     def id_(self):
-        return self._current_page().entry_id
+        if self._current_page():
+            return self._current_page().entry_id
+        else:
+            return None
 
     @property
     def mode_(self):
-        return self._current_page().class_
+        if self._current_page():
+            return self._current_page().class_
+        else:
+            return None
 
-    def _current_page(self) -> Union[ReaderPage, WriterPage]:
+    def _current_page(self) -> Union[ReaderPage, WriterPage, None]:
         """Returns the currently selected page object
 
         """
-        for page in self._pages:
-            if page.path == current_page():
-                return page
+        if self.tabs():
+            c = current_page()
+            if c:
+                for page in self._pages:
+                    if page.path == c:
+                        return page
+            else:
+                p = self._pages[0]
+                current_page(p.path)
+                return p
+        else:
+            return None
 
     def add_page(self, mode: str = 'Reader', **kwargs):
         id_ = self._get_tab_id(mode)
-        bind_name = '{}{}'.format(mode, id_)
-        page = ReaderPage(bind_name=bind_name) if mode == 'Reader' else WriterPage(bind_name=bind_name)
+        bind_tag = '{}{}'.format(mode, id_)
+        page = ReaderPage(bind_tag=bind_tag) if mode == 'Reader' else WriterPage(bind_tag=bind_tag)
         if 'parent' in kwargs.keys():
             page.link_entry(entry_id=kwargs['parent'])
         if 'entry_id' in kwargs.keys():
@@ -126,7 +146,7 @@ class Journal(Notebook):
             pass
 
     def check_saved(self, event=None):
-        if self._current_page().class_ == 'Writer':
+        if self._current_page() and self._current_page().class_ == 'Writer':
             return self._current_page().check_saved(event)
 
     def refresh_readers(self):

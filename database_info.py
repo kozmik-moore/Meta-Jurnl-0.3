@@ -53,7 +53,10 @@ def get_oldest_date(database: str = None):
     :return: a datetime representing the date of the oldest entry in the database
     """
     db = default_database(database) if database else default_database()
-    return get_all_dates(db)[0]
+    try:
+        return get_all_dates(db)[0]
+    except IndexError:
+        return None
 
 
 def get_newest_date(database: str = None):
@@ -64,7 +67,10 @@ def get_newest_date(database: str = None):
     :return: a datetime representing the date of the newest entry in the database
     """
     db = default_database(database) if database else default_database()
-    return get_all_dates(db)[-1]
+    try:
+        return get_all_dates(db)[-1]
+    except IndexError:
+        return None
 
 
 def get_all_children(database: str = None):
@@ -129,6 +135,13 @@ def get_years(database: str = None):
         years = list({x[0] for x in d.execute('SELECT year FROM dates')})
         years.sort()
     return years
+
+
+def database_is_empty(database: str = None):
+    if len(get_all_entry_ids(database if database else default_database())) == 0:
+        return True
+    else:
+        return False
 
 
 def close_connection(database: Connection):
