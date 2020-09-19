@@ -29,6 +29,7 @@ class ReaderStatsFrame(Frame):
 
         self.bind_class(self._bind_tag, '<<Filter Attributes Changed>>', self.update_counter, add=True)
         self.bind_class(self._bind_tag, '<<Status Updated>>', self.update_status, add=True)
+        self.bind_class(self._bind_tag, '<<Tempfile Updated>>', self.update_counter, add=True)
         self.update_counter()
 
     def update_counter(self, event: Event = None):
