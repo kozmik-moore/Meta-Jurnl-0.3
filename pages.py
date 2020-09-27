@@ -36,15 +36,17 @@ class ReaderPage(Frame):
         ReaderTagsFrame(master=right, reader=self._reader, bind_tag=bind_tag).pack(fill='both', expand=True)
 
         window = PanedWindow(master=self, orient='horizontal')
-        window.add(left, weight=1)
-        window.add(middle, weight=6)
-        window.add(right, weight=1)
+        window.add(left, weight=2)
+        window.add(middle, weight=4)
+        window.add(right, weight=2)
         window.pack(fill='both', expand=True)
 
-        left.update_ids()
-        left.update_from_tempfile()
-
-        stats = ReaderStatsFrame(master=self, reader=self._reader, bind_tag=bind_tag)
+        stats = ReaderStatsFrame(master=self,
+                                 reader=self._reader,
+                                 bind_tag=bind_tag,
+                                 padding=5,
+                                 relief='sunken',
+                                 borderwidth=1)
         stats.pack(fill='x')
 
         add_bind_tag_to_bindtags(self)
@@ -114,7 +116,7 @@ class WriterPage(Frame):
         top_left = Frame(relief='ridge', borderwidth=1, padding=3)
         top_left.pack(fill='both', expand=True)
 
-        left_header = Frame(master=top_left)
+        left_header = Frame(master=top_left, padding=5, relief='sunken', borderwidth=1)
         left_header.pack(fill='x')
 
         attachments = Frame(master=left_header)
@@ -140,7 +142,12 @@ class WriterPage(Frame):
         window.add(top_right, weight=1)
         window.pack(fill='both', expand=True)
 
-        stats = WriterStatsFrame(master=self, writer=self._writer, bind_tag=bind_tag)
+        stats = WriterStatsFrame(master=self,
+                                 writer=self._writer,
+                                 bind_tag=bind_tag,
+                                 padding=5,
+                                 relief='sunken',
+                                 borderwidth=1)
         stats.pack(fill='x')
 
         add_bind_tag_to_bindtags(self)

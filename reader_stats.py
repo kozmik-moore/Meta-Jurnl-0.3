@@ -1,5 +1,5 @@
-from tkinter import Frame, StringVar, Event
-from tkinter.ttk import Button, Label
+from tkinter import StringVar, Event
+from tkinter.ttk import Button, Label, Frame
 
 from modules import ReaderModule
 
@@ -27,10 +27,11 @@ class ReaderStatsFrame(Frame):
         count_descriptor = Label(master=self, text='Proportion: ')
         count_descriptor.pack(side='right', padx=(5, 0))
 
+        self.update_counter()
+
         self.bind_class(self._bind_tag, '<<Filter Attributes Changed>>', self.update_counter, add=True)
         self.bind_class(self._bind_tag, '<<Status Updated>>', self.update_status, add=True)
         self.bind_class(self._bind_tag, '<<Tempfile Updated>>', self.update_counter, add=True)
-        self.update_counter()
 
     def update_counter(self, event: Event = None):
         num = len(self._reader.filtered_ids)

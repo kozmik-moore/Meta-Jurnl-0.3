@@ -1,4 +1,5 @@
 from datetime import datetime
+from math import floor
 from tkinter import Toplevel, StringVar, IntVar, Event
 from tkinter.font import Font
 from tkinter.ttk import Frame, Checkbutton, Button, Scale, Label, Style, Radiobutton, Separator, Labelframe
@@ -43,23 +44,26 @@ class DatesFrame(Frame):
         style = Style()
         style.configure('justified.TRadiobutton', anchor='e')
 
-        self.current = IntVar(value=self._reader.id_)
+        self.current = IntVar(name='{}.current_id'.format(self._bind_tag))
 
         header = Frame(master=self, relief='ridge', borderwidth=1, padding=5)
         header.pack(fill='x')
 
-        label = Label(master=header, text='DATES')
-        popup = Button(master=header, text='Filters', image=self.filters_icon, command=self.call_popup)
-        label.pack(side='left')
-        popup.pack(side='right')
+        self.label = Label(master=header, text='DATES')
+        self.popup = Button(master=header, text='Filters', image=self.filters_icon, command=self.call_popup)
+        self.label.pack(side='left')
+        self.popup.pack(side='right')
 
         self._buttons = VScrolledFrame(master=self, relief='ridge', borderwidth=1)
         self._buttons.pack(fill='both', expand=True)
 
+        self.ids = self.reader.filtered_ids
+        self.current.set(self._reader.id_)
+
         add_bind_tag_to_bindtags(self)
 
-        self.bind_class('{}'.format(self._bind_tag), '<<Filter Attributes Changed>>', self.update_ids, add=True)
-        self.bind_class('{}'.format(self._bind_tag), '<<Id Selected>>', self.update_from_tempfile, add=True)
+        self.bind_class(self._bind_tag, '<<Filter Attributes Changed>>', self.update_ids, add=True)
+        self.bind_class(self._bind_tag, '<<Id Selected>>', self.update_from_tempfile, add=True)
         self.bind_class(self._bind_tag, '<<Tempfile Updated>>', self.update_ids, add=True)
 
     @property
@@ -89,8 +93,7 @@ class DatesFrame(Frame):
         for i in self._ids:
             button = DateRadiobutton(master=new, id_=i,
                                      text=self._reader.get_date(i).strftime('%a, %b %d, %Y %H:%M') + ' ({})'.format(i),
-                                     value=i, variable=self.current, style='justified.TRadiobutton',
-                                     command=self.set_id)
+                                     value=i, variable=self.current, command=self.set_id)
             button.pack(fill='x', anchor='e', expand=True)
         new.pack(fill='both', expand=True)
         self._buttons = new
@@ -98,10 +101,14 @@ class DatesFrame(Frame):
         temp.destroy()
 
     def call_popup(self):
-        popup = DatesPopup(self.current, DateVars(self.reader), old=self.reader.oldest_year,
-                           new=self.reader.newest_year, bind_tag=self._bind_tag)
-        popup.grab_set()
-        popup.focus()
+        p = DatesPopup(self.current,
+                       DateVars(self.reader),
+                       old=self.reader.oldest_year,
+                       new=self.reader.newest_year,
+                       bind_tag=self._bind_tag,
+                       location=(self.label.winfo_rootx(), self.popup.winfo_rooty()))
+        p.grab_set()
+        p.focus()
 
     def set_id(self, *args):
         self.reader.id_ = self.current.get()
@@ -268,16 +275,21 @@ class DateVars:
 
 class DatesPopup(Toplevel):
     def __init__(self, current_var: IntVar, date_vars: DateVars, old: int, new: int, bind_tag: str, **kwargs):
+        location = kwargs.pop('location') if 'location' in kwargs.keys() else ()
+        dims = [50, 27, location[0], location[1]] if location else [50, 27]
         super(DatesPopup, self).__init__(**kwargs)
+
+        self.withdraw()
+
         self.title('Filters')
 
         self._bind_tag = bind_tag
 
         add_bind_tag_to_bindtags(self)
 
-        self.bind('<Escape>', lambda e: self.exit())
+        self.bind('<Escape>', lambda e: self.save_and_close())
 
-        self.protocol('WM_DELETE_WINDOW', self.exit)
+        self.protocol('WM_DELETE_WINDOW', self.save_and_close)
         width = 58
         self.set_filters = date_vars.set_filters
 
@@ -391,6 +403,19 @@ class DatesPopup(Toplevel):
         # self.bind('<Configure>', self.reconfigure)
         self.set_scales_frame()
 
+        self.update_idletasks()
+
+        dims[0], dims[1] = self.winfo_reqwidth(), self.winfo_reqheight()
+        dims[3] = dims[3] + 27
+        dims_str = '{}x{}+{}+{}'.format(*dims)
+
+        self.geometry(dims_str)
+
+        self.after(50, self.deiconify)
+        print(self.geometry())
+
+        self.bind('<Button-1>', self._check_click)
+
     @property
     def bind_tag(self):
         return self._bind_tag
@@ -403,12 +428,16 @@ class DatesPopup(Toplevel):
             self._i_frame.pack(fill='both', expand=True)
             self._c_frame.pack_forget()
 
-    def exit(self):
+    def save_and_close(self):
         if self._initial != self.sort_var.get():
             self._current.set(0)
         self.set_filters()
         self.event_generate('<<Filter Attributes Changed>>')
         self.destroy()
+
+    def _check_click(self, event: Event):
+        if str(self) not in str(self.focus_get()):
+            self.save_and_close()
 
 
 def _test():

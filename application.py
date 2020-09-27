@@ -2,7 +2,7 @@
 from math import floor
 from tkinter import Tk, Menu
 from tkinter.messagebox import askquestion
-from tkinter.ttk import Button, Frame
+from tkinter.ttk import Button, Frame, Style
 
 from PIL import Image, ImageTk
 
@@ -17,12 +17,19 @@ from notebook import Journal
 # TODO add menu option to auto-clean imports
 # TODO add auto-import methods
 # TODO add "close all pages" method with prompt (right-click on existing button)
+from themes import ThemeEngine
+
+
 class App(Tk):
     def __init__(self, **kwargs):
         super(App, self).__init__(**kwargs)
         tags = list(self.bindtags())
         tags.insert(2, 'App')
         self.bindtags(tags)
+
+        themes = ThemeEngine()
+        self.option_readfile(themes.options_file)
+        themes.set_ttk_style()
 
         img = Image.open('.resources/new_reader.png')
         img = img.resize((16, 16))
@@ -62,7 +69,8 @@ class App(Tk):
         if backup_enabled():
             check = check_backup()
             if check != 1:
-                print(check)
+                # print(check)
+                pass
 
         self.title('Meta-Jurnl')
         self.iconphoto(True, app_icon)
@@ -249,7 +257,7 @@ class App(Tk):
 
 
 def _test():
-    App()
+    App(className='app')
 
 
 if __name__ == '__main__':

@@ -1,4 +1,5 @@
-from tkinter import Toplevel, StringVar, END, Text
+from math import floor
+from tkinter import Toplevel, StringVar, END, Text, Event
 from tkinter.ttk import Entry, Button, Frame, Scrollbar, Label
 
 from PIL import Image, ImageTk
@@ -22,13 +23,17 @@ class BodyButton(Button):
         self.configure(text='Filter', image=self.filters_icon, command=self.popup)
 
     def popup(self):
-        popup = BodyPopup(reader=self.reader, bind_tag=self._bind_tag)
+        popup = BodyPopup(reader=self.reader,
+                          bind_tag=self._bind_tag,
+                          location=(self.winfo_rootx(), self.winfo_rooty()))
         popup.grab_set()
         popup.focus()
 
 
 class BodyPopup(Toplevel):
     def __init__(self, reader: ReaderModule, bind_tag: str, **kwargs):
+        location = kwargs.pop('location') if 'location' in kwargs.keys() else ()
+        dims = [50, 27, location[0], location[1]] if location else [50, 27]
         super(BodyPopup, self).__init__(**kwargs)
 
         self.protocol('WM_DELETE_WINDOW', self.save_and_close)
@@ -37,6 +42,8 @@ class BodyPopup(Toplevel):
 
         add_child_class_to_bindtags(self)
 
+        self.withdraw()
+
         self.title('Search Contents For...')
         self.bind('<Escape>', lambda e: self.destroy())
 
@@ -44,7 +51,7 @@ class BodyPopup(Toplevel):
 
         self.body_var = StringVar(value=self.reader.body)
 
-        self.search_field = Entry(master=self, width=50, textvariable=self.body_var)
+        self.search_field = Entry(master=self, width=40, textvariable=self.body_var)
         self.search_field.pack(side='left', fill='x')
 
         self.search_field.bind('<Return>', self.save_and_close)
@@ -55,6 +62,19 @@ class BodyPopup(Toplevel):
         self.search_field.focus()
         self.select_all()
         self.search_field.icursor(END)
+        
+        self.update_idletasks()
+
+        dims[0], dims[1] = self.winfo_reqwidth(), self.winfo_reqheight()
+        dims[2] = dims[2] - dims[0] + 27
+        dims[3] = dims[3] + 27
+        dims_str = '{}x{}+{}+{}'.format(*dims)
+
+        self.geometry(dims_str)
+
+        self.after(50, self.deiconify)
+
+        self.bind('<Button-1>', self._check_click)
 
     @property
     def bind_tag(self):
@@ -72,6 +92,10 @@ class BodyPopup(Toplevel):
     def select_all(self, *args):
         self.search_field.select_range(0, END)
 
+    def _check_click(self, event: Event):
+        if str(self) not in str(self.focus_get()):
+            self.save_and_close()
+
 
 class BodyText(Frame):
     def __init__(self, reader: ReaderModule, bind_tag: str, **kwargs):
@@ -87,10 +111,10 @@ class BodyText(Frame):
         self.text.pack(side='left', fill='both', expand=True)
         scrollbar.pack(side='left', fill='y')
 
+        self.update_text()
+
         self.bind_class(self._bind_tag, '<<Id Selected>>', self.update_text, add=True)
         self.bind_class(self._bind_tag, '<<Tempfile Updated>>', self.update_text, add=True)
-
-        self.update_text()
 
     def update_text(self, *args):
         self.text.configure(state='normal')

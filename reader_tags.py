@@ -1,6 +1,6 @@
-from tkinter import StringVar, IntVar
-from tkinter.font import Font
-from tkinter.ttk import Frame, Button, Entry, Checkbutton, Style, Radiobutton, Label
+from math import floor
+from tkinter import StringVar, IntVar, Menu, Toplevel, Event
+from tkinter.ttk import Frame, Button, Entry, Checkbutton, Label, Menubutton
 from typing import List, TypeVar, Tuple
 
 from PIL import Image, ImageTk
@@ -22,106 +22,107 @@ class TagIntVar(IntVar):
         return self._tag
 
 
-class TagsFrame(Frame):
+class TagsPopup(Toplevel):
     def __init__(self, reader: ReaderModule, bind_tag: str = None, **kwargs):
-        super(TagsFrame, self).__init__(**kwargs)
+        location = kwargs.pop('location') if 'location' in kwargs.keys() else ()
+        dims = [400, 300, location[0], location[1]] if location else [400, 300]
+        super(TagsPopup, self).__init__(**kwargs)
 
-        img = Image.open('.resources/blue_check.png')
-        img = img.resize((12, 12))
-        self._check_image = ImageTk.PhotoImage(image=img)
+        self.overrideredirect(False)
 
-        self._bind_tag = bind_tag
+        self._inside = False
+        self._has_focus = True
+
+        self.withdraw()
+
+        self.protocol('WM_DELETE_WINDOW', self.save_and_close)
+
+        self._bind_tag = bind_tag if bind_tag else ''
 
         self._reader = reader
 
-        self._all_tags = ()
-        self._selected_tags = ()
-        self._unselected_tags = ()
-
-        style = Style()
-        font = Font(font='TkDefaultFont')
-        font.configure(slant='italic')
-        style.configure('selected.TCheckbutton', background='dark gray')
-        style.configure('unselected.TCheckbutton', background='light gray')
-        style.configure('selected.TFrame', background='dark gray')
-        style.configure('unselected.TFrame', background='light gray')
-        style.configure('selected.TLabel', background='dark gray')
-        style.configure('entry.selected.TLabel', font=font, foreground='blue')
-        style.configure('unselected.TLabel', background='light gray')
-        style.configure('entry.unselected.TLabel', font=font, foreground='blue')
-        style.configure('header.TLabel', font=font, foreground='blue')
-        style.configure('clear.TButton', padding=0)
-        style.configure('clear.TEntry', padding=3)
-
-        self._filter_var = StringVar(master=self, value='', name='{}tags_filter'.format(bind_tag))
-        self._trace = self._filter_var.trace_add('write', self.repack)
+        self._all_tags = []
+        self._selected_tags = []
+        self._unselected_tags = []
         self._tag_vars: List[TagIntVar] = []
-        self._sort_var = IntVar(master=self, value=self._reader.tags_autosort, name='{}sort'.format(bind_tag))
-        self._type_int = IntVar(master=self, name='{}type_var_int'.format(bind_tag))
-        self._type_str = StringVar(master=self, name='{}type_var_str'.format(bind_tag))
 
-        self.inner = {'side': 'left', 'fill': 'x', 'expand': True}
-        self.outer = {'side': 'top', 'fill': 'x'}
+        self._filter_var = StringVar(master=self,
+                                     value='',
+                                     name='{}.tags_filter'.format(self._bind_tag))
+        self._sort_var = IntVar(master=self,
+                                name='{}.sort_var'.format(self._bind_tag))
+        self._type_int = IntVar(master=self,
+                                name='{}type_var_int'.format(self._bind_tag))
+        self._type_str = StringVar(master=self,
+                                   name='{}type_var_str'.format(self._bind_tag))
 
-        header = Frame(master=self, padding=5)
-        header.pack(fill='x')
+        inner_kwargs = {'side': 'left', 'fill': 'x', 'expand': True}
+        outer_kwargs = {'side': 'top', 'fill': 'x'}
 
-        label = Label(master=header, text='TAGS', anchor='c')
-        label.pack(fill='x')
+        button_holder = Frame(master=self)
+        none_button = Button(master=button_holder, text='None', command=self.select_none)
+        invert_button = Button(master=button_holder, text='Invert', command=self.select_invert)
+        all_button = Button(master=button_holder, text='All', command=self.select_all)
+        none_button.pack(**inner_kwargs)
+        invert_button.pack(**inner_kwargs)
+        all_button.pack(**inner_kwargs)
+        button_holder.pack(**outer_kwargs)
 
-        self._button_holder = Frame(master=self)
-        self._none = Button(master=self._button_holder, text='None', command=self.select_none)
-        self._invert = Button(master=self._button_holder, text='Invert', command=self.select_invert)
-        self._all = Button(master=self._button_holder, text='All', command=self.select_all)
-        self._none.pack(**self.inner)
-        self._invert.pack(**self.inner)
-        self._all.pack(**self.inner)
-        self._button_holder.pack(**self.outer)
+        filter_holder = Frame(master=self)
+        filter_entry = Entry(master=filter_holder, textvariable=self._filter_var, style='clear.TEntry')
+        filter_entry.bind('<Return>', self.add)
+        filter_clear_button = Button(master=filter_holder, text='Clear', style='clear.TButton')
+        filter_clear_button.configure(command=lambda s='': self._filter_var.set(s))
+        filter_entry.pack(side='left', fill='x', expand=True)
+        filter_clear_button.pack(side='right')
+        filter_holder.pack(fill='x', ipady=1)
 
-        self._filter_holder = Frame(master=self)
-        self._filter = Entry(master=self._filter_holder, textvariable=self._filter_var, style='clear.TEntry')
-        self._filter.bind('<Return>', self.add)
-        self._filter_clear = Button(master=self._filter_holder, text='Clear', style='clear.TButton')
-        self._filter_clear.configure(command=lambda s='': self._filter_var.set(s))
-        self._filter.pack(side='left', fill='x', expand=True)
-        self._filter_clear.pack(side='right')
-        self._filter_holder.pack(fill='x', ipady=1)
+        buttons_frame = ScrollingFrame(master=self, width=self.winfo_width() - 15, height=self.winfo_height() - 47)
+        buttons_frame.pack(fill='both', expand=True)
 
-        self._buttons = ScrollingFrame(master=self, width=self.winfo_width() - 15, height=self.winfo_height() - 47)
+        self._inner = buttons_frame.inner
 
-        self._buttons.pack(fill='both', expand=True)
+        options_holder = Frame(master=self)
+        options_holder.pack(side='bottom', fill='x')
 
-        self._options_holder = Frame(master=self)
-        self._type_holder = Frame(master=self._options_holder)
-        radio_holder = Frame(master=self._type_holder)
-        self._type_0 = Radiobutton(master=radio_holder, value=0, text='', variable=self._type_int)
-        self._type_1 = Radiobutton(master=radio_holder, value=1, text='', variable=self._type_int)
-        self._type_2 = Radiobutton(master=radio_holder, value=2, text='', variable=self._type_int)
-        self._type_label = Label(master=self._type_holder, textvariable=self._type_str, width=30)
-        self._sort = Checkbutton(master=self._options_holder, variable=self._sort_var, text='autosort',
-                                 command=self.toggle_autosort)
-        self._type_0.pack(side='left')
-        self._type_1.pack(side='left')
-        self._type_2.pack(side='left')
-        radio_holder.pack(side='top', fill='x')
-        self._type_label.pack(side='top', fill='x')
-        self._type_holder.pack(side='left')
-        self._sort.pack(side='right', fill='both', anchor='center')
-        self._options_holder.pack(side='bottom', fill='x')
+        type_button = Menubutton(master=options_holder,
+                                 textvariable=self._type_str,
+                                 width=15,
+                                 direction='above',
+                                 style='tags.TMenubutton')
+        type_button.pack(side='left', fill='both', anchor='center')
 
-        self._type_int.trace_add('write', self.set_filter_type)
+        # TODO class type_menu or type_button for styling purposes (tk styling restrictions)
+        type_menu = Menu(master=type_button, tearoff=0, relief='flat', borderwidth=1)
+        type_menu.add_radiobutton(label='Contains Any Of...', value=0, variable=self._type_int, indicatoron=0)
+        type_menu.add_radiobutton(label='Contains At Least...', value=1, variable=self._type_int, indicatoron=0)
+        type_menu.add_radiobutton(label='Contains Only...', value=2, variable=self._type_int, indicatoron=0)
+
+        type_button['menu'] = type_menu
+
+        sort_button = Checkbutton(master=options_holder, variable=self._sort_var, text='autosort',
+                                  command=self.toggle_autosort)
+        sort_button.pack(side='right', fill='both', anchor='center')
+
+        self._filter_var_trace = self._filter_var.trace_add('write', self.repack)
+        self._type_int_trace = self._type_int.trace_add('write', self.set_filter_type)
+
+        add_bind_tag_to_bindtags(self)
 
         self._type_int.set(self._reader.tag_filter)
+        self._sort_var.set(self._reader.tags_autosort)
 
-        tags = self._reader.tags
-        if tags:
-            self.selected_tags = list(tags)
-        else:
-            self.selected_tags = self._reader.all_tags
+        self.selected_tags = self._reader.tags
 
-        self.bind_class(self._bind_tag, '<<Id Selected>>', self.update_from_tempfile, add=True)
-        self.bind_class(self._bind_tag, '<<Tempfile Updated>>', self.update_from_tempfile, add=True)
-        add_bind_tag_to_bindtags(self)
+        dims[2] = dims[2] - dims[0] + 27
+        dims[3] = dims[3] + 27
+        dims_str = '{}x{}+{}+{}'.format(*dims)
+
+        self.geometry(dims_str)
+
+        self.after(50, self.deiconify)
+
+        self.bind('<Button-1>', self._check_click)
 
     @property
     def bind_tag(self):
@@ -149,70 +150,22 @@ class TagsFrame(Frame):
     def unselected_tags(self):
         return self._unselected_tags
 
-    def update_from_tempfile(self, *args):
-        """Refreshes tags information from the reader"""
-        self.selected_tags = self._reader.tags
-
     def repack(self, *args):
-        tags = self._reader.entry_tags
         if self._sort_var.get() == 1:
-            selected_entry = []
-            selected = []
-            unselected_entry = []
-            unselected = []
-            for var in self._tag_vars:
-                if all([var.tag in tags,
-                        self._filter_var.get().lower() in var.tag.lower(),
-                        var.get() == 1]):
-                    selected_entry.append(var)
-                elif all([var.tag not in tags,
-                          self._filter_var.get().lower() in var.tag.lower(),
-                          var.get() == 1]):
-                    selected.append(var)
-                elif all([var not in selected,
-                          self._filter_var.get().lower() in var.tag.lower(),
-                          var.get() == 0,
-                          var.tag in tags]):
-                    unselected_entry.append(var)
-                elif all([var not in selected,
-                          self._filter_var.get().lower() in var.tag.lower(),
-                          var.get() == 0,
-                          var.tag not in tags]):
-                    unselected.append(var)
-            all_ = selected_entry + selected + unselected_entry + unselected
+            selected = [x for x in self._tag_vars if all([self._filter_var.get().lower() in x.tag.lower(),
+                                                          x.get() == 1])]
+            unselected = [x for x in self._tag_vars if all([self._filter_var.get().lower() in x.tag.lower(),
+                                                            x.get() == 0])]
+            all_ = selected + unselected
         else:
             all_ = [var for var in self._tag_vars if self._filter_var.get().lower() in var.tag.lower()]
 
-        for b in self._buttons.inner.pack_slaves():
+        for b in self._inner.pack_slaves():
             b.pack_forget()
 
         for var in all_:
-            inner = Frame(master=self._buttons.inner)
-            button = Checkbutton(master=inner, text=var.tag, variable=var, command=self.swap)
-            # label = Label(master=inner, image=self._check_image, padding=(0, 0, 5))
-            f_style = 'unselected.TFrame'
-            l_style = 'unselected.TLabel'
-            b_style = 'unselected.TCheckbutton'
-            if var.get() == 1 or var.tag in tags:
-                if var.tag in tags and var.get() == 1:
-                    # f_style = 'selected.TFrame'
-                    # l_style = 'entry.selected.TLabel'
-                    b_style = 'selected.TCheckbutton'
-                    # label.pack(side='right')
-                elif var.get() == 1:
-                    # f_style = 'selected.TFrame'
-                    # b_style = 'selected.TCheckbutton'
-                    # l_style = 'selected.TLabel'
-                    pass
-                elif var.tag in tags:
-                    # l_style = 'entry.unselected.TLabel'
-                    # label.pack(side='right')
-                    b_style = 'selected.TCheckbutton'
-            inner.configure(style=f_style)
-            # label.configure(style=l_style)
-            button.configure(style=b_style)
-            button.pack(side='left', fill='x', expand=True)
-            inner.pack(fill='x', expand=True)
+            button = Checkbutton(master=self._inner, text=var.tag, variable=var, command=self.swap)
+            button.pack(fill='x', expand=True)
 
     def add(self, *args):
         tag = self._filter_var.get()
@@ -221,29 +174,24 @@ class TagsFrame(Frame):
             tags.append(tag)
             self.selected_tags = tuple(tags)
         self._filter_var.set('')
-        self.event_generate('<<Filter Attributes Changed>>')
 
     def swap(self):
         tags = tuple([x.tag for x in self._tag_vars if x.get() == 1])
         self.selected_tags = tags
-        self.event_generate('<<Filter Attributes Changed>>')
 
     def select_all(self):
         self._filter_var.set('')
         self.selected_tags = self.all_tags
-        self.event_generate('<<Filter Attributes Changed>>')
 
     def select_none(self):
         self._filter_var.set('')
         self.selected_tags = []
-        self.event_generate('<<Filter Attributes Changed>>')
 
     def select_invert(self):
         temp = self._unselected_tags
         self._unselected_tags = self._selected_tags
         self._filter_var.set('')
         self.selected_tags = temp
-        self.event_generate('<<Filter Attributes Changed>>')
 
     def toggle_autosort(self):
         setting = self._sort_var.get()
@@ -253,13 +201,86 @@ class TagsFrame(Frame):
     def set_filter_type(self, *args):
         num = self.getvar(args[0])
         self._reader.tag_filter = num
-        type_ = ['Contains At Least One Of...', 'Contains At Least...', 'Contains Only...'][num]
+        type_ = ['Contains Any Of...', 'Contains At Least...', 'Contains Only...'][num]
         self._type_str.set(type_)
-        self.event_generate('<<Filter Attributes Changed>>')
 
-    def popup(self):
-        # TODO create popup for grid representation of tags
-        pass
+    def save_and_close(self, *args):
+        self._filter_var.trace_remove('write', self._filter_var_trace)
+        self._type_int.trace_remove('write', self._type_int_trace)
+        self._reader.tags = self.selected_tags
+        self.event_generate('<<Tempfile Updated>>')
+        self.destroy()
+
+    def _on_enter(self, event: Event):
+        self._inside = True
+
+    def _on_exit(self, event: Event):
+        self._inside = False
+
+    def _on_focus(self, event: Event):
+        self._has_focus = True
+
+    def _on_focus_loss(self, event: Event):
+        if 'tagspopup' not in str(event.widget):
+            self._has_focus = False
+
+    def _check_click(self, event: Event):
+        if str(self) not in str(self.focus_get()):
+            self.save_and_close()
+
+
+class TagsButton(Button):
+    def __init__(self, reader: ReaderModule, bind_tag: str = None, **kwargs):
+        super(TagsButton, self).__init__(**kwargs)
+
+        img = Image.open('.resources/filter_icon.png')
+        img = img.resize((16, 16))
+        self.filters_icon = ImageTk.PhotoImage(image=img)
+
+        self._bind_tag = bind_tag if bind_tag else ''
+
+        self._reader = reader
+
+        self.configure(text='Filter', image=self.filters_icon, command=self.call_popup)
+
+    def call_popup(self, *args):
+        popup = TagsPopup(reader=self._reader,
+                          bind_tag=self._bind_tag,
+                          location=(self.winfo_rootx(), self.winfo_rooty()))
+        popup.grab_set()
+        popup.focus_set()
+
+
+class TagsFrame(Frame):
+    def __init__(self, reader: ReaderModule, bind_tag: str = None, **kwargs):
+        super(TagsFrame, self).__init__(**kwargs)
+
+        self._bind_tag = bind_tag if bind_tag else ''
+
+        self._reader = reader
+
+        header = Frame(master=self, relief='ridge', borderwidth=1, padding=5)
+        header.pack(fill='x')
+
+        header_label = Label(master=header, text='TAGS')
+        header_label.pack(side='left')
+
+        popup_button = TagsButton(master=header, reader=self._reader, bind_tag=self._bind_tag)
+        popup_button.pack(side='right')
+
+        self._tags_frame = ScrollingFrame(master=self, relief='ridge', borderwidth=1, padding=5)
+        self._tags_frame.pack(fill='both', expand=True)
+
+        self._update_tags()
+
+        self.bind_class(self._bind_tag, '<<Id Selected>>', self._update_tags, add=True)
+
+    def _update_tags(self, *args):
+        for label in self._tags_frame.inner.pack_slaves():
+            label.pack_forget()
+        for tag in self._reader.entry_tags:
+            label = Label(master=self._tags_frame.inner, text=tag)
+            label.pack(fill='x', expand=True, anchor='center')
 
 
 def _test():

@@ -70,14 +70,14 @@ def from_intervals(intervals: Dict[str, int], database: str = None):
         l_hour = intervals.get('low hour', 0)
         h_hour = intervals.get('high hour', 23)
         l_minute = intervals.get('low minute', 0)
-        h_minute = intervals.get('high minute', 59) + 0.999999
+        h_minute = intervals.get('high minute', 59)
         l_weekday = intervals.get('low weekday', 0)
         h_weekday = intervals.get('high weekday', 6)
         t = '{:02d}'
         f = '{:09.6f}'
         c = d.execute('SELECT entry_id FROM dates WHERE (strftime("%Y", created) BETWEEN ? AND ?) AND '
                       '(strftime("%m", created) BETWEEN ? AND ?) AND (strftime("%d", created) BETWEEN ? AND ?) AND '
-                      '(strftime("%H", created) BETWEEN ? AND ?) AND (strftime("%f", created) BETWEEN ? AND ?) AND '
+                      '(strftime("%H", created) BETWEEN ? AND ?) AND (strftime("%M", created) BETWEEN ? AND ?) AND '
                       '(strftime("%w", created) BETWEEN ? AND ?)',
                       (str(l_year), str(h_year), t.format(l_month), t.format(h_month), t.format(l_day), t.format(h_day),
                        t.format(l_hour), t.format(h_hour), f.format(l_minute), f.format(h_minute), str(l_weekday),

@@ -16,6 +16,8 @@ class ReaderModule:
         self._filter = Filter(self._temp.database)
 
         self._filter.dates = self._temp.dates
+        self._filter.tags = self._temp.tags
+        self._filter.tag_filter = self._temp.tag_filter
         self._filter.date_filter = self._temp.date_filter
         self._filter.has_parent = self._temp.has_parent
         self._filter.has_attachments = self._temp.has_attachments
@@ -284,9 +286,9 @@ class WriterModule(WriterFileManager):
             saved = True
         elif self.id_:
             saved = all([self.body == get_body(self.id_, self.database),
-                         self.tags == get_tags(self.id_, self.database),
+                         sorted(self.tags) == sorted(get_tags(self.id_, self.database)),
                          self.date == get_date(self.id_, self.database),
-                         self.attachments == get_attachment_ids(self.id_, self.database)])
+                         sorted(self.attachments) == sorted(get_attachment_ids(self.id_, self.database))])
         else:
             saved = False
         return saved
