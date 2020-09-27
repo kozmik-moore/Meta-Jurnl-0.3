@@ -1,4 +1,4 @@
-from tkinter import StringVar, IntVar
+from tkinter import StringVar, IntVar, Menu, Menubutton
 from tkinter.font import Font
 from tkinter.ttk import Frame, Button, Entry, Checkbutton, Style, Radiobutton, Label
 from typing import List, TypeVar, Tuple
@@ -26,6 +26,10 @@ class TagsFrame(Frame):
     def __init__(self, writer: WriterModule, bind_tag: str = None, **kwargs):
         super(TagsFrame, self).__init__(**kwargs)
 
+        img = Image.open('.resources/filter_icon.png')
+        img = img.resize((16, 16))
+        self.filters_icon = ImageTk.PhotoImage(image=img)
+
         self._bind_tag = bind_tag
 
         self._writer = writer
@@ -34,49 +38,31 @@ class TagsFrame(Frame):
         self._selected_tags = ()
         self._unselected_tags = ()
 
-        style = Style()
-        font = Font(font='TkDefaultFont')
-        font.configure(slant='italic')
-        style.configure('selected.TCheckbutton', background='dark gray')
-        style.configure('unselected.TCheckbutton', background='light gray')
-        style.configure('selected.TFrame', background='dark gray')
-        style.configure('unselected.TFrame', background='light gray')
-        style.configure('selected.TLabel', background='dark gray')
-        style.configure('entry.selected.TLabel', font=font, foreground='blue')
-        style.configure('unselected.TLabel', background='light gray')
-        style.configure('entry.unselected.TLabel', font=font, foreground='blue')
-        style.configure('header.TLabel', font=font, foreground='blue')
-        style.configure('clear.TButton', padding=0)
-        style.configure('clear.TEntry', padding=3)
-
         self._filter_var = StringVar(master=self, value='', name='{}tags_filter'.format(bind_tag))
         self._trace = self._filter_var.trace_add('write', self.repack)
         self._tag_vars: List[TagIntVar] = []
 
-        self.inner = {'side': 'left', 'fill': 'x', 'expand': True}
-        self.outer = {'side': 'top', 'fill': 'x'}
+        filter_holder = Frame(master=self, padding=5, relief='sunken', borderwidth=1)
+        filter_entry = Entry(master=filter_holder, textvariable=self._filter_var)
+        filter_entry.bind('<Return>', self.add)
+        filter_entry.pack(side='left', fill='both', expand=True)
+        filter_holder.pack(fill='x')
+        mass_filter = Menubutton(master=filter_holder, image=self.filters_icon)
+        menu = Menu(master=mass_filter, tearoff=0)
+        menu.add_command(label='All', command=self.select_all)
+        menu.add_command(label='None', command=self.select_none)
+        menu.add_command(label='Invert                  ', command=self.select_invert)
+        mass_filter.configure(menu=menu,
+                              image=self.filters_icon,
+                              indicatoron=0, relief='raised',
+                              height=25,
+                              width=25,
+                              direction='left')
+        mass_filter.pack(side='left')
 
-        self._button_holder = Frame(master=self)
-        self._none = Button(master=self._button_holder, text='None', command=self.select_none)
-        self._invert = Button(master=self._button_holder, text='Invert', command=self.select_invert)
-        self._all = Button(master=self._button_holder, text='All', command=self.select_all)
-        self._none.pack(**self.inner)
-        self._invert.pack(**self.inner)
-        self._all.pack(**self.inner)
-        self._button_holder.pack(**self.outer)
-
-        self._filter_holder = Frame(master=self)
-        self._filter = Entry(master=self._filter_holder, textvariable=self._filter_var, style='clear.TEntry')
-        self._filter.bind('<Return>', self.add)
-        self._filter_clear = Button(master=self._filter_holder, text='Clear', style='clear.TButton')
-        self._filter_clear.configure(command=lambda s='': self._filter_var.set(s))
-        self._filter.pack(side='left', fill='x', expand=True)
-        self._filter_clear.pack(side='right')
-        self._filter_holder.pack(fill='x', ipady=1)
-
-        self._buttons = Frame(master=self, width=self.winfo_width() - 15, height=self.winfo_height() - 47)
-
-        self._buttons.pack(fill='both', expand=True)
+        scrolling_frame = ScrollingFrame(master=self, width=self.winfo_width() - 15, height=self.winfo_height() - 47)
+        scrolling_frame.pack(fill='both', expand=True)
+        self._inner = scrolling_frame.inner
 
         tags = self._writer.tags
         if tags:
@@ -122,8 +108,6 @@ class TagsFrame(Frame):
         self.selected_tags = self._writer.tags
 
     def repack(self, *args):
-        frame = ScrollingFrame(master=self)
-        temp = self._buttons
         selected = []
         unselected = []
         for var in self._tag_vars:
@@ -135,18 +119,17 @@ class TagsFrame(Frame):
                       var.get() == 0]):
                 unselected.append(var)
         all_ = selected + unselected
+        for b in self._inner.pack_slaves():
+            b.pack_forget()
         for var in all_:
-            button = Checkbutton(master=frame.inner, text=var.tag, variable=var, command=self.swap)
+            button = Checkbutton(master=self._inner, text=var.tag, variable=var, command=self.swap)
             if var.get() == 1:
                 b_style = 'selected.TCheckbutton'
             else:
                 b_style = 'unselected.TCheckbutton'
             button.configure(style=b_style)
             button.pack(fill='x', expand=True)
-        frame.update_idletasks()
-        self._buttons = frame
-        self._buttons.pack(fill='both', expand=True)
-        temp.destroy()
+        self.update_idletasks()
         self.event_generate('<<Check Save Button>>')
 
     def add(self, *args):

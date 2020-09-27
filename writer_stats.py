@@ -1,5 +1,5 @@
-from tkinter import Frame, StringVar, Event
-from tkinter.ttk import Button, Label
+from tkinter import StringVar, Event
+from tkinter.ttk import Button, Label, Frame
 
 from modules import WriterModule
 
