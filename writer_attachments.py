@@ -9,23 +9,17 @@ from PIL import Image, ImageTk
 from base_widgets import ScrollingFrame
 from modules import WriterModule
 from scrolled_frame import VScrolledFrame
+from themes import get_icon
 
 
 class AttachmentsButton(Button):
     def __init__(self, writer: WriterModule, bind_tag: str = None, **kwargs):
         super(AttachmentsButton, self).__init__(**kwargs)
 
-        img = Image.open('.resources/attachments_icon.png')
-        img = img.resize((16, 16))
-        self.attachments_icon = ImageTk.PhotoImage(image=img)
+        self.attachments_icon = get_icon('ic_attach_file')
 
-        img = Image.open('.resources/add_icon.png')
-        img = img.resize((16, 16))
-        self.add_icon = ImageTk.PhotoImage(image=img)
-
-        img = Image.open('.resources/subtract_icon.png')
-        img = img.resize((16, 16))
-        self.subtract_icon = ImageTk.PhotoImage(image=img)
+        self.add_icon = get_icon('ic_add')
+        self.subtract_icon = get_icon('ic_remove')
 
         self._bind_tag = bind_tag if bind_tag is not None else ''
 
@@ -88,10 +82,12 @@ class AttachmentsButton(Button):
             t.focus_get()
 
         footer = Frame(master=t, relief='ridge', borderwidth=1)
-        footer.pack(fill='x', expand=True, ipady=5)
-        add = Button(master=footer, text='Add', image=self.add_icon, compound='right', command=open_file_dialog)
+        footer.pack(fill='x', expand=True)
+        inner = Frame(master=footer)
+        inner.pack(ipady=5, anchor='c')
+        add = Button(master=inner, text='Add', image=self.add_icon, command=open_file_dialog)
         add.pack(side='left', padx=(5, 5))
-        remove = Button(master=footer, text='Remove', image=self.subtract_icon, compound='right')
+        remove = Button(master=inner, text='Remove', image=self.subtract_icon)
         remove.pack(side='left', padx=(0, 5))
         remove.state(['disabled'])
 

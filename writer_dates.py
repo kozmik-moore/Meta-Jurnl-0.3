@@ -2,18 +2,15 @@ from datetime import datetime
 from tkinter import StringVar, Toplevel
 from tkinter.ttk import Frame, Label, Button, Combobox
 
-from PIL import Image, ImageTk
-
 from modules import WriterModule
+from themes import get_icon
 
 
 class DateFrame(Frame):
     def __init__(self, writer: WriterModule, bind_tag: str = None, **kwargs):
         super(DateFrame, self).__init__(**kwargs)
 
-        img = Image.open('.resources/date_icon.png')
-        img = img.resize((16, 16))
-        self.date_icon = ImageTk.PhotoImage(image=img)
+        self.date_icon = get_icon('ic_date_range')
 
         self._bind_tag = bind_tag if bind_tag is not None else ''
 

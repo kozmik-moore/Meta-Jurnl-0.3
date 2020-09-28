@@ -43,7 +43,7 @@ def create_file(database: str = None):
             'current': ''
         }
         parser['Visual'] = {
-            'theme': '',
+            'theme': '(dark, green)',
             'dimensions': '(1500, 600)'
         }
         # TODO add option for obscuring system files (read and write in bytes instead of str)
@@ -378,6 +378,24 @@ def dimensions(dims: tuple = None):
         return d
     else:
         p.set('Visual', 'dimensions', str(dims))
+        with open('settings.config', 'w') as f:
+            p.write(f)
+            f.close()
+
+
+def color_scheme(colors: tuple = None):
+    if not exists('settings.config'):
+        create_file()
+    p = ConfigParser()
+    p.read('settings.config')
+    if not colors:
+        try:
+            d = literal_eval(p.get('Visual', 'theme'))
+        except SyntaxError:
+            d = ('dark', 'green')
+        return d
+    else:
+        p.set('Visual', 'dimensions', str(colors))
         with open('settings.config', 'w') as f:
             p.write(f)
             f.close()

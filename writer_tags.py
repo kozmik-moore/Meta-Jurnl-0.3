@@ -1,4 +1,4 @@
-from tkinter import StringVar, IntVar, Menu, Menubutton
+from tkinter import StringVar, IntVar, Menu, Menubutton, Event
 from tkinter.font import Font
 from tkinter.ttk import Frame, Button, Entry, Checkbutton, Style, Radiobutton, Label
 from typing import List, TypeVar, Tuple
@@ -7,6 +7,7 @@ from PIL import Image, ImageTk
 
 from base_widgets import ScrollingFrame, add_child_class_to_bindtags
 from modules import ReaderModule, WriterModule
+from themes import get_icon
 
 T = TypeVar('T')
 
@@ -26,9 +27,8 @@ class TagsFrame(Frame):
     def __init__(self, writer: WriterModule, bind_tag: str = None, **kwargs):
         super(TagsFrame, self).__init__(**kwargs)
 
-        img = Image.open('.resources/filter_icon.png')
-        img = img.resize((16, 16))
-        self.filters_icon = ImageTk.PhotoImage(image=img)
+        self._search = get_icon('ic_search')
+        self._filter = get_icon('ic_filter_list')
 
         self._bind_tag = bind_tag
 
@@ -43,22 +43,30 @@ class TagsFrame(Frame):
         self._tag_vars: List[TagIntVar] = []
 
         filter_holder = Frame(master=self, padding=5, relief='sunken', borderwidth=1)
-        filter_entry = Entry(master=filter_holder, textvariable=self._filter_var)
+        inner_left = Frame(master=filter_holder)
+        inner_left.pack(side='left')
+        label = Label(master=inner_left, image=self._search)
+        label.pack(side='left')
+        filter_entry = Entry(master=inner_left, textvariable=self._filter_var, width=45)
         filter_entry.bind('<Return>', self.add)
-        filter_entry.pack(side='left', fill='both', expand=True)
+        filter_entry.pack(side='left', expand=True)
         filter_holder.pack(fill='x')
-        mass_filter = Menubutton(master=filter_holder, image=self.filters_icon)
+        mass_filter = Menubutton(master=filter_holder)
         menu = Menu(master=mass_filter, tearoff=0)
         menu.add_command(label='All', command=self.select_all)
         menu.add_command(label='None', command=self.select_none)
         menu.add_command(label='Invert                  ', command=self.select_invert)
         mass_filter.configure(menu=menu,
-                              image=self.filters_icon,
+                              image=self._filter,
                               indicatoron=0, relief='raised',
                               height=25,
                               width=25,
                               direction='left')
-        mass_filter.pack(side='left')
+        mass_filter.pack(side='right')
+
+        # test_button = Button(master=filter_holder, text='Press me!')
+        # test_button.pack()
+        # test_button.bind('<Button-1>', self.popup)
 
         scrolling_frame = ScrollingFrame(master=self, width=self.winfo_width() - 15, height=self.winfo_height() - 47)
         scrolling_frame.pack(fill='both', expand=True)
@@ -158,9 +166,12 @@ class TagsFrame(Frame):
         self._filter_var.set('')
         self.selected_tags = temp
 
-    def popup(self):
+    def popup(self, event: Event):
         # TODO create popup for grid representation of tags
-        pass
+        frame = Frame(master=self)
+        button = Button(master=frame, command=frame.destroy, text='Press me!')
+        button.pack(fill='both')
+        frame.place(x=event.x, y=event.y)
 
 
 def _test():

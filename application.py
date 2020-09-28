@@ -17,7 +17,7 @@ from notebook import Journal
 # TODO add menu option to auto-clean imports
 # TODO add auto-import methods
 # TODO add "close all pages" method with prompt (right-click on existing button)
-from themes import ThemeEngine
+from themes import ThemeEngine, get_icon
 
 
 class App(Tk):
@@ -31,37 +31,14 @@ class App(Tk):
         self.option_readfile(themes.options_file)
         themes.set_ttk_style()
 
-        img = Image.open('.resources/new_reader.png')
-        img = img.resize((16, 16))
-        new_reader_icon = ImageTk.PhotoImage(image=img)
-
-        img = Image.open('.resources/new_writer.png')
-        img = img.resize((16, 16))
-        new_writer_icon = ImageTk.PhotoImage(image=img)
-
-        img = Image.open('.resources/close_icon.png')
-        img = img.resize((16, 16))
-        close_panel_icon = ImageTk.PhotoImage(image=img)
-
-        img = Image.open('.resources/save_icon.png')
-        img = img.resize((16, 16))
-        save_icon = ImageTk.PhotoImage(image=img)
-
-        img = Image.open('.resources/edit_icon.png')
-        img = img.resize((16, 16))
-        edit_icon = ImageTk.PhotoImage(image=img)
-
-        img = Image.open('.resources/link_icon.png')
-        img = img.resize((16, 16))
-        link_icon = ImageTk.PhotoImage(image=img)
-
-        img = Image.open('.resources/clear_content_icon.png')
-        img = img.resize((16, 16))
-        clear_content_icon = ImageTk.PhotoImage(image=img)
-
-        img = Image.open('.resources/delete_icon.png')
-        img = img.resize((16, 16))
-        delete_icon = ImageTk.PhotoImage(image=img)
+        self.new_reader_icon = get_icon('ic_new_reader')
+        self.new_writer_icon = get_icon('ic_new_writer')
+        self.close_panel_icon = get_icon('ic_close')
+        self.save_icon = get_icon('ic_save')
+        self.edit_icon = get_icon('ic_mode_edit')
+        self.link_icon = get_icon('ic_insert_link')
+        self.clear_content_icon = get_icon('ic_delete_sweep')
+        self.delete_icon = get_icon('ic_delete_forever')
 
         img = Image.open('.resources/wm_icon.png')
         app_icon = ImageTk.PhotoImage(image=img)
@@ -112,25 +89,24 @@ class App(Tk):
 
         self.autoimport()
 
-        self.new_reader = Button(master=toolbar, image=new_reader_icon, command=self.add_reader)
-        new_writer = Button(master=toolbar, image=new_writer_icon, command=self.add_writer)
+        self.new_reader = Button(master=toolbar, image=self.new_reader_icon, command=self.add_reader)
+        new_writer = Button(master=toolbar, image=self.new_writer_icon, command=self.add_writer)
 
         self.close_panel = Button(master=toolbar,
                                   text='Close Tab',
-                                  image=close_panel_icon,
-                                  compound='right',
+                                  image=self.close_panel_icon,
                                   command=self.journal.remove_page)
-        self.clear_button = Button(master=toolbar, image=clear_content_icon, command=self.clear_fields)
+        self.clear_button = Button(master=toolbar, image=self.clear_content_icon, command=self.clear_fields)
 
-        self.save_button = Button(master=toolbar, image=save_icon, command=self.save_entry)
-        self.edit_button = Button(master=toolbar, image=edit_icon, command=self.edit_entry)
-        self.link_button = Button(master=toolbar, image=link_icon, command=self.link_entry)
-        self.delete_button = Button(master=toolbar, image=delete_icon)
+        self.save_button = Button(master=toolbar, image=self.save_icon, command=self.save_entry)
+        self.edit_button = Button(master=toolbar, image=self.edit_icon, command=self.edit_entry)
+        self.link_button = Button(master=toolbar, image=self.link_icon, command=self.link_entry)
+        self.delete_button = Button(master=toolbar, image=self.delete_icon)
 
         self.new_reader.pack(side='left', padx=(0, 5))
         new_writer.pack(side='left', padx=(0, 5))
-        self.close_panel.pack(side='right', padx=(5, 0))
-        self.clear_button.pack(side='right', padx=(5, 0))
+        self.close_panel.pack(side='left', padx=(0, 5))
+        self.clear_button.pack(side='left', padx=(0, 5))
 
         self.close_panel.state(['disabled'])
         self.clear_button.state(['disabled'])
@@ -209,11 +185,11 @@ class App(Tk):
         else:
             self.close_panel.state(['disabled'])
             self.clear_button.state(['disabled'])
-            self.save_button.state(['disabled'])
-            self.link_button.state(['disabled'])
-            self.edit_button.state(['disabled'])
-            self.link_button.state(['disabled'])
-            self.delete_button.state(['disabled'])
+            self.save_button.pack_forget()
+            self.edit_button.pack_forget()
+            self.link_button.pack_forget()
+            self.delete_button.pack_forget()
+
 
     def check_writer_buttons(self, event=None):
         saved = self.journal.check_saved(event)

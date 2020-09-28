@@ -11,6 +11,7 @@ from base_widgets import add_bind_tag_to_bindtags
 from filter import check_day_against_month
 from modules import ReaderModule
 from scrolled_frame import VScrolledFrame
+from themes import get_icon
 
 
 class DateRadiobutton(Radiobutton):
@@ -29,9 +30,7 @@ class DatesFrame(Frame):
     def __init__(self, reader: ReaderModule, bind_tag: str = None, **kwargs):
         super(DatesFrame, self).__init__(**kwargs)
 
-        img = Image.open('.resources/filter_icon.png')
-        img = img.resize((16, 16))
-        self.filters_icon = ImageTk.PhotoImage(image=img)
+        self.filters_icon = get_icon('ic_filter_list')
 
         self._bind_tag = bind_tag
 

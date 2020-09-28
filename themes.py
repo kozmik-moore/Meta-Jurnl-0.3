@@ -1,5 +1,9 @@
-from os.path import join, exists
+from os.path import join, exists, abspath
 from tkinter.ttk import Style
+
+from PIL import ImageTk, Image
+
+from configurations import color_scheme
 
 frame_bg = '#222222'
 fg = '#00cb00'
@@ -16,6 +20,9 @@ class ThemeEngine:
 
     def create_options_files(self):
         options = bytes("""
+        theme: dark
+        color: green
+        
         *app*background: {}
         *background: {}
         *foreground: {}
@@ -24,7 +31,9 @@ class ThemeEngine:
         *Text*insertBackground: {}
         *Menubutton*background: {}
         *Menubutton*activeBackground: {}
-        """.format(frame_bg, frame_bg, fg, 0, interactive_bg, listbutton_bg, interactive_bg, listbutton_bg).encode())
+        *Menu*activeBackground: {}
+        """.format(frame_bg, frame_bg, fg, 0, interactive_bg, listbutton_bg, interactive_bg, listbutton_bg,
+                   listbutton_bg).encode())
         with open(self._optionsfile, 'wb') as file:
             file.write(options)
             file.close()
@@ -53,6 +62,13 @@ class ThemeEngine:
             s = Style()
 
             s.configure('TButton', background=interactive_bg, foreground=fg)
+            s.map('TButton',
+                  foreground=[('disabled', listbutton_bg)],
+                  background=[('disabled', frame_bg),
+                              ('pressed', '!focus', 'cyan'),
+                              ('active', listbutton_bg)],
+                  highlightcolor=[('focus', fg),
+                                  ('!focus', 'red')])
 
             s.configure('TFrame', background=frame_bg)
 
@@ -75,7 +91,7 @@ class ThemeEngine:
 
             s.configure('TCheckbutton', background=interactive_bg, foreground=fg)
             s.configure('selected.TCheckbutton', background=frame_bg, foreground=fg)
-            s.configure('unselected.TCheckbutton', background=frame_bg, foreground=fg, indicatorcolor=unselected_fg)
+            s.configure('unselected.TCheckbutton', background=frame_bg, foreground=fg, indicatorcolor=frame_bg)
             s.map('TCheckbutton',
                   indicatorcolor=[
                       ('pressed', '#ececec'),
@@ -86,8 +102,25 @@ class ThemeEngine:
                   background=[
                       ('active', listbutton_bg)])
 
-            s.configure('TRadiobutton', background=interactive_bg, foreground=fg)
+            s.configure('TRadiobutton', background=interactive_bg, foreground=fg, indicatorcolor=frame_bg)
+            s.map('TRadiobutton',
+                  indicatorcolor=[
+                      ('pressed', '#ececec'),
+                      ('!disabled', 'alternate', '#9fbdd8'),
+                      ('disabled', 'alternate', '#c0c0c0'),
+                      ('!disabled', 'selected', fg),
+                      ('disabled', 'selected', '#a3a3a3')],
+                  background=[
+                      ('active', listbutton_bg)])
 
             s.configure('TEntry', fieldbackground=interactive_bg, foreground=fg, insertcolor=listbutton_bg)
 
             s.configure('TCombobox', fieldbackground=interactive_bg, foreground=fg)
+
+
+def get_icon(name: str):
+    colors = color_scheme()
+    icon_path = abspath(join('.resources', join(colors[0], join(colors[1], '{}.png'.format(name)))))
+    img = Image.open(icon_path)
+    img = img.resize((16, 16))
+    return ImageTk.PhotoImage(image=img)

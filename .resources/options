@@ -1,4 +1,6 @@
 
+        theme: dark
+        color: green
         *app*background: #222222
         *background: #222222
         *foreground: #00cb00
@@ -7,4 +9,5 @@
         *Text*insertBackground: #006600
         *Menubutton*background: #333333
         *Menubutton*activeBackground: #006600
+        *Menu*activeBackground: #006600
         

@@ -1,6 +1,6 @@
 from os import scandir, remove, makedirs
 from os.path import exists
-from tkinter import Event
+from tkinter import Event, Menu
 from tkinter.ttk import Notebook, Style
 from typing import Union
 
@@ -8,18 +8,15 @@ from PIL import Image, ImageTk
 
 from configurations import pages, current_page
 from pages import ReaderPage, WriterPage
+from themes import get_icon
 
 
 class Journal(Notebook):
     def __init__(self, **kwargs):
         super(Journal, self).__init__(**kwargs)
 
-        img = Image.open('.resources/purple_book.png')
-        img = img.resize((16, 16))
-        self._book_image = ImageTk.PhotoImage(image=img)
-        img = Image.open('.resources/green_pencil.png')
-        img = img.resize((16, 16))
-        self._pencil_image = ImageTk.PhotoImage(image=img)
+        self._book_image = get_icon('ic_library_books')
+        self._pencil_image = get_icon('ic_mode_edit')
 
         style = Style()
         style.configure('writer.TNotebook.Tab', foreground='red')
@@ -69,6 +66,7 @@ class Journal(Notebook):
                 self.select(str(page))
 
         self.bind('<<NotebookTabChanged>>', self.update_settings)
+        self.bind('<Button-3>', self.launch_tab_menu)
 
         self.enable_traversal()
 
@@ -120,15 +118,16 @@ class Journal(Notebook):
         self._pages.append(page)
         self.select(str(page))
 
-    def remove_page(self):
-        file = current_page()
+    def remove_page(self, tab_id: int = 'current'):
+        tab_id = self.index(tab_id)
+        file = self._pages[tab_id].path
         remove(file)
         pages(removed=file)
-        c = self._current_page()
-        self.forget(tab_id='current')
-        self._pages.remove(c)
+        self.forget(tab_id=tab_id)
+        self._pages.pop(tab_id)
 
     def update_settings(self, event: Event):
+        # TODO rewrite to use tab_id instead
         """Updates the currently selected tempfile in settings.config
 
         :param event:
@@ -154,6 +153,26 @@ class Journal(Notebook):
 
     def clear(self):
         self._current_page().reset_fields()
+
+    def launch_tab_menu(self, event: Event):
+        # TODO figure out how to grab click outside of menu
+        tab_id = self.tk.call(self, "identify", "tab", event.x, event.y)
+        if type(tab_id) == int:
+
+            menu = Menu(master=self, tearoff=0)
+
+            def _check_click(e: Event):
+                if str(menu) not in str(self.focus_get()):
+                    menu.destroy()
+            self.bind('<Button-1>', _check_click)
+
+            menu.add_command(label='Close       ', command=lambda: self.remove_page(tab_id))
+            menu.add_separator()
+            menu.add_command(label='Cancel', command=menu.destroy)
+            try:
+                menu.tk_popup(x=event.x_root, y=event.y_root)
+            finally:
+                menu.grab_release()
 
     def _get_tab_id(self, page_type: str):
         ids = [x.id_ for x in self._pages if page_type in x.class_]

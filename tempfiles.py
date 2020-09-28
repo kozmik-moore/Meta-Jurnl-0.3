@@ -169,7 +169,8 @@ class ReaderFileManager(_TempFileManager):
 
     @tags.setter
     def tags(self, v: Tuple[str]):
-        if type(v) == tuple and all([isinstance(x, str) for x in v]):
+        if all([isinstance(x, str) for x in v]):
+            v = tuple(v)
             self.parser['Strings']['tags'] = str(v)
             self.write_file()
 

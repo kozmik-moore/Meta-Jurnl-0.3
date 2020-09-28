@@ -8,15 +8,14 @@ from PIL import Image, ImageTk
 from base_widgets import add_bind_tag_to_bindtags
 from modules import ReaderModule
 from scrolled_frame import VScrolledFrame
+from themes import get_icon
 
 
 class AttributesButton(Menubutton):
     def __init__(self, reader: ReaderModule, bind_tag: str = None, **kwargs):
         super(AttributesButton, self).__init__(**kwargs)
 
-        img = Image.open('.resources/filter_icon.png')
-        img = img.resize((16, 16))
-        self.filters_icon = ImageTk.PhotoImage(image=img)
+        self.filters_icon = get_icon('ic_filter_list')
 
         self._bind_tag = bind_tag if bind_tag else ''
 
@@ -71,17 +70,9 @@ class AttributesFrame(Frame):
     def __init__(self, reader: ReaderModule, bind_tag: str = None, **kwargs):
         super(AttributesFrame, self).__init__(**kwargs)
 
-        img = Image.open('.resources/attachments_icon.png')
-        img = img.resize((16, 16))
-        self.attachments_icon = ImageTk.PhotoImage(image=img)
-
-        img = Image.open('.resources/parent_icon.png')
-        img = img.resize((16, 16))
-        self.parent_icon = ImageTk.PhotoImage(image=img)
-
-        img = Image.open('.resources/children_icon.png')
-        img = img.resize((16, 16))
-        self.children_icon = ImageTk.PhotoImage(image=img)
+        self.attachments_icon = get_icon('ic_attach_file')
+        self.parent_icon = get_icon('ic_person')
+        self.children_icon = get_icon('ic_people')
 
         self._bind_tag = bind_tag if bind_tag else ''
 

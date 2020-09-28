@@ -15,6 +15,8 @@ class ReaderModule:
         self._temp = ReaderFileManager(path_to_tempfile)
         self._filter = Filter(self._temp.database)
 
+        self._temp.tags = self.all_tags
+
         self._filter.dates = self._temp.dates
         self._filter.tags = self._temp.tags
         self._filter.tag_filter = self._temp.tag_filter

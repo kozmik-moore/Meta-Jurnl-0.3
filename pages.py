@@ -119,14 +119,14 @@ class WriterPage(Frame):
         left_header = Frame(master=top_left, padding=5, relief='sunken', borderwidth=1)
         left_header.pack(fill='x')
 
-        attachments = Frame(master=left_header)
-        attachments.pack(fill='x', expand=True, side='left')
-
-        attachments_button = AttachmentsButton(master=attachments, writer=self._writer, bind_tag=self._bind_tag)
-        attachments_button.pack(side='left')
-
         date = DateFrame(master=left_header, writer=self._writer, bind_tag=self._bind_tag)
         date.pack(fill='x', expand=True, side='left', anchor='c')
+
+        attachments = Frame(master=left_header)
+        attachments.pack(fill='x', expand=True, side='right')
+
+        attachments_button = AttachmentsButton(master=attachments, writer=self._writer, bind_tag=self._bind_tag)
+        attachments_button.pack(side='right')
 
         body = WriterBodyFrame(master=top_left, writer=self._writer, bind_tag=self._bind_tag)
         body.pack(fill='both', expand=True)
