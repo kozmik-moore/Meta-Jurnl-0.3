@@ -2,7 +2,7 @@
 from math import floor
 from tkinter import Tk, Menu
 from tkinter.messagebox import askquestion
-from tkinter.ttk import Button, Frame, Style
+from tkinter.ttk import Button, Frame
 
 from PIL import Image, ImageTk
 
@@ -11,7 +11,6 @@ from backup import check_backup
 from configurations import dimensions, backup_enabled, autodelete_imports
 from database_info import database_is_empty
 from notebook import Journal
-
 
 # TODO add methods for creating new database
 # TODO add menu option to auto-clean imports
@@ -189,7 +188,6 @@ class App(Tk):
             self.edit_button.pack_forget()
             self.link_button.pack_forget()
             self.delete_button.pack_forget()
-
 
     def check_writer_buttons(self, event=None):
         saved = self.journal.check_saved(event)

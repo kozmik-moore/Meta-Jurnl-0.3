@@ -14,7 +14,7 @@ class WriterStatsFrame(Frame):
         self._writer = writer
         
         stats_button = Button(master=self, text='Stats')
-        stats_button.pack(side='left', padx=(5, 0))
+        # stats_button.pack(side='left', padx=(5, 0))
 
         self.status_label_var = StringVar(name='status_var.{}'.format(self._bind_tag))
 

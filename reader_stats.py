@@ -1,4 +1,4 @@
-from tkinter import StringVar, Event
+from tkinter import StringVar, Event, Menubutton, Menu
 from tkinter.ttk import Button, Label, Frame
 
 from modules import ReaderModule
@@ -12,8 +12,14 @@ class ReaderStatsFrame(Frame):
 
         self._reader = reader
 
-        stats_button = Button(master=self, text='Stats')
+        stats_button = Menubutton(master=self, text='Stats', direction='above', width=16)
         stats_button.pack(side='left', padx=(5, 0))
+
+        menu = Menu(master=stats_button, tearoff=0)
+        menu.add(itemType='command', label='Relatives       ')
+        menu.add(itemType='command', label='Timeline')
+        menu.add(itemType='command', label='Graphs')
+        stats_button.configure(menu=menu)
 
         self.status_label_var = StringVar(name='status_var.{}'.format(self._bind_tag))
 

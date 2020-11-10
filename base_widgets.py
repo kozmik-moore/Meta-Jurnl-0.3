@@ -155,6 +155,12 @@ class ScrollingFrame(Frame):
         canvas.bind("<Leave>", _unbind_mouse)
 
 
+# class GraphGrid:
+#     def __init__(self, height=1, width=1, **kwargs):
+#
+#         self._grid = [[None for y in range(width)] for x in range(height)]
+
+
 if __name__ == '__main__':
     from tkinter import Tk
 

@@ -1,9 +1,7 @@
 from os import makedirs
 from os.path import exists, join
 from tkinter import IntVar, Toplevel, Event, Menubutton, Menu
-from tkinter.ttk import Frame, Checkbutton, Button, Label, Style
-
-from PIL import Image, ImageTk
+from tkinter.ttk import Frame, Button, Label
 
 from base_widgets import add_bind_tag_to_bindtags
 from modules import ReaderModule
