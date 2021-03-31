@@ -10,7 +10,7 @@ from database import create_database
 
 
 def create_file(database: str = None):
-    """Creates the config file for the application. Creates a database named 'jurnl.sqlite', if it does not exist
+    """Creates the config file for the application. Creates a database named 'jurnl.sqlite' if it does not exist
 
     :param database: a str path pointing to the database that the config file is initially built for
     """
@@ -54,6 +54,7 @@ def create_file(database: str = None):
         raise FileNotFoundError('The provided database \'{}\' does not exist.'.format(name))
 
 
+# TODO check that database settings point to correct locations
 def config(**options):
     """If options are supplied, attempts to edit those options in the file. Otherwise, gets and returns the options
 

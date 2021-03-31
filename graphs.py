@@ -2,6 +2,12 @@ from math import floor, ceil
 from tkinter import Toplevel, Canvas
 from tkinter.ttk import Button
 
+from matplotlib.pyplot import show
+from networkx import DiGraph, draw_networkx, draw_planar, draw_circular
+
+from matplotlib.figure import Figure
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
+
 from modules import ReaderModule
 from reader_functions import get_parent, get_children
 
@@ -13,8 +19,8 @@ class RelativesGraph(Toplevel):
 
         self._reader = reader
 
-        self.canvas = Canvas(master=self)
-        self.canvas.pack(fill='both', expand=True)
+        # self.canvas = Canvas(master=self)
+        # self.canvas.pack(fill='both', expand=True)
 
         self.draw_graph()
 
@@ -48,61 +54,39 @@ class RelativesGraph(Toplevel):
                             lvl += 1
             print(visited, level, adjacency)
 
-            # Find width of graph
-            height = level[-1] + 1
-            width = 1
-            if adjacency:
-                for i in adjacency.keys():
-                    length = len(adjacency[i])
-                    if length > width:
-                        width = length
+            digraph = DiGraph()
+            digraph.add_nodes_from(visited)
+            for u in adjacency:
+                for v in adjacency[u]:
+                    digraph.add_edge(u, v)
+            print(digraph.edges, digraph.nodes)
+            fig = Figure(figsize=(8, 6))
+            plt = fig.add_subplot(111)
+            plt.plot()
+            # plt.draw_planar(digraph, with_labels=True)
 
-            # Assign relatives to positions in grid
-            grid = [[None for i in range(width)] for i in range(height)]
-            grid[0][ceil(width / 2) - 1] = visited.pop(0)    # Place root in center
-            level.pop(0)
-            for i in range(len(visited)):
-                row = level[i]
-                node = visited[i]
-                pos = parent_pos = adjacency[get_parent(node, database)].index(node)
-                placed = False
-                while not placed:
-                    if 0 <= pos < parent_pos:
-                        if grid[row][pos] is None:
-                            grid[row][pos] = node
-                            placed = True
-                        else:
-                            if pos >= 0:
-                                pos -= 1
-                            else:
-                                pos = parent_pos
-                    else:
-                        if grid[row][pos] is None:
-                            grid[row][pos] = node
-                            placed = True
-                        else:
-                            if pos >= 0:
-                                pos += 1
+            draw_planar(digraph, with_labels=True)
+            # plt.tick_params(axis='x', which='both', bottom=False, top=False, labelbottom=False)
+            # plt.tick_params(axis='y', which='both', right=False, left=False, labelleft=False)
+            # for pos in ['right', 'top', 'bottom', 'left']:
+            #     plt.gca().spines[pos].set_visible(False)
 
-                # if level:
-                #     if level[0] != i:
-                #         pass
-                #     else:
-                #         node = visited.pop(0)
-                #         parent_pos = adjacency[get_parent(node, database)].index(node)
-                #         level.pop(0)
-            print(grid)
+            show()
+            canvas = FigureCanvasTkAgg(fig, master=self)
+            toolbar = NavigationToolbar2Tk(canvas, self)
+            toolbar.update()
+            canvas.get_tk_widget().pack()
 
 
 def test():
     from tkinter import Tk
 
-    reader = ReaderModule('.tempfiles/Reader/000')
+    reader = ReaderModule('.tempfiles/Reader/001')
 
     def popup():
         p = RelativesGraph(reader)
-        p.grab_set()
-        p.focus()
+        # p.grab_set()
+        # p.focus()
 
     root = Tk()
     button = Button(master=root, text='Test', command=popup)
