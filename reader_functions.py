@@ -4,24 +4,33 @@ from datetime import datetime
 from sqlite3 import connect, PARSE_DECLTYPES, PARSE_COLNAMES
 from typing import Union, Tuple
 
-from configurations import current_database
+from configurations import default_database
 from database_info import get_all_entry_ids
+
+
+# TODO move Reader class to new module
 
 
 class Reader:
     """Stores the id of the currently selected entry and reports its attributes from the database"""
 
+    _id = None
+
     def __init__(self, path_to_db: str = None):
-        self._path = path_to_db if path_to_db else current_database()
-        self._id_ = None
+        self._path = path_to_db if path_to_db else default_database()
 
     @property
     def database_location(self):
         return self._path
 
+    @database_location.setter
+    def database_location(self, v: str):
+        self.id_ = None
+        self._path = v
+
     @property
     def id_(self):
-        return self._id_
+        return self._id
 
     @id_.setter
     def id_(self, entry_id: Union[int, None]):
@@ -29,7 +38,7 @@ class Reader:
 
         :param entry_id: an int representing an entry from the database or None if the entry is not set
         """
-        self._id_ = entry_id if entry_id in get_all_entry_ids(self.database_location) else None
+        self._id = entry_id if entry_id in get_all_entry_ids(self.database_location) else None
 
     @property
     def body(self):
@@ -38,8 +47,8 @@ class Reader:
         :return: a str representing the content of the entry or None if the entry is not set
         """
         body = ''
-        if self._id_:
-            body = get_body(database=self.database_location, entry_id=self._id_)
+        if self._id:
+            body = get_body(database=self.database_location, entry_id=self._id)
         return body
 
     @property
@@ -49,8 +58,8 @@ class Reader:
         :return: a tuple of str representing the tags of the entry or None if the entry is not set
         """
         tags = ()
-        if self._id_:
-            tags = get_tags(database=self.database_location, entry_id=self._id_)
+        if self._id:
+            tags = get_tags(database=self.database_location, entry_id=self._id)
         return tags
 
     @property
@@ -60,15 +69,15 @@ class Reader:
         :return: a datetime representing the date the entry was created or None if the entry is not set
         """
         date = None
-        if self._id_:
-            date = get_date(database=self.database_location, entry_id=self._id_)
+        if self._id:
+            date = get_date(database=self.database_location, entry_id=self._id)
         return date
 
     @property
     def date_last_edited(self):
         date = None
-        if self._id_:
-            date = get_date_last_edited(self._id_, self.database_location)
+        if self._id:
+            date = get_date_last_edited(self._id, self.database_location)
         return date
 
     @property
@@ -78,8 +87,8 @@ class Reader:
         :return: a tuple of int representing the attachments of the entry or None if the entry is not set
         """
         attachments = ()
-        if self._id_:
-            attachments = get_attachment_ids(database=self.database_location, entry_id=self._id_)
+        if self._id:
+            attachments = get_attachment_ids(database=self.database_location, entry_id=self._id)
         return attachments
 
     @property
@@ -89,8 +98,8 @@ class Reader:
         :return: an int representing the parent or None if there is no parent or the entry is not set
         """
         parent = None
-        if self._id_:
-            parent = get_parent(database=self.database_location, child_id=self._id_)
+        if self._id:
+            parent = get_parent(database=self.database_location, child_id=self._id)
         return parent
 
     @property
@@ -100,8 +109,8 @@ class Reader:
         :return: a list of ints representing the children of the entry
         """
         children = None
-        if self._id_:
-            return tuple(get_children(database=self.database_location, parent_id=self._id_))
+        if self._id:
+            return tuple(get_children(database=self.database_location, parent_id=self._id))
         return children
 
     @property
@@ -111,8 +120,8 @@ class Reader:
         :return: a bool indicating whether an entry has children or None indicating that the entry id field is not set
         """
         h = None
-        if self._id_:
-            h = True if get_children(self._id_, self.database_location) else False
+        if self._id:
+            h = True if get_children(self._id, self.database_location) else False
         return h
 
     @property
@@ -122,8 +131,8 @@ class Reader:
         :return: a bool indicating whether an entry has attachments or None indicating that the entry is not set
         """
         h = None
-        if self._id_:
-            h = True if get_attachment_ids(self._id_, self.database_location) else False
+        if self._id:
+            h = True if get_attachment_ids(self._id, self.database_location) else False
         return h
 
     @property
@@ -133,27 +142,28 @@ class Reader:
         :return: a bool indicating whether an entry has a parent or None indicating that the entry id field is not set
         """
         h = None
-        if self._id_:
-            h = True if get_parent(self._id_, self.database_location) else False
+        if self._id:
+            h = True if get_parent(self._id, self.database_location) else False
         return h
-
-
-# TODO add exception catching to functions which need it
 
 
 """---------------------------------Date Methods----------------------------------"""
 
 
 def get_date(entry_id: int, database: str = None):
+    """
+
+    :rtype: datetime
+    """
     types = PARSE_DECLTYPES | PARSE_COLNAMES
-    db = connect(database, detect_types=types) if database else connect(current_database(), detect_types=types)
+    db = connect(database, detect_types=types) if database else connect(default_database(), detect_types=types)
     with closing(db) as d:
         return d.execute('SELECT created FROM dates WHERE entry_id=?', (entry_id,)).fetchone()[0]
 
 
 def get_date_last_edited(entry_id: int, database: str = None):
     types = PARSE_DECLTYPES | PARSE_COLNAMES
-    db = connect(database, detect_types=types) if database else connect(current_database(), detect_types=types)
+    db = connect(database, detect_types=types) if database else connect(default_database(), detect_types=types)
     with closing(db) as d:
         return d.execute('SELECT last_edit FROM dates WHERE entry_id=?', (entry_id,)).fetchone()[0]
 
@@ -169,7 +179,7 @@ def get_body(entry_id: int, database: str = None):
     :param database: a Connection or str representing the database that is being queried
     :return: the body of the given entry
     """
-    db = connect(database) if database else connect(current_database())
+    db = connect(database) if database else connect(default_database())
     with closing(db) as d:
         return d.execute('SELECT body FROM bodies WHERE entry_id=?', (entry_id,)).fetchone()[0]
 
@@ -184,7 +194,7 @@ def get_tags(entry_id: int, database: str = None):
     :param database: a Connection or str representing the database that is being queried
     :return: a list of str representing the tags for all entries or a specific entry
     """
-    db = connect(database) if database else connect(current_database())
+    db = connect(database) if database else connect(default_database())
     with closing(db) as d:
         c = d.execute('SELECT tag FROM tags WHERE entry_id=? ORDER BY tag', (entry_id,)).fetchall()
         return tuple([str(tag[0]) for tag in c])
@@ -200,10 +210,10 @@ def get_attachment_ids(entry_id: int, database: str = None):
     :param database: a Connection or str representing the database that is being queried
     :return: a tuple of ints representing the ids of the attachments associated with the given entry
     """
-    db = connect(database) if database else connect(current_database())
+    db = connect(database) if database else connect(default_database())
     with closing(db) as d:
         c = d.execute('SELECT att_id FROM attachments WHERE entry_id=? ORDER BY added', (entry_id,)).fetchall()
-        return tuple(int(x[0]) for x in c)
+        return tuple([int(x[0]) for x in c])
 
 
 def get_attachment_file(att_id: int, database: str = None):
@@ -214,7 +224,7 @@ def get_attachment_file(att_id: int, database: str = None):
     :param database: a Connection or str representing the database that is being queried
     :return: a bytestream representing the attachment file
     """
-    db = connect(database) if database else connect(current_database())
+    db = connect(database) if database else connect(default_database())
     with closing(db) as d:
         return d.execute('SELECT file FROM attachments WHERE att_id=?', (att_id,)).fetchone()[0]
 
@@ -227,7 +237,7 @@ def get_attachment_name(att_id: int, database: str = None):
     :param database: a Connection or str representing the database that is being queried
     :return: a str representing the filename for the attachment
     """
-    db = connect(database) if database else connect(current_database())
+    db = connect(database) if database else connect(default_database())
     with closing(db) as d:
         return d.execute('SELECT filename FROM attachments WHERE att_id=?', (att_id,)).fetchone()[0]
 
@@ -241,7 +251,7 @@ def get_attachment_date(att_id: int, database: str = None):
     :return: a datetime representing the date that the attachment was added to the database
     """
     types = PARSE_DECLTYPES | PARSE_COLNAMES
-    db = connect(database, detect_types=types) if database else connect(current_database(), detect_types=types)
+    db = connect(database, detect_types=types) if database else connect(default_database(), detect_types=types)
     with closing(db) as d:
         return d.execute('SELECT added FROM attachments WHERE att_id=?', (att_id,)).fetchone()[0]
 
@@ -256,7 +266,7 @@ def get_children(parent_id: int, database: str = None):
     :param database: a Connection or str representing the database that is being queried
     :return: a list of ints representing the child entries of the given entry
     """
-    db = connect(database) if database else connect(current_database())
+    db = connect(database) if database else connect(default_database())
     with closing(db) as d:
         c = d.execute('SELECT child FROM relations WHERE parent=?', (parent_id,)).fetchall()
         return tuple(int(x[0]) for x in c)
@@ -270,7 +280,7 @@ def get_parent(child_id: int, database: str = None):
     :param database: a Connection or str representing the database that is being queried
     :return: an int representing the parent of the given entry or None if there is no parent
     """
-    db = connect(database) if database else connect(current_database())
+    db = connect(database) if database else connect(default_database())
     with closing(db) as d:
         c = d.execute('SELECT parent FROM relations WHERE child=?', (child_id,))
         t = c.fetchone()

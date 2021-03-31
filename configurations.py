@@ -1,4 +1,5 @@
 """Classes and functions for manipulating and maintaining the application's configuration file(s)"""
+from ast import literal_eval
 from configparser import ConfigParser
 from datetime import datetime
 from os import getcwd
@@ -9,7 +10,7 @@ from database import create_database
 
 
 def create_file(database: str = None):
-    """Creates the config file for the application. Creates a database named 'jurnl.sqlite', if it does not exist
+    """Creates the config file for the application. Creates a database named 'jurnl.sqlite' if it does not exist
 
     :param database: a str path pointing to the database that the config file is initially built for
     """
@@ -27,21 +28,33 @@ def create_file(database: str = None):
             'backup interval': '72',
             'number of backups': '3'
         }
-        # TODO add option for obscuring system files (read and write in bytes instead of str)
         parser['Filesystem'] = {
-            'current database': database,
-            'backup location': join(getcwd(), 'Backup')
+            'default database': database,
+            'backup location': join(getcwd(), '.backup'),
+            'imports': join(getcwd(), 'Imports'),
+            'autodelete imports': 'False',
+            'exports': join(getcwd(), 'Exports')
         }
         parser['Databases'] = {
             name.replace('.sqlite', ''): database
         }
+        parser['Notebook'] = {
+            'pages': '[]',
+            'current': ''
+        }
+        parser['Visual'] = {
+            'theme': '(dark, green)',
+            'dimensions': '(1500, 600)'
+        }
+        # TODO add option for obscuring system files (read and write in bytes instead of str)
         with open('settings.config', 'w') as f:
             parser.write(f)
             f.close()
     else:
         raise FileNotFoundError('The provided database \'{}\' does not exist.'.format(name))
-    
 
+
+# TODO check that database settings point to correct locations
 def config(**options):
     """If options are supplied, attempts to edit those options in the file. Otherwise, gets and returns the options
 
@@ -51,7 +64,7 @@ def config(**options):
     if options:
         keys = options.keys()
         if 'enabled' in keys:
-            enabled(options['enabled'])
+            backup_enabled(options['enabled'])
         if 'last backup' in keys:
             last_backup(options['last backup'])
         if 'backup interval' in keys:
@@ -59,7 +72,7 @@ def config(**options):
         if 'number of backups' in keys:
             number_of_backups(options['number of backups'])
         if 'current database' in keys:
-            current_database(options['current database'])
+            default_database(options['current database'])
         if 'backup location' in keys:
             backup_location(options['backup location'])
     else:
@@ -68,9 +81,9 @@ def config(**options):
     p = ConfigParser()
     p.read('settings.config')
     return p
-            
-            
-def enabled(option: str = None):
+
+
+def backup_enabled(option: str = None):
     """If option is supplied, edits the 'backup enabled' switch in the config file. Otherwise, returns its status
 
     :param option: a str: 'yes' indicates that backups are enabled, 'no' indicates disabled
@@ -79,7 +92,7 @@ def enabled(option: str = None):
     if not exists('settings.config'):
         create_file()
     p = ConfigParser()
-    p.read('settings.config')  
+    p.read('settings.config')
     if option in ['yes', 'no']:
         p['Backup']['enabled'] = option
         with open('settings.config', 'w') as f:
@@ -153,8 +166,8 @@ def number_of_backups(number: int = None):
         return v
 
 
-def current_database(path: str = None):
-    """If path is supplied, edits the 'current database' field in the config file. Otherwise, returns the field
+def default_database(path: str = None):
+    """If path is supplied, edits the 'default database' field in the config file. Otherwise, returns the field
 
     :param path: a str indicating the location of the database
     :return: a str indicating the location of the database
@@ -164,12 +177,12 @@ def current_database(path: str = None):
     p = ConfigParser()
     p.read('settings.config')
     if path is None:
-        v = p['Filesystem']['current database']
+        v = p['Filesystem']['default database']
         return abspath(v)
     elif exists(path):
         databases([path])
         p.read('settings.config')
-        p['Filesystem']['current database'] = abspath(path)
+        p['Filesystem']['default database'] = abspath(path)
         with open('settings.config', 'w') as f:
             p.write(f)
             f.close()
@@ -193,6 +206,73 @@ def backup_location(path: str = None):
         return abspath(v)
     elif exists(path) and isdir(path):
         p['Filesystem']['backup location'] = abspath(path)
+        with open('settings.config', 'w') as f:
+            p.write(f)
+            f.close()
+    else:
+        raise IOError('Not a valid path to a directory')
+
+
+def imports_location(path: str = None):
+    # TODO create dir if passed a bool indicating permission
+    """If path is supplied, edits the 'imports' field in the config file. Otherwise, returns the field
+
+    :param path: a str indicating the location of the database backups
+    :return: a str indicating the location of the database backups
+    """
+    if not exists('settings.config'):
+        create_file()
+    p = ConfigParser()
+    p.read('settings.config')
+    if path is None:
+        v = p['Filesystem']['imports']
+        return abspath(v)
+    elif exists(path) and isdir(path):
+        p['Filesystem']['imports'] = abspath(path)
+        with open('settings.config', 'w') as f:
+            p.write(f)
+            f.close()
+    else:
+        raise IOError('Not a valid path to a directory')
+
+
+def autodelete_imports(value: bool = None):
+    # TODO create dir if passed a bool indicating permission
+    """If path is supplied, edits the 'imports' field in the config file. Otherwise, returns the field
+
+    :param value: a str indicating the location of the database backups
+    :return: a str indicating the location of the database backups
+    """
+    if not exists('settings.config'):
+        create_file()
+    p = ConfigParser()
+    p.read('settings.config')
+    if value is None:
+        v = p.getboolean('Filesystem', 'autodelete imports')
+        return v
+    else:
+        p['Filesystem']['imports'] = str(value)
+        with open('settings.config', 'w') as f:
+            p.write(f)
+            f.close()
+
+
+def exports_location(path: str = None):
+    # TODO create dir if passed a bool indicating permission
+    """If path is supplied, edits the 'exports' field in the config file. Otherwise, returns the field
+
+    :param path: a str indicating the location of the database backups
+    :return: a str indicating the location of the database backups
+    """
+    if not exists('settings.config'):
+        create_file()
+    p = ConfigParser()
+    p.read('settings.config')
+    if path is None:
+        v = p['Filesystem']['exports']
+        return abspath(v)
+    elif exists(path) and isdir(path):
+        p['Filesystem']['exports'] = abspath(path)
         with open('settings.config', 'w') as f:
             p.write(f)
             f.close()
@@ -224,6 +304,99 @@ def databases(added: List[str] = None, removed: List[str] = None):
         if removed:
             for r in removed:
                 p.remove_option('Databases', basename(r).replace('.sqlite', ''))
+        with open('settings.config', 'w') as f:
+            p.write(f)
+            f.close()
+
+
+def pages(whole: List = None, added: str = None, removed: str = None):
+    """If path is supplied, edits the pages variable in the "Notebook" section. Otherwise, returns the variable
+
+    :param whole: a list of all active tempfiles to be added. Either use this param or "added"
+    :return: a list of str representing tempfiles
+    :rtype: List
+    :param added: a str representing a tempfile to be added to the Journal
+    :param removed:  a str representing a tempfile to be removed from the Journal
+    """
+    if not exists('settings.config'):
+        create_file()
+    p = ConfigParser()
+    p.read('settings.config')
+    v: List = literal_eval(p.get('Notebook', 'pages'))
+    if not added and not removed and not whole:
+        return v
+    else:
+        if added:
+            if exists(added):
+                if added not in v:
+                    v.append(added)
+                    p.set('Notebook', 'pages', str(v))
+            else:
+                raise IOError('Not a valid path to a database')
+        if removed:
+            try:
+                v.remove(removed)
+                p.set('Notebook', 'pages', str(v))
+            except ValueError:
+                pass
+        if whole:
+            v = whole
+            p.set('Notebook', 'pages', str(v))
+        with open('settings.config', 'w') as f:
+            p.write(f)
+            f.close()
+
+
+def current_page(page: str = None):
+    """If page is supplied, edits the currently displayed page in the config file. Otherwise, returns its status
+
+    :param page: a str representing a page
+    :return: a str representing the page that was most previously displayed
+    """
+    if not exists('settings.config'):
+        create_file()
+    p = ConfigParser()
+    p.read('settings.config')
+    if not page:
+        return p.get('Notebook', 'current')
+    else:
+        p.set('Notebook', 'current', page)
+        with open('settings.config', 'w') as f:
+            p.write(f)
+            f.close()
+
+
+def dimensions(dims: tuple = None):
+    if not exists('settings.config'):
+        create_file()
+    p = ConfigParser()
+    p.read('settings.config')
+    if not dims:
+        try:
+            d = literal_eval(p.get('Visual', 'dimensions'))
+        except SyntaxError:
+            d = ()
+        return d
+    else:
+        p.set('Visual', 'dimensions', str(dims))
+        with open('settings.config', 'w') as f:
+            p.write(f)
+            f.close()
+
+
+def color_scheme(colors: tuple = None):
+    if not exists('settings.config'):
+        create_file()
+    p = ConfigParser()
+    p.read('settings.config')
+    if not colors:
+        try:
+            d = literal_eval(p.get('Visual', 'theme'))
+        except SyntaxError:
+            d = ('dark', 'green')
+        return d
+    else:
+        p.set('Visual', 'dimensions', str(colors))
         with open('settings.config', 'w') as f:
             p.write(f)
             f.close()

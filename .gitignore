@@ -98,7 +98,7 @@ celerybeat-schedule
 *.sage.py
 
 # Pycharm
-.idea*
+.idea
 
 # Environments
 .env
@@ -130,7 +130,12 @@ dmypy.json
 # Project
 *.svgz
 *.odg*
+.~lock*
 settings.json
 rsync.conf
 Pipfile*
 Test-Resources/
+/jurnl.sqlite
+/settings.config
+/.tempfiles/
+/Icons/

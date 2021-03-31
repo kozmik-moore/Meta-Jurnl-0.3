@@ -2,7 +2,7 @@
 from contextlib import closing
 from sqlite3 import connect, Connection, PARSE_DECLTYPES, PARSE_COLNAMES
 
-from configurations import current_database
+from configurations import default_database
 
 
 def get_all_entry_ids(database: str = None):
@@ -12,7 +12,7 @@ def get_all_entry_ids(database: str = None):
     :param database: a str representing the database that is being queried
     :return: a list of ints representing the entry ids
     """
-    db = connect(database) if database else connect(current_database())
+    db = connect(database) if database else connect(default_database())
     with closing(db) as d:
         t = d.execute('SELECT entry_id FROM dates ORDER BY created').fetchall()
         return [x[0] for x in t]
@@ -25,7 +25,7 @@ def get_all_tags(database: str = None):
     :param database: a str representing the database that is being queried
     :return: a list of str representing all tags used in the database
     """
-    db = connect(database) if database else connect(current_database())
+    db = connect(database) if database else connect(default_database())
     with closing(db) as d:
         t = set(d.execute('SELECT tag FROM tags ORDER BY tag').fetchall())
         return [x[0] for x in t]
@@ -39,7 +39,7 @@ def get_all_dates(database: str = None):
     :return: a list of datetime objects
     """
     types = PARSE_DECLTYPES | PARSE_COLNAMES
-    db = connect(database, detect_types=types) if database else connect(current_database(), detect_types=types)
+    db = connect(database, detect_types=types) if database else connect(default_database(), detect_types=types)
     with closing(db) as d:
         dates = [x[0] for x in d.execute('SELECT created FROM dates ORDER BY created').fetchall()]
         return dates
@@ -52,8 +52,11 @@ def get_oldest_date(database: str = None):
     :param database: a str representing the location of a journal database
     :return: a datetime representing the date of the oldest entry in the database
     """
-    db = current_database(database) if database else current_database()
-    return get_all_dates(db)[0]
+    db = default_database(database) if database else default_database()
+    try:
+        return get_all_dates(db)[0]
+    except IndexError:
+        return None
 
 
 def get_newest_date(database: str = None):
@@ -63,8 +66,11 @@ def get_newest_date(database: str = None):
     :param database: a str representing the location of a journal database
     :return: a datetime representing the date of the newest entry in the database
     """
-    db = current_database(database) if database else current_database()
-    return get_all_dates(db)[-1]
+    db = default_database(database) if database else default_database()
+    try:
+        return get_all_dates(db)[-1]
+    except IndexError:
+        return None
 
 
 def get_all_children(database: str = None):
@@ -74,7 +80,7 @@ def get_all_children(database: str = None):
     :param database: a Connection or str representing the database that is being queried
     :return: a list of ints representing entries
     """
-    db = connect(database) if database else connect(current_database())
+    db = connect(database) if database else connect(default_database())
     with closing(db) as d:
         return [x[0] for x in d.execute('SELECT child from relations').fetchall()]
 
@@ -86,7 +92,7 @@ def get_all_parents(database: str = None):
     :param database: a Connection or str representing the database that is being queried
     :return: a list of ints representing entries
     """
-    db = connect(database) if database else connect(current_database())
+    db = connect(database) if database else connect(default_database())
     with closing(db) as d:
         return [x[0] for x in d.execute('SELECT parent from relations').fetchall()]
 
@@ -98,7 +104,7 @@ def get_all_relations(database: str = None):
     :param database: a Connection or str representing the database that is being queried
     :return: a collection of linked pairs, each representing a parent-child relationship
     """
-    db = connect(database) if database else connect(current_database())
+    db = connect(database) if database else connect(default_database())
     with closing(db) as d:
         pairs = d.execute('SELECT child,parent FROM relations')
     return pairs
@@ -111,7 +117,7 @@ def get_number_of_entries(database: str = None):
     :param database: a Connection or str representing the database that is being queried
     :return: an int representing the number of entries in the database
     """
-    db = connect(database) if database else connect(current_database())
+    db = connect(database) if database else connect(default_database())
     with closing(db) as d:
         count = d.execute('SELECT COUNT() FROM bodies').fetchone()[0]
     return count
@@ -124,11 +130,18 @@ def get_years(database: str = None):
     :param database: a Connection or str representing the database that is being queried
     :return: a list representing the years in which the database has entries
     """
-    db = connect(database) if database else connect(current_database())
+    db = connect(database) if database else connect(default_database())
     with closing(db) as d:
         years = list({x[0] for x in d.execute('SELECT year FROM dates')})
         years.sort()
     return years
+
+
+def database_is_empty(database: str = None):
+    if len(get_all_entry_ids(database if database else default_database())) == 0:
+        return True
+    else:
+        return False
 
 
 def close_connection(database: Connection):

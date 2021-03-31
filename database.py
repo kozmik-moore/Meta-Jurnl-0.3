@@ -1,7 +1,8 @@
 """Functions for creating and manipulating the journal database"""
-from sqlite3 import connect, PARSE_DECLTYPES, PARSE_COLNAMES
+from sqlite3 import connect
 
 
+# TODO add "last_access" to dates
 def create_database(database: str) -> None:
     file = open(database, 'w+')
     file.close()

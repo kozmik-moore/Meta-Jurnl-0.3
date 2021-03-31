@@ -3,15 +3,16 @@ from contextlib import closing
 from datetime import datetime
 from os.path import basename
 from sqlite3 import connect
-from typing import Union, Tuple
+from typing import Union, Tuple, Any
 
-from configurations import current_database
-from reader import Reader, get_tags, get_attachment_ids
+from configurations import default_database
+from reader_functions import Reader, get_tags, get_attachment_ids
 
 
+# TODO rename and move Writer class to new module
 class Writer:
     def __init__(self, path_to_db: str = None):
-        self._path = path_to_db if path_to_db else current_database()
+        self._path = path_to_db if path_to_db else default_database()
         self._reader = Reader(path_to_db)
 
         self._id = None
@@ -30,6 +31,12 @@ class Writer:
     @property
     def database_location(self):
         return self._path
+
+    @database_location.setter
+    def database_location(self, v: str):
+        self.id_ = None
+        self._path = v
+        self._reader.database_location = v
 
     @property
     def id_(self):
@@ -177,7 +184,6 @@ class Writer:
                 modify_last_edit(self.id_, self._path)
             self.id_ = self.id_
 
-    # TODO remove
     def clear_fields(self):
         """Clears all entry fields if there have been no changes to the body, date, tags, or attachments.
 
@@ -215,14 +221,14 @@ class Writer:
 
 
 # TODO Does this need to be modified for when the new date is after the latest edit?
-def modify_date(entry_id: int, date: datetime, database: str = None):
+def modify_date(entry_id: int, date: datetime, database: str = None, **kwargs):
     """Changes the date of the given entry to the given date
 
     :param entry_id: an int representing the given entry
     :param date: a datetime representing the new date
     :param database: a Connection or str representing the database that is being modified
     """
-    db = connect(database) if database else connect(current_database())
+    db = connect(database) if database else connect(default_database())
     with closing(db) as d:
         d.execute('UPDATE dates SET created=? WHERE entry_id=?',
                   (date, entry_id))
@@ -236,7 +242,7 @@ def set_date(entry_id: int, date: datetime, database: str = None):
     :param date: a datetime representing the date associated with the given entry
     :param database: a Connection or str representing the database that is being modified
     """
-    db = connect(database) if database else connect(current_database())
+    db = connect(database) if database else connect(default_database())
     with closing(db) as d:
         d.execute('INSERT INTO dates(entry_id,created,last_edit) VALUES(?,?,?)', (entry_id, date, date))
         d.commit()
@@ -248,7 +254,7 @@ def modify_last_edit(entry_id: int, database: str = None):
     :param entry_id: an int representing the given entry
     :param database: a Connection or str representing the database that is being modified
     """
-    db = connect(database) if database else connect(current_database())
+    db = connect(database) if database else connect(default_database())
     with closing(db) as d:
         now = datetime.now()
         d.execute('UPDATE dates SET last_edit=? WHERE entry_id=?', (now, entry_id))
@@ -267,7 +273,7 @@ def set_body(body: str, database: str = None):
     :param database: a Connection or str representing the database that is being modified
     :return: an int representing the id of the new entry
     """
-    db = connect(database) if database else connect(current_database())
+    db = connect(database) if database else connect(default_database())
     with closing(db) as d:
         c = d.execute('INSERT INTO bodies(body) VALUES(?)', (body.strip(),))
         entry = c.lastrowid
@@ -275,14 +281,14 @@ def set_body(body: str, database: str = None):
     return entry
 
 
-def modify_body(entry_id: int, body: str, database: str = None):
+def modify_body(entry_id: int, body: str, database: str = None, **kwargs):
     """Changes the content of the given entry
 
     :param entry_id: an int representing the entry
     :param body: a str representing the content to replace with
     :param database: a Connection or str representing the database that is being modified
     """
-    db = connect(database) if database else connect(current_database())
+    db = connect(database) if database else connect(default_database())
     with closing(db) as d:
         d.execute('UPDATE bodies SET body=? WHERE entry_id=?', (body.strip(), entry_id))
         d.commit()
@@ -291,14 +297,14 @@ def modify_body(entry_id: int, body: str, database: str = None):
 """---------------------------------Tags Methods----------------------------------"""
 
 
-def set_tags(entry_id: int, tags: Tuple[str], database: str = None):
+def set_tags(entry_id: int, tags: Tuple[str], database: str = None, **kwargs):
     """Updates the tags for the given entry
 
     :param entry_id: an int representing the given int
     :param tags: a tuple representing the tags to be removed from the entry
     :param database: a Connection or str representing the database that is being modified
     """
-    db = connect(database) if database else connect(current_database())
+    db = connect(database) if database else connect(default_database())
     with closing(db) as d:
         if not tags:
             d.execute('INSERT INTO tags(entry_id) VALUES(?)', (entry_id,))
@@ -316,7 +322,7 @@ def set_tags(entry_id: int, tags: Tuple[str], database: str = None):
 """---------------------------------Attachments Methods----------------------------------"""
 
 
-def set_attachments(entry_id: int, attachments: Tuple[str], database: str = None):
+def set_attachments(entry_id: int, attachments: Tuple[Any], database: str = None, **kwargs):
     """Generates data for a given file and adds the data to the database for the given entry
 
     :param entry_id: an int representing the entry
@@ -324,7 +330,7 @@ def set_attachments(entry_id: int, attachments: Tuple[str], database: str = None
         the filesystem)
     :param database: a Connection or str representing the database that is being modified
     """
-    db = connect(database) if database else connect(current_database())
+    db = connect(database) if database else connect(default_database())
     with closing(db) as d:
         old = get_attachment_ids(entry_id, database)
         added = tuple(set(attachments).difference(old))
@@ -333,7 +339,6 @@ def set_attachments(entry_id: int, attachments: Tuple[str], database: str = None
             with open(path, 'rb') as f:
                 bytestream = f.read()
                 f.close()
-            # TODO get this to appropriately add the timestamp (UTC issue?)
             d.execute('INSERT INTO attachments(entry_id,filename,file,added) VALUES (?,?,?,?)',
                       (entry_id, name, bytestream, datetime.now()))
 
@@ -354,7 +359,7 @@ def set_relation(parent: int, child: int, database: str = None):
     :param child: an int representing the id of the generated entry
     :param database: a Connection or str representing the database that is being modified
     """
-    db = connect(database) if database else connect(current_database())
+    db = connect(database) if database else connect(default_database())
     with closing(db) as d:
         if (child,) not in d.execute('SELECT child FROM relations WHERE parent=?', (parent,)).fetchall():
             d.execute('INSERT INTO relations(child,parent) VALUES (?,?)', (child, parent))
@@ -376,7 +381,7 @@ def create_entry(database: str = None, body: str = '', tags: tuple = (), date: d
     :param database: a Connection or str representing the database that is being modified
     :return: an int identifying the entry in the database
     """
-    d = database if database else current_database()
+    d = database if database else default_database()
     id_ = set_body(body, d)
     set_tags(id_, tags, d)
     set_attachments(id_, attachments, d)
@@ -392,7 +397,7 @@ def delete_entry(entry_id, database: str = None):
     :param entry_id: an int representing the id of the given entry
     :param database: a Connection or str representing the database that is being modified
     """
-    db = connect(database) if database else connect(current_database())
+    db = connect(database) if database else connect(default_database())
     with closing(db) as d:
         d.execute('DELETE FROM bodies WHERE entry_id=?', (entry_id,))
         d.execute('DELETE FROM dates WHERE entry_id=?', (entry_id,))
